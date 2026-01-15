@@ -1,0 +1,2618 @@
+2026-01-13 16:03:41,699 - INFO - Starting ASR with input: microphone
+2026-01-13 16:03:41,700 - INFO - WebSocket URL: wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:03:41,700 - INFO - Starting microphone input...
+2026-01-13 16:03:41,793 - INFO - Microphone stream started with sample rate: 16000
+2026-01-13 16:03:41,937 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:03:41,937 - INFO - Sent full client request with seq: 1
+2026-01-13 16:03:41,980 - ERROR - Unexpected message type: 1
+2026-01-13 16:03:42,182 - INFO - Sent microphone audio segment with seq: 2
+2026-01-13 16:03:42,384 - INFO - Sent microphone audio segment with seq: 3
+2026-01-13 16:03:42,585 - INFO - Sent microphone audio segment with seq: 4
+2026-01-13 16:03:42,786 - INFO - Sent microphone audio segment with seq: 5
+2026-01-13 16:03:42,988 - INFO - Sent microphone audio segment with seq: 6
+2026-01-13 16:03:43,190 - INFO - Sent microphone audio segment with seq: 7
+2026-01-13 16:03:43,392 - INFO - Sent microphone audio segment with seq: 8
+2026-01-13 16:03:43,594 - INFO - Sent microphone audio segment with seq: 9
+2026-01-13 16:03:43,797 - INFO - Sent microphone audio segment with seq: 10
+2026-01-13 16:03:44,000 - INFO - Sent microphone audio segment with seq: 11
+2026-01-13 16:03:44,201 - INFO - Sent microphone audio segment with seq: 12
+2026-01-13 16:03:44,403 - INFO - Sent microphone audio segment with seq: 13
+2026-01-13 16:03:44,605 - INFO - Sent microphone audio segment with seq: 14
+2026-01-13 16:03:44,806 - INFO - Sent microphone audio segment with seq: 15
+2026-01-13 16:03:45,008 - INFO - Sent microphone audio segment with seq: 16
+2026-01-13 16:03:45,210 - INFO - Sent microphone audio segment with seq: 17
+2026-01-13 16:03:45,411 - INFO - Sent microphone audio segment with seq: 18
+2026-01-13 16:03:45,614 - INFO - Sent microphone audio segment with seq: 19
+2026-01-13 16:03:45,816 - INFO - Sent microphone audio segment with seq: 20
+2026-01-13 16:03:46,018 - INFO - Sent microphone audio segment with seq: 21
+2026-01-13 16:03:46,219 - INFO - Sent microphone audio segment with seq: 22
+2026-01-13 16:03:46,421 - INFO - Sent microphone audio segment with seq: 23
+2026-01-13 16:03:46,622 - INFO - Sent microphone audio segment with seq: 24
+2026-01-13 16:03:46,823 - INFO - Sent microphone audio segment with seq: 25
+2026-01-13 16:03:47,025 - INFO - Sent microphone audio segment with seq: 26
+2026-01-13 16:03:47,227 - INFO - Sent microphone audio segment with seq: 27
+2026-01-13 16:03:47,429 - INFO - Sent microphone audio segment with seq: 28
+2026-01-13 16:03:47,631 - INFO - Sent microphone audio segment with seq: 29
+2026-01-13 16:03:47,833 - INFO - Sent microphone audio segment with seq: 30
+2026-01-13 16:03:48,036 - INFO - Sent microphone audio segment with seq: 31
+2026-01-13 16:03:48,239 - INFO - Sent microphone audio segment with seq: 32
+2026-01-13 16:03:48,440 - INFO - Sent microphone audio segment with seq: 33
+2026-01-13 16:03:48,642 - INFO - Sent microphone audio segment with seq: 34
+2026-01-13 16:03:48,845 - INFO - Sent microphone audio segment with seq: 35
+2026-01-13 16:03:49,047 - INFO - Sent microphone audio segment with seq: 36
+2026-01-13 16:03:49,249 - INFO - Sent microphone audio segment with seq: 37
+2026-01-13 16:03:49,451 - INFO - Sent microphone audio segment with seq: 38
+2026-01-13 16:03:49,653 - INFO - Sent microphone audio segment with seq: 39
+2026-01-13 16:03:49,855 - INFO - Sent microphone audio segment with seq: 40
+2026-01-13 16:03:50,057 - INFO - Sent microphone audio segment with seq: 41
+2026-01-13 16:03:50,259 - INFO - Sent microphone audio segment with seq: 42
+2026-01-13 16:03:50,461 - INFO - Sent microphone audio segment with seq: 43
+2026-01-13 16:03:50,663 - INFO - Sent microphone audio segment with seq: 44
+2026-01-13 16:03:50,866 - INFO - Sent microphone audio segment with seq: 45
+2026-01-13 16:03:51,068 - INFO - Sent microphone audio segment with seq: 46
+2026-01-13 16:03:51,272 - INFO - Sent microphone audio segment with seq: 47
+2026-01-13 16:03:51,474 - INFO - Sent microphone audio segment with seq: 48
+2026-01-13 16:03:51,677 - INFO - Sent microphone audio segment with seq: 49
+2026-01-13 16:03:51,880 - INFO - Sent microphone audio segment with seq: 50
+2026-01-13 16:03:52,083 - INFO - Sent microphone audio segment with seq: 51
+2026-01-13 16:03:52,286 - INFO - Sent microphone audio segment with seq: 52
+2026-01-13 16:03:52,488 - INFO - Sent microphone audio segment with seq: 53
+2026-01-13 16:03:52,691 - INFO - Sent microphone audio segment with seq: 54
+2026-01-13 16:03:52,894 - INFO - Sent microphone audio segment with seq: 55
+2026-01-13 16:03:53,097 - INFO - Sent microphone audio segment with seq: 56
+2026-01-13 16:03:53,300 - INFO - Sent microphone audio segment with seq: 57
+2026-01-13 16:03:53,502 - INFO - Sent microphone audio segment with seq: 58
+2026-01-13 16:03:53,704 - INFO - Sent microphone audio segment with seq: 59
+2026-01-13 16:03:53,906 - INFO - Sent microphone audio segment with seq: 60
+2026-01-13 16:03:54,108 - INFO - Sent microphone audio segment with seq: 61
+2026-01-13 16:03:54,308 - INFO - Sent microphone audio segment with seq: 62
+2026-01-13 16:03:54,510 - INFO - Sent microphone audio segment with seq: 63
+2026-01-13 16:03:54,713 - INFO - Sent microphone audio segment with seq: 64
+2026-01-13 16:03:54,915 - INFO - Sent microphone audio segment with seq: 65
+2026-01-13 16:03:55,116 - INFO - Sent microphone audio segment with seq: 66
+2026-01-13 16:03:55,318 - INFO - Sent microphone audio segment with seq: 67
+2026-01-13 16:03:55,520 - INFO - Sent microphone audio segment with seq: 68
+2026-01-13 16:03:55,721 - INFO - Sent microphone audio segment with seq: 69
+2026-01-13 16:03:55,923 - INFO - Sent microphone audio segment with seq: 70
+2026-01-13 16:03:56,125 - INFO - Sent microphone audio segment with seq: 71
+2026-01-13 16:03:56,327 - INFO - Sent microphone audio segment with seq: 72
+2026-01-13 16:03:56,529 - INFO - Sent microphone audio segment with seq: 73
+2026-01-13 16:03:56,730 - INFO - Sent microphone audio segment with seq: 74
+2026-01-13 16:03:56,933 - INFO - Sent microphone audio segment with seq: 75
+2026-01-13 16:03:57,136 - INFO - Sent microphone audio segment with seq: 76
+2026-01-13 16:03:57,338 - INFO - Sent microphone audio segment with seq: 77
+2026-01-13 16:03:57,541 - INFO - Sent microphone audio segment with seq: 78
+2026-01-13 16:03:57,743 - INFO - Sent microphone audio segment with seq: 79
+2026-01-13 16:03:57,946 - INFO - Sent microphone audio segment with seq: 80
+2026-01-13 16:03:58,149 - INFO - Sent microphone audio segment with seq: 81
+2026-01-13 16:03:58,353 - INFO - Sent microphone audio segment with seq: 82
+2026-01-13 16:03:58,556 - INFO - Sent microphone audio segment with seq: 83
+2026-01-13 16:03:58,560 - INFO - Sent final microphone audio segment with seq: 84
+2026-01-13 16:03:58,697 - INFO - Microphone stream stopped
+2026-01-13 16:06:51,463 - INFO - Starting ASR for file: demotest.wav
+2026-01-13 16:06:51,463 - INFO - WebSocket URL: wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:06:51,464 - ERROR - Failed to calculate segment size: Invalid WAV file: no data subchunk found
+2026-01-13 16:06:51,464 - ERROR - Error in ASR execution: Invalid WAV file: no data subchunk found
+2026-01-13 16:06:51,464 - ERROR - ASR processing failed: Invalid WAV file: no data subchunk found
+Traceback (most recent call last):
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/sauc_websocket_demo.py", line 649, in main
+    async for response in client.execute(args.file):
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/sauc_websocket_demo.py", line 599, in execute
+    segment_size = self.get_segment_size(content)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/sauc_websocket_demo.py", line 477, in get_segment_size
+    channel_num, samp_width, frame_rate, _, _ = CommonUtils.read_wav_info(content)[:5]
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/sauc_websocket_demo.py", line 141, in read_wav_info
+    raise ValueError("Invalid WAV file: no data subchunk found")
+ValueError: Invalid WAV file: no data subchunk found
+2026-01-13 16:15:51,338 - ERROR - Failed to calculate segment size: Invalid WAV file: no data subchunk found
+2026-01-13 16:15:51,338 - ERROR - Error in ASR execution: Invalid WAV file: no data subchunk found
+2026-01-13 16:15:51,338 - ERROR - ASR processing failed: Invalid WAV file: no data subchunk found
+2026-01-13 16:19:43,201 - INFO - Starting ASR for file: test.wav
+2026-01-13 16:19:43,201 - INFO - WebSocket URL: wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:19:43,326 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:19:43,327 - INFO - Sent full client request with seq: 1
+2026-01-13 16:19:43,356 - ERROR - Unexpected message type: 1
+2026-01-13 16:19:43,356 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 16:19:43,558 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 16:19:43,761 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 16:19:43,963 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 16:19:44,164 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 16:19:44,366 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 16:19:44,569 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 16:19:44,773 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 16:19:44,976 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 16:19:45,178 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 16:19:45,380 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 16:19:45,583 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 16:19:45,786 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 16:19:45,988 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 16:19:46,191 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 16:19:46,393 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 16:19:46,596 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 16:19:46,798 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 16:19:47,000 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 16:19:47,202 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 16:19:47,404 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 16:19:47,607 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 16:19:47,809 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 16:19:48,012 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 16:19:48,215 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 16:19:48,417 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 16:39:58,955 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:39:58,956 - INFO - Sent full client request with seq: 1
+2026-01-13 16:39:58,993 - ERROR - Unexpected message type: 1
+2026-01-13 16:39:58,993 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 16:39:59,196 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 16:39:59,407 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 16:39:59,609 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 16:39:59,812 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 16:40:00,014 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 16:40:00,216 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 16:40:00,419 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 16:40:00,622 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 16:40:00,824 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 16:40:01,027 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 16:40:01,230 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 16:40:01,432 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 16:40:01,634 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 16:40:01,836 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 16:40:02,039 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 16:40:02,241 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 16:40:02,444 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 16:40:02,646 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 16:40:02,849 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 16:40:03,052 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 16:40:03,254 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 16:40:03,456 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 16:40:03,659 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 16:40:03,862 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 16:40:04,064 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 16:55:46,659 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 16:55:46,660 - INFO - Sent full client request with seq: 1
+2026-01-13 16:55:46,700 - INFO - Received text message: {"error":"error on Websocket NewData: unable to unmarshal request: unmarshal request: unmarshal request: invalid character '\\x11' looking for beginning of value"}
+2026-01-13 16:55:46,700 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 16:55:46,902 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 16:55:47,104 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 16:55:47,306 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 16:55:47,508 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 16:55:47,710 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 16:55:47,912 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 16:55:48,114 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 16:55:48,316 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 16:55:48,518 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 16:55:48,721 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 16:55:48,923 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 16:55:49,125 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 16:55:49,328 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 16:55:49,530 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 16:55:49,733 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 16:55:49,936 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 16:55:50,138 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 16:55:50,341 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 16:55:50,544 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 16:55:50,747 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 16:55:50,950 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 16:55:51,152 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 16:55:51,355 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 16:55:51,557 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 16:55:51,759 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 17:00:28,357 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 17:00:28,357 - INFO - Request header: 11111100
+2026-01-13 17:00:28,357 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 17:00:28,357 - INFO - Sent full client request with seq: 1
+2026-01-13 17:00:28,390 - INFO - Received text message: {"error":"error on Websocket NewData: unable to unmarshal request: unmarshal request: unmarshal request: invalid character '\\x11' looking for beginning of value"}
+2026-01-13 17:00:28,391 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 17:00:28,593 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 17:00:28,795 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 17:00:28,997 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 17:00:29,199 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 17:00:29,401 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 17:00:29,603 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 17:00:29,805 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 17:00:30,007 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 17:00:30,209 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 17:00:30,411 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 17:00:30,613 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 17:00:30,815 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 17:00:31,018 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 17:00:31,221 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 17:00:31,424 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 17:00:31,626 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 17:00:31,829 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 17:00:32,031 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 17:00:32,234 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 17:00:32,437 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 17:00:32,639 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 17:00:32,841 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 17:00:33,044 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 17:00:33,248 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 17:00:33,450 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 17:04:32,083 - ERROR - Failed to connect to WebSocket: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async'
+2026-01-13 17:04:32,083 - ERROR - Error in ASR execution: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async'
+2026-01-13 17:04:32,083 - ERROR - ASR processing failed: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async'
+2026-01-13 17:05:07,520 - ERROR - Failed to connect to WebSocket: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream'
+2026-01-13 17:05:07,520 - ERROR - Error in ASR execution: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream'
+2026-01-13 17:05:07,520 - ERROR - ASR processing failed: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream'
+2026-01-13 17:05:34,768 - ERROR - Failed to connect to WebSocket: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:05:34,769 - ERROR - Error in ASR execution: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:05:34,769 - ERROR - ASR processing failed: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:05:59,590 - ERROR - Failed to connect to WebSocket: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:05:59,590 - ERROR - Error in ASR execution: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:05:59,590 - ERROR - ASR processing failed: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:06:52,671 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 17:06:52,671 - INFO - Request header: 11111100
+2026-01-13 17:06:52,671 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 17:06:52,671 - INFO - Sent full client request with seq: 1
+2026-01-13 17:06:52,701 - INFO - Received text message: {"error":"error on Websocket NewData: unable to unmarshal request: unmarshal request: unmarshal request: invalid character '\\x11' looking for beginning of value"}
+2026-01-13 17:06:52,701 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 17:06:52,902 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 17:06:53,105 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 17:06:53,308 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 17:06:53,509 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 17:06:53,712 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 17:06:53,914 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 17:06:54,118 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 17:06:54,323 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 17:06:54,525 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 17:06:54,727 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 17:06:54,930 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 17:06:55,132 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 17:06:55,335 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 17:06:55,536 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 17:06:55,738 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 17:06:55,941 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 17:06:56,143 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 17:06:56,346 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 17:06:56,548 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 17:06:56,750 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 17:06:56,953 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 17:06:57,156 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 17:06:57,359 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 17:06:57,562 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 17:06:57,765 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 17:35:18,241 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 17:35:18,241 - INFO - Request header: 11111100
+2026-01-13 17:35:18,241 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 17:35:18,241 - INFO - Sent full client request with seq: 1
+2026-01-13 17:35:18,273 - INFO - Received text message: {"error":"error on Websocket NewData: unable to unmarshal request: unmarshal request: unmarshal request: invalid character '\\x11' looking for beginning of value"}
+2026-01-13 17:35:18,274 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 17:35:18,476 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 17:35:18,678 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 17:35:18,881 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 17:35:19,084 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 17:35:19,286 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 17:35:19,489 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 17:35:19,691 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 17:35:19,892 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 17:35:20,095 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 17:35:20,297 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 17:35:20,499 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 17:35:20,702 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 17:35:20,905 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 17:35:21,108 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 17:35:21,309 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 17:35:21,511 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 17:35:21,714 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 17:35:21,916 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 17:35:22,118 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 17:35:22,321 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 17:35:22,522 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 17:35:22,724 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 17:35:22,927 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 17:35:23,129 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 17:35:23,331 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 17:49:42,504 - ERROR - Failed to connect to WebSocket: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:49:42,504 - ERROR - Error in ASR execution: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:49:42,504 - ERROR - ASR processing failed: 403, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:54:49,680 - ERROR - Failed to connect to WebSocket: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:54:49,681 - ERROR - Error in ASR execution: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:54:49,681 - ERROR - ASR processing failed: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:59:46,514 - ERROR - Failed to connect to WebSocket: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:59:46,515 - ERROR - Error in ASR execution: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 17:59:46,515 - ERROR - ASR processing failed: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:08:44,466 - ERROR - Failed to connect to WebSocket: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:08:44,466 - ERROR - Error in ASR execution: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:08:44,466 - ERROR - ASR processing failed: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:10:03,594 - ERROR - Failed to connect to WebSocket: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:10:03,595 - ERROR - Error in ASR execution: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:10:03,595 - ERROR - ASR processing failed: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:12:01,148 - ERROR - Failed to connect to WebSocket: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:12:01,148 - ERROR - Error in ASR execution: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:12:01,149 - ERROR - ASR processing failed: 400, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v3/sauc/bigmodel'
+2026-01-13 18:23:56,492 - ERROR - Failed to connect to WebSocket: 404, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v1/sauc/bigmodel'
+2026-01-13 18:23:56,493 - ERROR - Error in ASR execution: 404, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v1/sauc/bigmodel'
+2026-01-13 18:23:56,493 - ERROR - ASR processing failed: 404, message='Invalid response status', url='wss://openspeech.bytedance.com/api/v1/sauc/bigmodel'
+2026-01-13 18:24:20,942 - INFO - Connected to wss://openspeech.bytedance.com/api/v1/asr/ws
+2026-01-13 18:24:20,943 - INFO - Request header: 11111100
+2026-01-13 18:24:20,943 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 18:24:20,944 - INFO - Sent full client request with seq: 1
+2026-01-13 18:24:20,987 - INFO - Received text message: {"error":"error on Websocket NewData: unable to unmarshal request: unmarshal request: unmarshal request: invalid character '\\x11' looking for beginning of value"}
+2026-01-13 18:24:20,987 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 18:24:21,189 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 18:24:21,391 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 18:24:21,594 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 18:24:21,796 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 18:24:21,998 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 18:24:22,201 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 18:24:22,403 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 18:24:22,606 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 18:24:22,808 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 18:24:23,010 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 18:24:23,213 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 18:24:23,415 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 18:24:23,617 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 18:24:23,819 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 18:24:24,021 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 18:24:24,224 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 18:24:24,425 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 18:24:24,628 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 18:24:24,830 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 18:24:25,033 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 18:24:25,235 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 18:24:25,437 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 18:24:25,640 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 18:24:25,841 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 18:24:26,042 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 18:24:59,853 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-13 18:24:59,855 - INFO - Request header: 11111100
+2026-01-13 18:24:59,855 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 18:24:59,855 - INFO - Sent full client request with seq: 1
+2026-01-13 18:24:59,904 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260113182459ACB260D1DD15A09EBEC2'}}}}
+2026-01-13 18:24:59,904 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 18:25:00,105 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 18:25:00,309 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 18:25:00,511 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 18:25:00,713 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 18:25:00,915 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 18:25:01,117 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 18:25:01,320 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 18:25:01,511 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 1,
+  "payload_size": 295,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 1598
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "text": "请",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1302,
+          "start_time": 1222,
+          "text": "请",
+          "words": [
+            {
+              "end_time": 1302,
+              "start_time": 1222,
+              "text": "请"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:01,523 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 18:25:01,674 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 2,
+  "payload_size": 405,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 1798
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "text": "请做一",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1702,
+          "start_time": 1082,
+          "text": "请做一",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1702,
+              "start_time": 1622,
+              "text": "一"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:01,725 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 18:25:01,927 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 18:25:02,113 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 3,
+  "payload_size": 460,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2198
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "text": "请做一个",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1782,
+          "start_time": 1082,
+          "text": "请做一个",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1782,
+              "start_time": 1702,
+              "text": "个"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:02,129 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 18:25:02,331 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 18:25:02,505 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 4,
+  "payload_size": 588,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2598
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "text": "请做一个自我介绍",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:02,532 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 18:25:02,686 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 5,
+  "payload_size": 604,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2798
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "prefetch": true,
+      "text": "请做一个自我介绍",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:02,734 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 18:25:02,937 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 18:25:03,139 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 18:25:03,341 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 18:25:03,543 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 18:25:03,746 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 18:25:03,948 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 18:25:04,150 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 18:25:04,353 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 18:25:04,555 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 18:25:04,757 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 18:25:04,871 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 6,
+  "payload_size": 594,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 4998
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "text": "请做一个自我介绍。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍。",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:04,959 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 18:25:05,059 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": true,
+  "payload_sequence": 7,
+  "payload_size": 593,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 5000
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182459ACB260D1DD15A09EBEC2"
+      },
+      "text": "请做一个自我介绍。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": true,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍。",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:50,682 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-13 18:25:50,682 - INFO - Request header: 11111100
+2026-01-13 18:25:50,682 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 18:25:50,682 - INFO - Sent full client request with seq: 1
+2026-01-13 18:25:50,745 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260113182550D87C06AB2575010BD953'}}}}
+2026-01-13 18:25:50,745 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 18:25:50,947 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 18:25:51,150 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 18:25:51,352 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 18:25:51,555 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 18:25:51,758 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 18:25:51,960 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 18:25:52,162 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 18:25:52,364 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 18:25:52,380 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 1,
+  "payload_size": 295,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 1598
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "text": "请",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1302,
+          "start_time": 1222,
+          "text": "请",
+          "words": [
+            {
+              "end_time": 1302,
+              "start_time": 1222,
+              "text": "请"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:52,565 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 18:25:52,595 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 2,
+  "payload_size": 405,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 1798
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "text": "请做一",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1702,
+          "start_time": 1082,
+          "text": "请做一",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1702,
+              "start_time": 1622,
+              "text": "一"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:52,768 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 18:25:52,970 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 18:25:52,991 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 3,
+  "payload_size": 460,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2198
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "text": "请做一个",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1782,
+          "start_time": 1082,
+          "text": "请做一个",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1782,
+              "start_time": 1702,
+              "text": "个"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:53,172 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 18:25:53,361 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 4,
+  "payload_size": 588,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2598
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "text": "请做一个自我介绍",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:53,373 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 18:25:53,550 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 5,
+  "payload_size": 604,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2798
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "prefetch": true,
+      "text": "请做一个自我介绍",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:53,575 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 18:25:53,778 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 18:25:53,980 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 18:25:54,183 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 18:25:54,385 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 18:25:54,587 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 18:25:54,789 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 18:25:54,991 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 18:25:55,194 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 18:25:55,397 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 18:25:55,598 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 18:25:55,709 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 6,
+  "payload_size": 594,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 4998
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "text": "请做一个自我介绍。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍。",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 18:25:55,800 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 18:25:55,883 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": true,
+  "payload_sequence": 7,
+  "payload_size": 593,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 5000
+    },
+    "result": {
+      "additions": {
+        "log_id": "20260113182550D87C06AB2575010BD953"
+      },
+      "text": "请做一个自我介绍。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": true,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍。",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:34,887 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-13 19:07:34,887 - INFO - Request header: 11111100
+2026-01-13 19:07:34,887 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 19:07:34,888 - INFO - Sent full client request with seq: 1
+2026-01-13 19:07:34,932 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601131907346E883E3B1A10F27925AC'}}}}
+2026-01-13 19:07:34,932 - INFO - Sent audio segment with seq: 2 (last: False)
+2026-01-13 19:07:35,134 - INFO - Sent audio segment with seq: 3 (last: False)
+2026-01-13 19:07:35,337 - INFO - Sent audio segment with seq: 4 (last: False)
+2026-01-13 19:07:35,540 - INFO - Sent audio segment with seq: 5 (last: False)
+2026-01-13 19:07:35,742 - INFO - Sent audio segment with seq: 6 (last: False)
+2026-01-13 19:07:35,944 - INFO - Sent audio segment with seq: 7 (last: False)
+2026-01-13 19:07:36,147 - INFO - Sent audio segment with seq: 8 (last: False)
+2026-01-13 19:07:36,350 - INFO - Sent audio segment with seq: 9 (last: False)
+2026-01-13 19:07:36,552 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 1,
+  "payload_size": 295,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 1598
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "text": "请",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1302,
+          "start_time": 1222,
+          "text": "请",
+          "words": [
+            {
+              "end_time": 1302,
+              "start_time": 1222,
+              "text": "请"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:36,554 - INFO - Sent audio segment with seq: 10 (last: False)
+2026-01-13 19:07:36,748 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 2,
+  "payload_size": 405,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 1798
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "text": "请做一",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1702,
+          "start_time": 1082,
+          "text": "请做一",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1702,
+              "start_time": 1622,
+              "text": "一"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:36,755 - INFO - Sent audio segment with seq: 11 (last: False)
+2026-01-13 19:07:36,957 - INFO - Sent audio segment with seq: 12 (last: False)
+2026-01-13 19:07:37,159 - INFO - Sent audio segment with seq: 13 (last: False)
+2026-01-13 19:07:37,160 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 3,
+  "payload_size": 460,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2198
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "text": "请做一个",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 1782,
+          "start_time": 1082,
+          "text": "请做一个",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1782,
+              "start_time": 1702,
+              "text": "个"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:37,362 - INFO - Sent audio segment with seq: 14 (last: False)
+2026-01-13 19:07:37,564 - INFO - Sent audio segment with seq: 15 (last: False)
+2026-01-13 19:07:37,768 - INFO - Sent audio segment with seq: 16 (last: False)
+2026-01-13 19:07:37,897 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 4,
+  "payload_size": 588,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 2998
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "text": "请做一个自我介绍",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:37,973 - INFO - Sent audio segment with seq: 17 (last: False)
+2026-01-13 19:07:38,100 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 5,
+  "payload_size": 604,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 3198
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "prefetch": true,
+      "text": "请做一个自我介绍",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:38,175 - INFO - Sent audio segment with seq: 18 (last: False)
+2026-01-13 19:07:38,377 - INFO - Sent audio segment with seq: 19 (last: False)
+2026-01-13 19:07:38,579 - INFO - Sent audio segment with seq: 20 (last: False)
+2026-01-13 19:07:38,781 - INFO - Sent audio segment with seq: 21 (last: False)
+2026-01-13 19:07:38,983 - INFO - Sent audio segment with seq: 22 (last: False)
+2026-01-13 19:07:39,185 - INFO - Sent audio segment with seq: 23 (last: False)
+2026-01-13 19:07:39,387 - INFO - Sent audio segment with seq: 24 (last: False)
+2026-01-13 19:07:39,590 - INFO - Sent audio segment with seq: 25 (last: False)
+2026-01-13 19:07:39,792 - INFO - Sent audio segment with seq: 26 (last: False)
+2026-01-13 19:07:39,916 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 6,
+  "payload_size": 594,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 4998
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "text": "请做一个自我介绍。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": false,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍。",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:07:39,994 - INFO - Sent audio segment with seq: 27 (last: True)
+2026-01-13 19:07:40,071 - INFO - Received response: {
+  "code": 0,
+  "event": 0,
+  "is_last_package": true,
+  "payload_sequence": 7,
+  "payload_size": 593,
+  "payload_msg": {
+    "audio_info": {
+      "duration": 5000
+    },
+    "result": {
+      "additions": {
+        "log_id": "202601131907346E883E3B1A10F27925AC"
+      },
+      "text": "请做一个自我介绍。",
+      "utterances": [
+        {
+          "additions": {
+            "fixed_prefix_result": ""
+          },
+          "definite": true,
+          "end_time": 2342,
+          "start_time": 1082,
+          "text": "请做一个自我介绍。",
+          "words": [
+            {
+              "end_time": 1162,
+              "start_time": 1082,
+              "text": "请"
+            },
+            {
+              "end_time": 1402,
+              "start_time": 1322,
+              "text": "做"
+            },
+            {
+              "end_time": 1562,
+              "start_time": 1482,
+              "text": "一"
+            },
+            {
+              "end_time": 1642,
+              "start_time": 1562,
+              "text": "个"
+            },
+            {
+              "end_time": 1962,
+              "start_time": 1882,
+              "text": "自我"
+            },
+            {
+              "end_time": 2342,
+              "start_time": 2262,
+              "text": "介绍"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+2026-01-13 19:09:47,970 - ERROR - ASR processing failed: File path is empty
+2026-01-13 19:10:24,194 - ERROR - ASR processing failed: File path is empty
+2026-01-13 19:10:54,256 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-13 19:10:54,257 - INFO - Request header: 11111100
+2026-01-13 19:10:54,257 - INFO - Request seq: 1, payload_size: 169
+2026-01-13 19:10:54,257 - INFO - Sent full client request with seq: 1
+2026-01-13 19:10:54,300 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260113191054AABED7D57EBB4CA403FA'}}}}
+2026-01-13 19:10:54,404 - INFO - Microphone stream started. Press Ctrl+C to stop.
+2026-01-13 19:10:54,672 - INFO - Sent audio segment seq=2
+2026-01-13 19:10:54,709 - INFO - Received response: {"code": 45000151, "event": 0, "is_last_package": false, "payload_sequence": 0, "payload_size": 123, "payload_msg": {"error": "[Invalid audio format] OperatorWrapper Process failed: fail to feed audio into decoder. invalid WAV file format"}}
+2026-01-13 19:10:54,872 - INFO - Sent audio segment seq=3
+2026-01-13 19:10:55,072 - INFO - Sent audio segment seq=4
+2026-01-13 19:10:55,273 - INFO - Sent audio segment seq=5
+2026-01-13 19:10:55,472 - INFO - Sent audio segment seq=6
+2026-01-13 19:10:55,672 - INFO - Sent audio segment seq=7
+2026-01-13 19:10:55,872 - INFO - Sent audio segment seq=8
+2026-01-13 19:10:56,072 - INFO - Sent audio segment seq=9
+2026-01-13 19:10:56,272 - INFO - Sent audio segment seq=10
+2026-01-13 19:10:56,472 - INFO - Sent audio segment seq=11
+2026-01-13 19:10:56,672 - INFO - Sent audio segment seq=12
+2026-01-13 19:10:56,871 - INFO - Sent audio segment seq=13
+2026-01-13 19:10:57,072 - INFO - Sent audio segment seq=14
+2026-01-13 19:10:57,272 - INFO - Sent audio segment seq=15
+2026-01-13 19:10:57,472 - INFO - Sent audio segment seq=16
+2026-01-13 19:10:57,671 - INFO - Sent audio segment seq=17
+2026-01-13 19:10:57,872 - INFO - Sent audio segment seq=18
+2026-01-13 19:10:58,071 - INFO - Sent audio segment seq=19
+2026-01-13 19:10:58,272 - INFO - Sent audio segment seq=20
+2026-01-13 19:10:58,471 - INFO - Sent audio segment seq=21
+2026-01-13 19:10:58,672 - INFO - Sent audio segment seq=22
+2026-01-13 19:10:58,872 - INFO - Sent audio segment seq=23
+2026-01-13 19:10:59,071 - INFO - Sent audio segment seq=24
+2026-01-13 19:10:59,272 - INFO - Sent audio segment seq=25
+2026-01-13 19:10:59,472 - INFO - Sent audio segment seq=26
+2026-01-13 19:10:59,671 - INFO - Sent audio segment seq=27
+2026-01-13 19:10:59,871 - INFO - Sent audio segment seq=28
+2026-01-13 19:11:00,072 - INFO - Sent audio segment seq=29
+2026-01-13 19:11:00,272 - INFO - Sent audio segment seq=30
+2026-01-13 19:11:00,473 - INFO - Sent audio segment seq=31
+2026-01-13 19:11:00,672 - INFO - Sent audio segment seq=32
+2026-01-13 19:11:00,872 - INFO - Sent audio segment seq=33
+2026-01-13 19:11:01,072 - INFO - Sent audio segment seq=34
+2026-01-13 19:11:01,272 - INFO - Sent audio segment seq=35
+2026-01-13 19:11:01,472 - INFO - Sent audio segment seq=36
+2026-01-13 19:11:01,672 - INFO - Sent audio segment seq=37
+2026-01-13 19:11:01,872 - INFO - Sent audio segment seq=38
+2026-01-13 19:11:02,072 - INFO - Sent audio segment seq=39
+2026-01-13 19:11:02,272 - INFO - Sent audio segment seq=40
+2026-01-13 19:11:02,472 - INFO - Sent audio segment seq=41
+2026-01-13 19:11:02,672 - INFO - Sent audio segment seq=42
+2026-01-13 19:11:02,872 - INFO - Sent audio segment seq=43
+2026-01-13 19:11:03,072 - INFO - Sent audio segment seq=44
+2026-01-13 19:11:03,272 - INFO - Sent audio segment seq=45
+2026-01-13 19:11:03,472 - INFO - Sent audio segment seq=46
+2026-01-13 19:11:03,671 - INFO - Sent audio segment seq=47
+2026-01-13 19:11:03,872 - INFO - Sent audio segment seq=48
+2026-01-13 19:11:04,071 - INFO - Sent audio segment seq=49
+2026-01-13 19:11:04,272 - INFO - Sent audio segment seq=50
+2026-01-13 19:11:04,471 - INFO - Sent audio segment seq=51
+2026-01-13 19:11:04,672 - INFO - Sent audio segment seq=52
+2026-01-13 19:11:04,871 - INFO - Sent audio segment seq=53
+2026-01-13 19:11:05,072 - INFO - Sent audio segment seq=54
+2026-01-13 19:11:05,272 - INFO - Sent audio segment seq=55
+2026-01-13 19:11:05,472 - INFO - Sent audio segment seq=56
+2026-01-13 19:11:05,672 - INFO - Sent audio segment seq=57
+2026-01-13 19:11:05,871 - INFO - Sent audio segment seq=58
+2026-01-13 19:11:06,071 - INFO - Sent audio segment seq=59
+2026-01-13 19:11:06,272 - INFO - Sent audio segment seq=60
+2026-01-13 19:11:06,472 - INFO - Sent audio segment seq=61
+2026-01-13 19:11:06,672 - INFO - Sent audio segment seq=62
+2026-01-13 19:11:06,871 - INFO - Sent audio segment seq=63
+2026-01-13 19:11:07,072 - INFO - Sent audio segment seq=64
+2026-01-13 19:11:07,272 - INFO - Sent audio segment seq=65
+2026-01-13 19:11:07,471 - INFO - Sent audio segment seq=66
+2026-01-13 19:11:07,672 - INFO - Sent audio segment seq=67
+2026-01-13 19:11:07,872 - INFO - Sent audio segment seq=68
+2026-01-13 19:11:08,073 - INFO - Sent audio segment seq=69
+2026-01-13 19:11:08,272 - INFO - Sent audio segment seq=70
+2026-01-13 19:11:08,472 - INFO - Sent audio segment seq=71
+2026-01-13 19:11:08,672 - INFO - Sent audio segment seq=72
+2026-01-13 19:11:08,872 - INFO - Sent audio segment seq=73
+2026-01-13 19:11:09,071 - INFO - Sent audio segment seq=74
+2026-01-13 19:11:09,272 - INFO - Sent audio segment seq=75
+2026-01-13 19:11:09,472 - INFO - Sent audio segment seq=76
+2026-01-13 19:11:09,672 - INFO - Sent audio segment seq=77
+2026-01-13 19:11:09,872 - INFO - Sent audio segment seq=78
+2026-01-13 19:11:10,071 - INFO - Sent audio segment seq=79
+2026-01-13 19:11:10,272 - INFO - Sent audio segment seq=80
+2026-01-13 19:11:10,471 - INFO - Sent audio segment seq=81
+2026-01-13 19:11:10,672 - INFO - Sent audio segment seq=82
+2026-01-13 19:11:10,872 - INFO - Sent audio segment seq=83
+2026-01-13 19:11:11,073 - INFO - Sent audio segment seq=84
+2026-01-13 19:11:11,272 - INFO - Sent audio segment seq=85
+2026-01-13 19:11:11,473 - INFO - Sent audio segment seq=86
+2026-01-13 19:11:11,671 - INFO - Sent audio segment seq=87
+2026-01-13 19:11:11,872 - INFO - Sent audio segment seq=88
+2026-01-13 19:11:12,072 - INFO - Sent audio segment seq=89
+2026-01-13 19:11:12,271 - INFO - Sent audio segment seq=90
+2026-01-13 19:11:12,472 - INFO - Sent audio segment seq=91
+2026-01-13 19:11:12,672 - INFO - Sent audio segment seq=92
+2026-01-13 19:11:12,871 - INFO - Sent audio segment seq=93
+2026-01-13 19:11:13,072 - INFO - Sent audio segment seq=94
+2026-01-13 19:11:13,271 - INFO - Sent audio segment seq=95
+2026-01-13 19:11:13,471 - INFO - Sent audio segment seq=96
+2026-01-13 19:11:13,672 - INFO - Sent audio segment seq=97
+2026-01-13 19:11:13,872 - INFO - Sent audio segment seq=98
+2026-01-13 19:11:14,071 - INFO - Sent audio segment seq=99
+2026-01-13 19:11:14,271 - INFO - Sent audio segment seq=100
+2026-01-13 19:11:14,471 - INFO - Sent audio segment seq=101
+2026-01-13 19:11:14,671 - INFO - Sent audio segment seq=102
+2026-01-13 19:11:14,871 - INFO - Sent audio segment seq=103
+2026-01-13 19:11:15,071 - INFO - Sent audio segment seq=104
+2026-01-13 19:11:15,271 - INFO - Sent audio segment seq=105
+2026-01-13 19:11:15,471 - INFO - Sent audio segment seq=106
+2026-01-13 19:11:15,671 - INFO - Sent audio segment seq=107
+2026-01-13 19:11:15,871 - INFO - Sent audio segment seq=108
+2026-01-13 19:11:16,071 - INFO - Sent audio segment seq=109
+2026-01-13 19:11:16,271 - INFO - Sent audio segment seq=110
+2026-01-13 19:11:16,471 - INFO - Sent audio segment seq=111
+2026-01-13 19:11:16,671 - INFO - Sent audio segment seq=112
+2026-01-13 19:11:16,871 - INFO - Sent audio segment seq=113
+2026-01-13 19:11:17,072 - INFO - Sent audio segment seq=114
+2026-01-13 19:11:17,272 - INFO - Sent audio segment seq=115
+2026-01-13 19:11:17,472 - INFO - Sent audio segment seq=116
+2026-01-13 19:11:17,671 - INFO - Sent audio segment seq=117
+2026-01-13 19:11:17,871 - INFO - Sent audio segment seq=118
+2026-01-13 19:11:18,071 - INFO - Sent audio segment seq=119
+2026-01-13 19:11:18,272 - INFO - Sent audio segment seq=120
+2026-01-13 19:11:18,472 - INFO - Sent audio segment seq=121
+2026-01-13 19:11:18,672 - INFO - Sent audio segment seq=122
+2026-01-13 19:11:18,872 - INFO - Sent audio segment seq=123
+2026-01-13 19:11:19,071 - INFO - Sent audio segment seq=124
+2026-01-13 19:11:19,272 - INFO - Sent audio segment seq=125
+2026-01-13 19:11:19,472 - INFO - Sent audio segment seq=126
+2026-01-13 19:11:19,671 - INFO - Sent audio segment seq=127
+2026-01-13 19:11:19,872 - INFO - Sent audio segment seq=128
+2026-01-13 19:11:20,071 - INFO - Sent audio segment seq=129
+2026-01-13 19:11:20,272 - INFO - Sent audio segment seq=130
+2026-01-13 19:11:20,472 - INFO - Sent audio segment seq=131
+2026-01-13 19:11:20,671 - INFO - Sent audio segment seq=132
+2026-01-13 19:11:20,871 - INFO - Sent audio segment seq=133
+2026-01-13 19:11:21,072 - INFO - Sent audio segment seq=134
+2026-01-13 19:11:21,272 - INFO - Sent audio segment seq=135
+2026-01-14 11:27:15,751 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 11:27:15,752 - INFO - Request header: 11111100
+2026-01-14 11:27:15,752 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 11:27:15,752 - INFO - Sent full client request with seq: 1
+2026-01-14 11:27:15,803 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114112715082E4C3220A637B78362'}}}}
+2026-01-14 11:27:17,516 - INFO - Microphone stream started. Press Ctrl+C to stop.
+2026-01-14 11:27:17,784 - INFO - Sent audio segment seq=2
+2026-01-14 11:27:17,821 - INFO - Received response: {"code": 45000151, "event": 0, "is_last_package": false, "payload_sequence": 0, "payload_size": 123, "payload_msg": {"error": "[Invalid audio format] OperatorWrapper Process failed: fail to feed audio into decoder. invalid WAV file format"}}
+2026-01-14 11:27:17,984 - INFO - Sent audio segment seq=3
+2026-01-14 11:27:18,183 - INFO - Sent audio segment seq=4
+2026-01-14 11:27:18,384 - INFO - Sent audio segment seq=5
+2026-01-14 11:27:18,584 - INFO - Sent audio segment seq=6
+2026-01-14 11:27:18,783 - INFO - Sent audio segment seq=7
+2026-01-14 11:27:18,984 - INFO - Sent audio segment seq=8
+2026-01-14 11:27:19,184 - INFO - Sent audio segment seq=9
+2026-01-14 11:27:19,384 - INFO - Sent audio segment seq=10
+2026-01-14 11:27:19,584 - INFO - Sent audio segment seq=11
+2026-01-14 11:27:19,784 - INFO - Sent audio segment seq=12
+2026-01-14 11:27:19,983 - INFO - Sent audio segment seq=13
+2026-01-14 11:27:20,184 - INFO - Sent audio segment seq=14
+2026-01-14 11:27:20,383 - INFO - Sent audio segment seq=15
+2026-01-14 11:27:20,584 - INFO - Sent audio segment seq=16
+2026-01-14 11:27:20,783 - INFO - Sent audio segment seq=17
+2026-01-14 11:27:20,984 - INFO - Sent audio segment seq=18
+2026-01-14 11:27:21,183 - INFO - Sent audio segment seq=19
+2026-01-14 11:27:21,384 - INFO - Sent audio segment seq=20
+2026-01-14 11:27:21,583 - INFO - Sent audio segment seq=21
+2026-01-14 11:27:21,783 - INFO - Sent audio segment seq=22
+2026-01-14 11:27:21,983 - INFO - Sent audio segment seq=23
+2026-01-14 11:27:22,184 - INFO - Sent audio segment seq=24
+2026-01-14 11:27:22,384 - INFO - Sent audio segment seq=25
+2026-01-14 11:27:22,584 - INFO - Sent audio segment seq=26
+2026-01-14 11:27:22,784 - INFO - Sent audio segment seq=27
+2026-01-14 11:27:22,983 - INFO - Sent audio segment seq=28
+2026-01-14 11:27:23,184 - INFO - Sent audio segment seq=29
+2026-01-14 11:27:23,384 - INFO - Sent audio segment seq=30
+2026-01-14 11:27:23,584 - INFO - Sent audio segment seq=31
+2026-01-14 11:27:23,784 - INFO - Sent audio segment seq=32
+2026-01-14 11:27:23,985 - INFO - Sent audio segment seq=33
+2026-01-14 11:27:24,184 - INFO - Sent audio segment seq=34
+2026-01-14 11:27:24,384 - INFO - Sent audio segment seq=35
+2026-01-14 11:27:24,584 - INFO - Sent audio segment seq=36
+2026-01-14 11:27:24,784 - INFO - Sent audio segment seq=37
+2026-01-14 11:27:24,983 - INFO - Sent audio segment seq=38
+2026-01-14 11:27:25,183 - INFO - Sent audio segment seq=39
+2026-01-14 11:27:25,383 - INFO - Sent audio segment seq=40
+2026-01-14 11:27:25,584 - INFO - Sent audio segment seq=41
+2026-01-14 11:27:25,784 - INFO - Sent audio segment seq=42
+2026-01-14 11:27:25,983 - INFO - Sent audio segment seq=43
+2026-01-14 11:27:26,184 - INFO - Sent audio segment seq=44
+2026-01-14 11:27:26,384 - INFO - Sent audio segment seq=45
+2026-01-14 11:27:26,584 - INFO - Sent audio segment seq=46
+2026-01-14 11:27:26,784 - INFO - Sent audio segment seq=47
+2026-01-14 11:27:26,983 - INFO - Sent audio segment seq=48
+2026-01-14 11:38:58,086 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 11:38:58,087 - INFO - Request header: 11111100
+2026-01-14 11:38:58,087 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 11:38:58,087 - INFO - Sent full client request with seq: 1
+2026-01-14 11:38:58,128 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '2026011411385811E8461C08EC715D1A7C'}}}}
+2026-01-14 11:38:58,241 - INFO - Microphone stream started. Press Ctrl+C to stop.
+2026-01-14 11:38:58,509 - INFO - Sent audio segment seq=2
+2026-01-14 11:38:58,547 - INFO - Received response: {"code": 45000151, "event": 0, "is_last_package": false, "payload_sequence": 0, "payload_size": 123, "payload_msg": {"error": "[Invalid audio format] OperatorWrapper Process failed: fail to feed audio into decoder. invalid WAV file format"}}
+2026-01-14 11:38:58,547 - INFO - Processed response: {
+  "code": 45000151,
+  "event": 0,
+  "is_last_package": false,
+  "payload_sequence": 0,
+  "payload_size": 123,
+  "payload_msg": {
+    "error": "[Invalid audio format] OperatorWrapper Process failed: fail to feed audio into decoder. invalid WAV file format"
+  }
+}
+2026-01-14 11:49:30,326 - ERROR - ASR processing failed: AsrWsClient.execute_mic() got an unexpected keyword argument 'mic'
+2026-01-14 11:50:02,650 - ERROR - ASR processing failed: 'async for' requires an object with __aiter__ method, got coroutine
+2026-01-14 11:51:23,370 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 11:51:23,370 - INFO - Request header: 11111100
+2026-01-14 11:51:23,370 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 11:51:23,370 - INFO - Sent full client request with seq: 1
+2026-01-14 11:51:23,432 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141151232CEBEA81918E7933BE63'}}}}
+2026-01-14 11:51:25,038 - ERROR - ASR processing failed: a coroutine was expected, got <async_generator object AsrWsClient.recv_messages at 0x1061c93f0>
+2026-01-14 11:54:39,613 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 11:54:39,614 - INFO - Request header: 11111100
+2026-01-14 11:54:39,614 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 11:54:39,614 - INFO - Sent full client request with seq: 1
+2026-01-14 11:54:39,672 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '2026011411543999846EA34AED1C666FE2'}}}}
+2026-01-14 11:54:39,799 - INFO - 🎙 Microphone streaming started
+2026-01-14 11:54:40,120 - INFO - ASR >>> {"code": 45000151, "event": 0, "is_last_package": false, "payload_sequence": 0, "payload_size": 123, "payload_msg": {"error": "[Invalid audio format] OperatorWrapper Process failed: fail to feed audio into decoder. invalid WAV file format"}}
+2026-01-14 11:55:49,650 - INFO - Microphone ASR finished
+2026-01-14 13:45:57,367 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 13:45:57,368 - INFO - Request header: 11111100
+2026-01-14 13:45:57,368 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 13:45:57,368 - INFO - Sent full client request with seq: 1
+2026-01-14 13:45:57,437 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114134557169772C04BFBA6D86D8E'}}}}
+2026-01-14 13:45:59,142 - INFO - 🎙 Microphone streaming started
+2026-01-14 13:45:59,645 - INFO - Microphone ASR finished
+2026-01-14 13:45:59,645 - ERROR - ASR processing failed: AsrWsClient.build_wav_header() got multiple values for argument 'sample_rate'
+2026-01-14 13:47:41,721 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 13:47:41,722 - INFO - Request header: 11111100
+2026-01-14 13:47:41,722 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 13:47:41,722 - INFO - Sent full client request with seq: 1
+2026-01-14 13:47:41,764 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114134741C2E883C5E4129BE77FAC'}}}}
+2026-01-14 13:47:41,858 - INFO - 🎙 Microphone streaming started
+2026-01-14 13:47:47,863 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 1, "payload_size": 304, "payload_msg": {"audio_info": {"duration": 5800}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 5482, "start_time": 5402, "text": "你好", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}]}]}}}
+2026-01-14 13:47:48,268 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 2, "payload_size": 320, "payload_msg": {"audio_info": {"duration": 6200}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "prefetch": true, "text": "你好", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 5482, "start_time": 5402, "text": "你好", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}]}]}}}
+2026-01-14 13:47:48,617 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 3, "payload_size": 304, "payload_msg": {"audio_info": {"duration": 6600}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 5482, "start_time": 5402, "text": "你好", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}]}]}}}
+2026-01-14 13:47:54,914 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 4, "payload_size": 483, "payload_msg": {"audio_info": {"duration": 12800}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好，请做一", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 12552, "start_time": 5402, "text": "你好，请做一", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12552, "start_time": 12472, "text": "一"}]}]}}}
+2026-01-14 13:47:55,103 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 5, "payload_size": 606, "payload_msg": {"audio_info": {"duration": 13000}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好，请做一个自我", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 12872, "start_time": 5402, "text": "你好，请做一个自我", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12872, "start_time": 12792, "text": "自我"}]}]}}}
+2026-01-14 13:47:55,540 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 6, "payload_size": 672, "payload_msg": {"audio_info": {"duration": 13400}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好，请做一个自我介绍", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 13112, "start_time": 5402, "text": "你好，请做一个自我介绍", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12732, "start_time": 12652, "text": "自我"}, {"end_time": 13112, "start_time": 13032, "text": "介绍"}]}]}}}
+2026-01-14 13:47:55,671 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 7, "payload_size": 688, "payload_msg": {"audio_info": {"duration": 13600}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "prefetch": true, "text": "你好，请做一个自我介绍", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 13112, "start_time": 5402, "text": "你好，请做一个自我介绍", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12732, "start_time": 12652, "text": "自我"}, {"end_time": 13112, "start_time": 13032, "text": "介绍"}]}]}}}
+2026-01-14 13:47:56,472 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 8, "payload_size": 672, "payload_msg": {"audio_info": {"duration": 14400}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好，请做一个自我介绍", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 13112, "start_time": 5402, "text": "你好，请做一个自我介绍", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12732, "start_time": 12652, "text": "自我"}, {"end_time": 13112, "start_time": 13032, "text": "介绍"}]}]}}}
+2026-01-14 13:47:59,875 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 9, "payload_size": 732, "payload_msg": {"audio_info": {"duration": 17800}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好，请做一个自我介绍。OK", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 17402, "start_time": 5402, "text": "你好，请做一个自我介绍。OK", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12732, "start_time": 12652, "text": "自我"}, {"end_time": 13112, "start_time": 13032, "text": "介绍"}, {"end_time": 17402, "start_time": 17322, "text": "OK"}]}]}}}
+2026-01-14 13:48:00,240 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 10, "payload_size": 748, "payload_msg": {"audio_info": {"duration": 18200}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "prefetch": true, "text": "你好，请做一个自我介绍。OK", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 17402, "start_time": 5402, "text": "你好，请做一个自我介绍。OK", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12732, "start_time": 12652, "text": "自我"}, {"end_time": 13112, "start_time": 13032, "text": "介绍"}, {"end_time": 17402, "start_time": 17322, "text": "OK"}]}]}}}
+2026-01-14 13:48:00,434 - INFO - ASR >>> {"code": 0, "event": 0, "is_last_package": false, "payload_sequence": 11, "payload_size": 732, "payload_msg": {"audio_info": {"duration": 18400}, "result": {"additions": {"log_id": "20260114134741C2E883C5E4129BE77FAC"}, "text": "你好，请做一个自我介绍。OK", "utterances": [{"additions": {"fixed_prefix_result": ""}, "definite": false, "end_time": 17402, "start_time": 5402, "text": "你好，请做一个自我介绍。OK", "words": [{"end_time": 5482, "start_time": 5402, "text": "你好"}, {"end_time": 12172, "start_time": 12092, "text": "请"}, {"end_time": 12332, "start_time": 12252, "text": "做"}, {"end_time": 12412, "start_time": 12332, "text": "一"}, {"end_time": 12492, "start_time": 12412, "text": "个"}, {"end_time": 12732, "start_time": 12652, "text": "自我"}, {"end_time": 13112, "start_time": 13032, "text": "介绍"}, {"end_time": 17402, "start_time": 17322, "text": "OK"}]}]}}}
+2026-01-14 13:48:05,308 - INFO - Microphone ASR finished
+2026-01-14 14:40:16,693 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 14:40:16,694 - INFO - Request header: 11111100
+2026-01-14 14:40:16,694 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 14:40:16,694 - INFO - Sent full client request with seq: 1
+2026-01-14 14:40:16,745 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '2026011414401696DD2D054EF70CB441FE'}}}}
+2026-01-14 14:40:18,376 - INFO - 🎙 Microphone streaming started
+2026-01-14 14:40:47,405 - INFO - Microphone ASR finished
+2026-01-14 14:42:26,643 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 14:42:26,644 - INFO - Request header: 11111100
+2026-01-14 14:42:26,644 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 14:42:26,644 - INFO - Sent full client request with seq: 1
+2026-01-14 14:42:26,713 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114144226C97A46A2C87C19E8215C'}}}}
+2026-01-14 14:42:26,945 - INFO - 🎙 Microphone streaming started
+2026-01-14 14:42:38,853 - INFO - Microphone ASR finished
+2026-01-14 15:05:15,081 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:05:15,082 - INFO - Request header: 11111100
+2026-01-14 15:05:15,082 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:05:15,082 - INFO - Sent full client request with seq: 1
+2026-01-14 15:05:15,142 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114150515E2D8C20F08DC1137D9C0'}}}}
+2026-01-14 15:05:15,282 - INFO - 🎙 Microphone with VAD started
+2026-01-14 15:05:23,147 - INFO - ASR >>> {"code": 45000081, "event": 0, "is_last_package": false, "payload_sequence": 0, "payload_size": 106, "payload_msg": {"error": "[Timeout waiting next packet] waiting next packet timeout: 8.000000 seconds, session has ended"}}
+2026-01-14 15:05:23,195 - INFO - Microphone ASR finished
+2026-01-14 15:05:23,196 - ERROR - ASR processing failed: Error while processing frame
+2026-01-14 15:07:34,006 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:07:34,007 - INFO - Request header: 11111100
+2026-01-14 15:07:34,007 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:07:34,007 - INFO - Sent full client request with seq: 1
+2026-01-14 15:07:34,047 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141507342EDC80212AF0AB4CC9E2'}}}}
+2026-01-14 15:07:34,189 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:07:36,809 - INFO - ASR Result: 请做一个
+2026-01-14 15:07:37,213 - INFO - ASR Result: 请做一个自我
+2026-01-14 15:07:37,420 - INFO - ASR Result: 请做一个自我介绍
+2026-01-14 15:07:38,206 - INFO - ASR Result: 请做一个自我介绍
+2026-01-14 15:07:56,040 - INFO - ASR Result: 请做一个自我介绍。做
+2026-01-14 15:07:56,191 - INFO - ASR Result: 请做一个自我介绍。做一个
+2026-01-14 15:07:56,582 - INFO - ASR Result: 请做一个自我介绍。做一个自我
+2026-01-14 15:07:56,811 - INFO - ASR Result: 请做一个自我介绍
+2026-01-14 15:07:57,734 - INFO - ASR Result: 请做一个自我介绍
+2026-01-14 15:08:03,449 - INFO - ASR Result: 请做一个自我介绍。你
+2026-01-14 15:08:04,023 - INFO - ASR Result: 请做一个自我介绍。你来自哪里
+2026-01-14 15:08:04,203 - INFO - ASR Result: 请做一个自我介绍。你来自哪里
+2026-01-14 15:08:04,747 - INFO - ASR Result: 请做一个自我介绍。你来自哪里
+2026-01-14 15:08:06,625 - INFO - Microphone ASR finished
+2026-01-14 15:29:00,981 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:29:00,982 - INFO - Request header: 11111100
+2026-01-14 15:29:00,982 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:29:00,982 - INFO - Sent full client request with seq: 1
+2026-01-14 15:29:01,035 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114152900169772C04BFBA6DBFE1E'}}}}
+2026-01-14 15:29:02,621 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:29:27,460 - INFO - Microphone ASR finished
+2026-01-14 15:29:27,481 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-4' coro=<AsrWsClient.execute_mic.<locals>.receiver() done, defined at /Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py:537> exception=TypeError("Logger._log() got an unexpected keyword argument 'end'")>
+Traceback (most recent call last):
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py", line 556, in receiver
+    logger.info("\rASR:", text, end="", flush=True)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/logging/__init__.py", line 1489, in info
+    self._log(INFO, msg, args, **kwargs)
+TypeError: Logger._log() got an unexpected keyword argument 'end'
+2026-01-14 15:29:54,087 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:29:54,087 - INFO - Request header: 11111100
+2026-01-14 15:29:54,087 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:29:54,087 - INFO - Sent full client request with seq: 1
+2026-01-14 15:29:54,145 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114152954C63A716FB9BFC63739F8'}}}}
+2026-01-14 15:29:54,262 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:29:56,312 - INFO - text:请做, definite: False
+2026-01-14 15:30:35,953 - INFO - Microphone ASR finished
+2026-01-14 15:30:35,989 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-4' coro=<AsrWsClient.execute_mic.<locals>.receiver() done, defined at /Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py:537> exception=TypeError("Logger._log() got an unexpected keyword argument 'end'")>
+Traceback (most recent call last):
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py", line 556, in receiver
+    if resp.is_last_package:
+        ^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/logging/__init__.py", line 1489, in info
+    self._log(INFO, msg, args, **kwargs)
+TypeError: Logger._log() got an unexpected keyword argument 'end'
+2026-01-14 15:30:40,725 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:30:40,725 - INFO - Request header: 11111100
+2026-01-14 15:30:40,725 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:30:40,726 - INFO - Sent full client request with seq: 1
+2026-01-14 15:30:40,776 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141530401A05B7583688984AAF4B'}}}}
+2026-01-14 15:30:40,908 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:30:42,971 - INFO - text:请做, definite: False
+2026-01-14 15:30:43,187 - INFO - text:请做一个, definite: False
+2026-01-14 15:30:43,739 - INFO - text:请做一个自我介绍, definite: False
+2026-01-14 15:30:47,948 - INFO - text:请做一个自我介绍，嗯, definite: False
+2026-01-14 15:30:51,113 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:30:53,271 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:33,544 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:33,546 - INFO - text:请, definite: False
+2026-01-14 15:31:34,003 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:34,003 - INFO - text:请你开始, definite: False
+2026-01-14 15:31:34,784 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:34,785 - INFO - text:请你开始进行, definite: False
+2026-01-14 15:31:35,554 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:35,555 - INFO - text:请你开始进行面试, definite: False
+2026-01-14 15:31:35,722 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:35,722 - INFO - text:请你开始进行面试, definite: False
+2026-01-14 15:31:37,156 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:37,156 - INFO - text:请你开始进行面试。, definite: False
+2026-01-14 15:31:37,745 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:37,745 - INFO - text:请你开始进行面试。, definite: False
+2026-01-14 15:31:45,419 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:45,421 - INFO - text:请你开始进行面试。你说这个, definite: False
+2026-01-14 15:31:45,751 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:45,751 - INFO - text:请你开始进行面试。你说这个人, definite: False
+2026-01-14 15:31:46,349 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:46,349 - INFO - text:请你开始进行面试。你说这个人他, definite: False
+2026-01-14 15:31:50,559 - INFO - text:请做一个自我介绍。, definite: True
+2026-01-14 15:31:50,559 - INFO - text:请你开始进行面试。, definite: True
+2026-01-14 15:31:50,559 - INFO - text:你说这个人他。, definite: True
+2026-01-14 15:32:10,081 - INFO - Microphone ASR finished
+2026-01-14 15:32:56,059 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:32:56,060 - INFO - Request header: 11111100
+2026-01-14 15:32:56,060 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:32:56,060 - INFO - Sent full client request with seq: 1
+2026-01-14 15:32:56,109 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141532562C449923D178AD0B2F0A'}}}}
+2026-01-14 15:32:56,242 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:33:31,398 - INFO - Microphone ASR finished
+2026-01-14 15:33:31,422 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-4' coro=<AsrWsClient.execute_mic.<locals>.receiver() done, defined at /Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py:537> exception=AttributeError("'dict' object has no attribute 'dict'")>
+Traceback (most recent call last):
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py", line 553, in receiver
+    logger.info(f"ASR: {utt}")
+                        ^^^^^^^
+AttributeError: 'dict' object has no attribute 'dict'
+2026-01-14 15:33:36,729 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:33:36,730 - INFO - Request header: 11111100
+2026-01-14 15:33:36,730 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:33:36,730 - INFO - Sent full client request with seq: 1
+2026-01-14 15:33:36,793 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114153336C8BE89FB8044D1F07A84'}}}}
+2026-01-14 15:33:36,911 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:33:40,532 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 3132, 'start_time': 3052, 'text': '请', 'words': [{'end_time': 3132, 'start_time': 3052, 'text': '请'}]}
+2026-01-14 15:33:40,533 - INFO - text:请, definite: False
+2026-01-14 15:33:40,994 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 3532, 'start_time': 2912, 'text': '请做一个', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3532, 'start_time': 3452, 'text': '个'}]}
+2026-01-14 15:33:40,995 - INFO - text:请做一个, definite: False
+2026-01-14 15:33:41,372 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 3852, 'start_time': 2912, 'text': '请做一个自我', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3392, 'start_time': 3312, 'text': '个'}, {'end_time': 3852, 'start_time': 3772, 'text': '自我'}]}
+2026-01-14 15:33:41,373 - INFO - text:请做一个自我, definite: False
+2026-01-14 15:33:41,578 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 4012, 'start_time': 2912, 'text': '请做一个自我介绍', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3392, 'start_time': 3312, 'text': '个'}, {'end_time': 3712, 'start_time': 3632, 'text': '自我'}, {'end_time': 4012, 'start_time': 3932, 'text': '介绍'}]}
+2026-01-14 15:33:41,578 - INFO - text:请做一个自我介绍, definite: False
+2026-01-14 15:33:42,314 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 4012, 'start_time': 2912, 'text': '请做一个自我介绍', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3392, 'start_time': 3312, 'text': '个'}, {'end_time': 3712, 'start_time': 3632, 'text': '自我'}, {'end_time': 4012, 'start_time': 3932, 'text': '介绍'}]}
+2026-01-14 15:33:42,314 - INFO - text:请做一个自我介绍, definite: False
+2026-01-14 15:34:01,391 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 24012, 'start_time': 2912, 'text': '请做一个自我介绍。开始', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3392, 'start_time': 3312, 'text': '个'}, {'end_time': 3712, 'start_time': 3632, 'text': '自我'}, {'end_time': 4012, 'start_time': 3932, 'text': '介绍'}, {'end_time': 24012, 'start_time': 23932, 'text': '开始'}]}
+2026-01-14 15:34:01,393 - INFO - text:请做一个自我介绍。开始, definite: False
+2026-01-14 15:34:01,801 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 24252, 'start_time': 2912, 'text': '请做一个自我介绍。开始面试', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3392, 'start_time': 3312, 'text': '个'}, {'end_time': 3712, 'start_time': 3632, 'text': '自我'}, {'end_time': 4012, 'start_time': 3932, 'text': '介绍'}, {'end_time': 23872, 'start_time': 23792, 'text': '开始'}, {'end_time': 24252, 'start_time': 24172, 'text': '面试'}]}
+2026-01-14 15:34:01,801 - INFO - text:请做一个自我介绍。开始面试, definite: False
+2026-01-14 15:34:02,559 - INFO - ASR: {'additions': {'fixed_prefix_result': ''}, 'definite': False, 'end_time': 24252, 'start_time': 2912, 'text': '请做一个自我介绍。开始面试', 'words': [{'end_time': 2992, 'start_time': 2912, 'text': '请'}, {'end_time': 3232, 'start_time': 3152, 'text': '做'}, {'end_time': 3312, 'start_time': 3232, 'text': '一'}, {'end_time': 3392, 'start_time': 3312, 'text': '个'}, {'end_time': 3712, 'start_time': 3632, 'text': '自我'}, {'end_time': 4012, 'start_time': 3932, 'text': '介绍'}, {'end_time': 23872, 'start_time': 23792, 'text': '开始'}, {'end_time': 24252, 'start_time': 24172, 'text': '面试'}]}
+2026-01-14 15:34:02,560 - INFO - text:请做一个自我介绍。开始面试, definite: False
+2026-01-14 15:34:05,888 - INFO - Microphone ASR finished
+2026-01-14 15:41:34,311 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:41:34,312 - INFO - Request header: 11111100
+2026-01-14 15:41:34,312 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:41:34,312 - INFO - Sent full client request with seq: 1
+2026-01-14 15:41:34,374 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '2026011415413484AA27D878EBDA0DEEFE'}}}}
+2026-01-14 15:41:34,510 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:41:47,622 - INFO - Microphone ASR finished
+2026-01-14 15:42:22,731 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:42:22,732 - INFO - Request header: 11111100
+2026-01-14 15:42:22,732 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:42:22,732 - INFO - Sent full client request with seq: 1
+2026-01-14 15:42:22,780 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114154222B9A017DC6A871BD38B98'}}}}
+2026-01-14 15:42:22,909 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:42:24,967 - INFO - text:现在   definite:False
+2026-01-14 15:42:25,767 - INFO - text:现在请   definite:False
+2026-01-14 15:42:26,013 - INFO - text:现在请开始   definite:False
+2026-01-14 15:42:26,534 - INFO - text:现在请开始自我   definite:False
+2026-01-14 15:42:26,967 - INFO - text:现在请开始自我介绍   definite:False
+2026-01-14 15:42:30,514 - INFO - text:你好   definite:False
+2026-01-14 15:42:30,705 - INFO - text:你好   definite:False
+2026-01-14 15:42:40,808 - INFO - text:为什么   definite:False
+2026-01-14 15:42:43,499 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:02,635 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:02,637 - INFO - text:我   definite:False
+2026-01-14 15:43:03,161 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:03,161 - INFO - text:我真实   definite:False
+2026-01-14 15:43:03,831 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:03,831 - INFO - text:我真实感受到了   definite:False
+2026-01-14 15:43:05,172 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:05,172 - INFO - text:我真实感受到了通   definite:False
+2026-01-14 15:43:05,341 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:05,341 - INFO - text:我真实感受到了通缩带来   definite:False
+2026-01-14 15:43:05,798 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:05,799 - INFO - text:我真实感受到了通缩带来的   definite:False
+2026-01-14 15:43:06,151 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:06,152 - INFO - text:我真实感受到了通缩带来的压力   definite:False
+2026-01-14 15:43:06,352 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:06,352 - INFO - text:我真实感受到了通缩带来的压力   definite:False
+2026-01-14 15:43:06,527 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:06,527 - INFO - text:我真实感受到了通缩带来的压力   definite:False
+2026-01-14 15:43:15,969 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:15,970 - INFO - text:我真实感受到了通缩带来的压力。高高档   definite:False
+2026-01-14 15:43:16,161 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:16,161 - INFO - text:我真实感受到了通缩带来的压力。高高档的   definite:False
+2026-01-14 15:43:16,579 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:16,579 - INFO - text:我真实感受到了通缩带来的压力。高高档的那种   definite:False
+2026-01-14 15:43:17,913 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:17,913 - INFO - text:我真实感受到了通缩带来的压力。高高档的那种高档   definite:False
+2026-01-14 15:43:18,202 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:18,202 - INFO - text:我真实感受到了通缩带来的压力。高高档的，那种高档的   definite:False
+2026-01-14 15:43:18,383 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:18,383 - INFO - text:我真实感受到了通缩带来的压力。高高档的，那种高档的固体   definite:False
+2026-01-14 15:43:18,769 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:18,769 - INFO - text:我真实感受到了通缩带来的压力。高高档的那种高档的固体，因为   definite:False
+2026-01-14 15:43:19,178 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:19,178 - INFO - text:我真实感受到了通缩带来的压力。高高档的那种高档的固体   definite:False
+2026-01-14 15:43:19,403 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:19,403 - INFO - text:我真实感受到了通缩带来的压力。高高档的那种高档的固体   definite:False
+2026-01-14 15:43:21,092 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:21,093 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:21,093 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:24,742 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:24,743 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:24,743 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:37,967 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:37,969 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:37,969 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:37,969 - INFO - text:当   definite:False
+2026-01-14 15:43:38,360 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:38,360 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:38,360 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:38,360 - INFO - text:当 Server   definite:False
+2026-01-14 15:43:38,553 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:38,553 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:38,553 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:38,554 - INFO - text:当 Server   definite:False
+2026-01-14 15:43:40,936 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:40,936 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:40,936 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:40,936 - INFO - text:当 Server。   definite:False
+2026-01-14 15:43:41,152 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:41,153 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:41,153 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:41,153 - INFO - text:当 Server 发现   definite:False
+2026-01-14 15:43:41,597 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:41,598 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:41,598 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:41,598 - INFO - text:当 Server 发现无法   definite:False
+2026-01-14 15:43:41,792 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:41,792 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:41,792 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:41,793 - INFO - text:当 Server 发现无法解决   definite:False
+2026-01-14 15:43:42,213 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:42,213 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:42,213 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:42,214 - INFO - text:当 Server 发现无法解决的   definite:False
+2026-01-14 15:43:42,775 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:42,776 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:42,776 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:42,776 - INFO - text:当 Server 发现无法解决的订   definite:False
+2026-01-14 15:43:43,192 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:43,192 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:43,193 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:43,193 - INFO - text:当 Server 发现无法解决的订值   definite:False
+2026-01-14 15:43:45,785 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:45,786 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:45,786 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:45,786 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:46,332 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:46,332 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:46,332 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:46,332 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:46,332 - INFO - text:订值。   definite:True
+2026-01-14 15:43:46,492 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:46,493 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:46,493 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:46,493 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:46,493 - INFO - text:订值。   definite:True
+2026-01-14 15:43:47,951 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:47,951 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:47,951 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:47,951 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:47,952 - INFO - text:订值。   definite:True
+2026-01-14 15:43:50,190 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:50,192 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:50,192 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:50,192 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:50,192 - INFO - text:订值。   definite:True
+2026-01-14 15:43:50,582 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:50,582 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:50,582 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:50,582 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:50,582 - INFO - text:订值。   definite:True
+2026-01-14 15:43:50,582 - INFO - text:将   definite:False
+2026-01-14 15:43:50,771 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:50,772 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:50,772 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:50,772 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:50,772 - INFO - text:订值。   definite:True
+2026-01-14 15:43:50,772 - INFO - text:将发送   definite:False
+2026-01-14 15:43:51,181 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:51,181 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:51,181 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:51,181 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:51,182 - INFO - text:订值。   definite:True
+2026-01-14 15:43:51,182 - INFO - text:将发送的   definite:False
+2026-01-14 15:43:53,335 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:53,336 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:53,336 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:53,336 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:53,337 - INFO - text:订值。   definite:True
+2026-01-14 15:43:53,337 - INFO - text:将发送的 error   definite:False
+2026-01-14 15:43:54,077 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:54,077 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:54,077 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:54,077 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:54,077 - INFO - text:订值。   definite:True
+2026-01-14 15:43:54,077 - INFO - text:将发送的 error message   definite:False
+2026-01-14 15:43:54,365 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:54,365 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:54,365 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:54,365 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:54,365 - INFO - text:订值。   definite:True
+2026-01-14 15:43:54,365 - INFO - text:将发送的 error message from   definite:False
+2026-01-14 15:43:54,762 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:54,766 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:54,766 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:54,766 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:54,766 - INFO - text:订值。   definite:True
+2026-01-14 15:43:54,766 - INFO - text:将发送的 error message from server   definite:False
+2026-01-14 15:43:54,985 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:54,985 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:54,985 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:54,986 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:54,986 - INFO - text:订值。   definite:True
+2026-01-14 15:43:54,986 - INFO - text:将发送的 error message from server 消息   definite:False
+2026-01-14 15:43:58,562 - INFO - text:为什么？   definite:True
+2026-01-14 15:43:58,563 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:43:58,563 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:43:58,563 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:43:58,563 - INFO - text:订值。   definite:True
+2026-01-14 15:43:58,564 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:12,762 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:12,763 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:12,763 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:12,763 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:12,763 - INFO - text:订值。   definite:True
+2026-01-14 15:44:12,763 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:12,763 - INFO - text:因为   definite:False
+2026-01-14 15:44:13,142 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:13,142 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:13,142 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:13,142 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:13,142 - INFO - text:订值。   definite:True
+2026-01-14 15:44:13,142 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:13,142 - INFO - text:因为咱   definite:False
+2026-01-14 15:44:16,363 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:16,363 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:16,363 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:16,364 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:16,364 - INFO - text:订值。   definite:True
+2026-01-14 15:44:16,364 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:16,364 - INFO - text:然后合作的快递怎么样   definite:False
+2026-01-14 15:44:16,722 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:16,722 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:16,722 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:16,722 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:16,722 - INFO - text:订值。   definite:True
+2026-01-14 15:44:16,722 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:16,722 - INFO - text:然后合作的快递怎么样   definite:False
+2026-01-14 15:44:17,347 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:17,347 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:17,347 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:17,347 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:17,347 - INFO - text:订值。   definite:True
+2026-01-14 15:44:17,348 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:17,348 - INFO - text:然后合作的快递怎么样？就是   definite:False
+2026-01-14 15:44:17,995 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:17,995 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:17,995 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:17,996 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:17,996 - INFO - text:订值。   definite:True
+2026-01-14 15:44:17,996 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:17,996 - INFO - text:然后合作的快递怎么样？就是这个   definite:False
+2026-01-14 15:44:18,363 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:18,364 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:18,364 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:18,364 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:18,364 - INFO - text:订值。   definite:True
+2026-01-14 15:44:18,364 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:18,364 - INFO - text:然后合作的快递怎么样？就是这个好像   definite:False
+2026-01-14 15:44:18,585 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:18,585 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:18,586 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:18,586 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:18,586 - INFO - text:订值。   definite:True
+2026-01-14 15:44:18,586 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:18,586 - INFO - text:然后合作的快递怎么样？就是这个好像不需要咱们   definite:False
+2026-01-14 15:44:19,188 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:19,188 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:19,188 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:19,189 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:19,189 - INFO - text:订值。   definite:True
+2026-01-14 15:44:19,189 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:19,189 - INFO - text:然后合作的快递怎么样？就是。   definite:False
+2026-01-14 15:44:20,573 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:20,573 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:20,573 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:20,573 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:20,574 - INFO - text:订值。   definite:True
+2026-01-14 15:44:20,574 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:20,574 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:20,574 - INFO - text:就是。   definite:True
+2026-01-14 15:44:22,890 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:22,891 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:22,891 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:22,891 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:22,892 - INFO - text:订值。   definite:True
+2026-01-14 15:44:22,892 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:22,892 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:22,892 - INFO - text:就是。   definite:True
+2026-01-14 15:44:25,372 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:25,373 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:25,373 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:25,373 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:25,374 - INFO - text:订值。   definite:True
+2026-01-14 15:44:25,374 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:25,374 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:25,374 - INFO - text:就是。   definite:True
+2026-01-14 15:44:25,374 - INFO - text:handle   definite:False
+2026-01-14 15:44:25,958 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:25,959 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:25,959 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:25,959 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:25,959 - INFO - text:订值。   definite:True
+2026-01-14 15:44:25,959 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:25,959 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:25,959 - INFO - text:就是。   definite:True
+2026-01-14 15:44:25,959 - INFO - text:handle 描述   definite:False
+2026-01-14 15:44:26,557 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:26,558 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:26,558 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:26,558 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:26,558 - INFO - text:订值。   definite:True
+2026-01-14 15:44:26,558 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:26,558 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:26,558 - INFO - text:就是。   definite:True
+2026-01-14 15:44:26,559 - INFO - text:handle 描述前   definite:False
+2026-01-14 15:44:27,003 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:27,003 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:27,003 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:27,003 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:27,004 - INFO - text:订值。   definite:True
+2026-01-14 15:44:27,004 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:27,004 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:27,004 - INFO - text:就是。   definite:True
+2026-01-14 15:44:27,004 - INFO - text:handle 描述前文的   definite:False
+2026-01-14 15:44:28,213 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:28,214 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:28,214 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:28,214 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:28,214 - INFO - text:订值。   definite:True
+2026-01-14 15:44:28,214 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:28,215 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:28,215 - INFO - text:就是。   definite:True
+2026-01-14 15:44:28,215 - INFO - text:handle 描述前文的字节   definite:False
+2026-01-14 15:44:28,586 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:28,586 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:28,586 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:28,586 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:28,586 - INFO - text:订值。   definite:True
+2026-01-14 15:44:28,586 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:28,586 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:28,586 - INFO - text:就是。   definite:True
+2026-01-14 15:44:28,587 - INFO - text:handle 描述前文的字节头   definite:False
+2026-01-14 15:44:29,156 - INFO - text:为什么？   definite:True
+2026-01-14 15:44:29,156 - INFO - text:我真实感受到了通缩带来的压力。   definite:True
+2026-01-14 15:44:29,156 - INFO - text:高高档的那种高档的固体。   definite:True
+2026-01-14 15:44:29,156 - INFO - text:当 Server 发现无法解决的问题。   definite:True
+2026-01-14 15:44:29,156 - INFO - text:订值。   definite:True
+2026-01-14 15:44:29,156 - INFO - text:将发送的 error message from server 消息。   definite:True
+2026-01-14 15:44:29,156 - INFO - text:然后合作的快递怎么样？   definite:True
+2026-01-14 15:44:29,156 - INFO - text:就是。   definite:True
+2026-01-14 15:44:29,156 - INFO - text:handle 描述前文的字节头   definite:False
+2026-01-14 15:44:33,473 - INFO - Microphone ASR finished
+2026-01-14 15:58:57,893 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 15:58:57,894 - INFO - Request header: 11111100
+2026-01-14 15:58:57,894 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 15:58:57,894 - INFO - Sent full client request with seq: 1
+2026-01-14 15:58:57,937 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141558576036D736C40A705411CA'}}}}
+2026-01-14 15:58:59,610 - INFO - 🎙 Microphone streaming started
+2026-01-14 15:59:58,584 - INFO - Microphone ASR finished
+2026-01-14 16:00:04,728 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:00:04,729 - INFO - Request header: 11111100
+2026-01-14 16:00:04,729 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:00:04,729 - INFO - Sent full client request with seq: 1
+2026-01-14 16:00:04,779 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114160004A8A8F4D6339380C6347B'}}}}
+2026-01-14 16:00:04,933 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:00:23,341 - INFO - Microphone ASR finished
+2026-01-14 16:00:23,364 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-4' coro=<AsrWsClient.execute_mic.<locals>.receiver() done, defined at /Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py:537> exception=UnboundLocalError("cannot access local variable 'definite' where it is not associated with a value")>
+Traceback (most recent call last):
+  File "/Users/xuhaoran/Documents/trae_projects/interview-assistant/tests/./asr_demo.py", line 558, in receiver
+    logger.info(f"text :{text} definite: {definite} start_time: {start_time}, end_time: {end_time}")
+                                          ^^^^^^^^
+UnboundLocalError: cannot access local variable 'definite' where it is not associated with a value
+2026-01-14 16:00:27,444 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:00:27,444 - INFO - Request header: 11111100
+2026-01-14 16:00:27,444 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:00:27,445 - INFO - Sent full client request with seq: 1
+2026-01-14 16:00:27,494 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141600274506B2A7E434E4CE173F'}}}}
+2026-01-14 16:00:27,596 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:00:38,957 - INFO - Microphone ASR finished
+2026-01-14 16:00:43,762 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:00:43,763 - INFO - Request header: 11111100
+2026-01-14 16:00:43,763 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:00:43,763 - INFO - Sent full client request with seq: 1
+2026-01-14 16:00:43,820 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '202601141600432BE1419BD3D330253C94'}}}}
+2026-01-14 16:00:43,938 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:00:45,624 - INFO - text :你好 start_time: 1152, end_time: 1232
+2026-01-14 16:00:45,974 - INFO - text :你好 start_time: 1152, end_time: 1232
+2026-01-14 16:00:47,312 - INFO - text :你好。 start_time: 1152, end_time: 1232
+2026-01-14 16:00:51,197 - INFO - text :你好，请 start_time: 1152, end_time: 6712
+2026-01-14 16:00:51,423 - INFO - text :你好，请做 start_time: 1152, end_time: 7032
+2026-01-14 16:00:51,798 - INFO - text :你好，请做一个 start_time: 1152, end_time: 7272
+2026-01-14 16:00:52,202 - INFO - text :你好，请做一个自我介绍 start_time: 1152, end_time: 7752
+2026-01-14 16:00:52,379 - INFO - text :你好，请做一个自我介绍 start_time: 1152, end_time: 7752
+2026-01-14 16:00:52,921 - INFO - text :你好，请做一个自我介绍 start_time: 1152, end_time: 7752
+2026-01-14 16:01:12,786 - INFO - text :你好，请做一个自我介绍。什么 start_time: 1152, end_time: 28292
+2026-01-14 16:01:13,014 - INFO - text :你好，请做一个自我介绍。什么时候 start_time: 1152, end_time: 28532
+2026-01-14 16:01:14,004 - INFO - text :你好，请做一个自我介绍。什么时候做 start_time: 1152, end_time: 29572
+2026-01-14 16:01:14,366 - INFO - text :你好，请做一个自我介绍。什么时候做自我介绍 start_time: 1152, end_time: 29812
+2026-01-14 16:01:14,713 - INFO - text :你好，请做一个自我介绍。什么时候做自我介绍 start_time: 1152, end_time: 29812
+2026-01-14 16:01:19,124 - INFO - Microphone ASR finished
+2026-01-14 16:05:25,978 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:05:25,981 - INFO - Request header: 11111100
+2026-01-14 16:05:25,981 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:05:25,981 - INFO - Sent full client request with seq: 1
+2026-01-14 16:05:26,033 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114160526EBE945D8C5CCECD92B3B'}}}}
+2026-01-14 16:05:26,188 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:05:38,821 - INFO - text:你好，what
+2026-01-14 16:05:39,055 - INFO - text:你好，what fuck
+2026-01-14 16:05:40,048 - INFO - text:你好，what fuck
+2026-01-14 16:05:48,642 - INFO - text:你好，what fuck？请
+2026-01-14 16:05:49,053 - INFO - text:你好，what fuck？请多少
+2026-01-14 16:05:49,260 - INFO - text:你好，what fuck？请多少秒
+2026-01-14 16:05:49,641 - INFO - text:你好，what fuck？请多少秒来
+2026-01-14 16:05:49,973 - INFO - text:你好，what fuck？请多少秒来
+2026-01-14 16:06:12,514 - INFO - text:你好，what fuck？请多少秒来，这是多少
+2026-01-14 16:06:12,751 - INFO - text:你好，what fuck？请多少秒来，这是多少人
+2026-01-14 16:06:13,006 - INFO - text:你好，what fuck？请多少秒来，这是多少人
+2026-01-14 16:06:13,194 - INFO - text:你好，what fuck？请多少秒来，这是多少人
+2026-01-14 16:06:27,832 - INFO - Microphone ASR finished
+2026-01-14 16:07:01,538 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:07:01,540 - INFO - Request header: 11111100
+2026-01-14 16:07:01,540 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:07:01,540 - INFO - Sent full client request with seq: 1
+2026-01-14 16:07:01,597 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '2026011416070141328C1E6F5610EEB292'}}}}
+2026-01-14 16:07:01,702 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:07:03,654 - INFO - text:你好. start_time: 1292, end_time: 1372 interval:80ms
+2026-01-14 16:07:03,915 - INFO - text:你好. start_time: 1292, end_time: 1372 interval:80ms
+2026-01-14 16:07:04,670 - INFO - text:你好. start_time: 1292, end_time: 1372 interval:80ms
+2026-01-14 16:07:07,156 - INFO - text:你好，请. start_time: 1292, end_time: 4872 interval:3580ms
+2026-01-14 16:07:07,539 - INFO - text:你好，请做一个. start_time: 1292, end_time: 5272 interval:3980ms
+2026-01-14 16:07:07,758 - INFO - text:你好，请做一个自我介绍. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:08,165 - INFO - text:你好，请做一个自我介绍. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:08,782 - INFO - text:你好，请做一个自我介绍. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:25,582 - INFO - text:你好，请做一个自我介绍。这段代码. start_time: 1292, end_time: 23382 interval:22090ms
+2026-01-14 16:07:25,731 - INFO - text:你好，请做一个自我介绍。这段代码. start_time: 1292, end_time: 23382 interval:22090ms
+2026-01-14 16:07:26,273 - INFO - text:你好，请做一个自我介绍。这段代码. start_time: 1292, end_time: 23382 interval:22090ms
+2026-01-14 16:07:29,011 - INFO - text:你好，请做一个自我介绍。这段代码在人类. start_time: 1292, end_time: 26732 interval:25440ms
+2026-01-14 16:07:29,388 - INFO - text:你好，请做一个自我介绍。这段代码在人类的语言. start_time: 1292, end_time: 27132 interval:25840ms
+2026-01-14 16:07:29,554 - INFO - text:你好，请做一个自我介绍。这段代码在人类的语言层面. start_time: 1292, end_time: 27452 interval:26160ms
+2026-01-14 16:07:30,227 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:30,228 - INFO - text:这段代码在人类的语言层面做了什么. start_time: 22922, end_time: 28092 interval:5170ms
+2026-01-14 16:07:30,543 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:30,544 - INFO - text:这段代码在人类的语言层面做了什么. start_time: 22922, end_time: 28092 interval:5170ms
+2026-01-14 16:07:31,235 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:31,236 - INFO - text:这段代码在人类的语言层面做了什么. start_time: 22922, end_time: 28092 interval:5170ms
+2026-01-14 16:07:54,973 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:54,974 - INFO - text:这段代码在人类的语言层面做了什么？前面. start_time: 22922, end_time: 52832 interval:29910ms
+2026-01-14 16:07:55,590 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:55,590 - INFO - text:这段代码在人类的语言层面做了什么？前面说了啥. start_time: 22922, end_time: 53472 interval:30550ms
+2026-01-14 16:07:55,964 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:55,964 - INFO - text:这段代码在人类的语言层面做了什么？前面说了啥. start_time: 22922, end_time: 53472 interval:30550ms
+2026-01-14 16:07:56,280 - INFO - text:你好，请做一个自我介绍。. start_time: 1292, end_time: 5672 interval:4380ms
+2026-01-14 16:07:56,280 - INFO - text:这段代码在人类的语言层面做了什么？前面说了啥. start_time: 22922, end_time: 53472 interval:30550ms
+2026-01-14 16:07:59,359 - INFO - Microphone ASR finished
+2026-01-14 16:22:51,200 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:22:51,201 - INFO - Request header: 11111100
+2026-01-14 16:22:51,201 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:22:51,201 - INFO - Sent full client request with seq: 1
+2026-01-14 16:22:51,247 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114162251CFE06D7E63A5D3C087B8'}}}}
+2026-01-14 16:22:52,806 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:23:07,678 - INFO - text:请. start_time: 14212, end_time: 14292 interval:80ms
+2026-01-14 16:23:08,101 - INFO - text:请做一个. start_time: 14072, end_time: 14692 interval:620ms
+2026-01-14 16:23:08,713 - INFO - text:请做一个自我介绍. start_time: 14072, end_time: 15412 interval:1340ms
+2026-01-14 16:23:09,033 - INFO - text:请做一个自我介绍. start_time: 14072, end_time: 15412 interval:1340ms
+2026-01-14 16:23:10,617 - INFO - text:请做一个自我。. start_time: 14072, end_time: 15252 interval:1180ms
+2026-01-14 16:23:11,437 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15412 interval:1340ms
+2026-01-14 16:23:14,016 - INFO - text:请做一个自我介绍。你好. start_time: 14072, end_time: 20852 interval:6780ms
+2026-01-14 16:23:14,455 - INFO - text:请做一个自我介绍。你好. start_time: 14072, end_time: 20852 interval:6780ms
+2026-01-14 16:23:19,974 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:19,977 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:19,977 - INFO - text:None. start_time: -1, end_time: -1 interval:0ms
+2026-01-14 16:23:32,067 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:32,068 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:32,068 - INFO - text:可以. start_time: 38642, end_time: 38722 interval:80ms
+2026-01-14 16:23:32,283 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:32,283 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:32,284 - INFO - text:可以把. start_time: 38502, end_time: 39042 interval:540ms
+2026-01-14 16:23:32,678 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:32,678 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:32,678 - INFO - text:可以把这个. start_time: 38502, end_time: 39362 interval:860ms
+2026-01-14 16:23:33,648 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:33,648 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:33,649 - INFO - text:可以把这个 strip. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:33,884 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:33,884 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:33,885 - INFO - text:可以把这个 strip. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:36,601 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:36,601 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:36,601 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:36,601 - INFO - text:None. start_time: -1, end_time: -1 interval:0ms
+2026-01-14 16:23:48,453 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:48,454 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:48,454 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:48,454 - INFO - text:不是你规划出来，出好之后，你那他现在想要. start_time: 50732, end_time: 54952 interval:4220ms
+2026-01-14 16:23:48,682 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:48,682 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:48,682 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:48,682 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一. start_time: 50732, end_time: 55511 interval:4779ms
+2026-01-14 16:23:49,090 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:49,090 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:49,090 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:49,090 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于. start_time: 50732, end_time: 55832 interval:5100ms
+2026-01-14 16:23:49,538 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:49,538 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:49,538 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:49,538 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个. start_time: 50732, end_time: 56072 interval:5340ms
+2026-01-14 16:23:49,671 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:49,671 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:49,671 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:49,671 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号. start_time: 50732, end_time: 56392 interval:5660ms
+2026-01-14 16:23:50,125 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:50,126 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:50,126 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:50,127 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面. start_time: 50732, end_time: 56711 interval:5979ms
+2026-01-14 16:23:50,280 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:50,281 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:50,281 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:50,281 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个. start_time: 50732, end_time: 56952 interval:6220ms
+2026-01-14 16:23:50,667 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:50,667 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:50,667 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:50,667 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗. start_time: 50732, end_time: 57432 interval:6700ms
+2026-01-14 16:23:51,084 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:51,085 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:51,085 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:51,085 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗. start_time: 50732, end_time: 57432 interval:6700ms
+2026-01-14 16:23:51,741 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:51,741 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:51,741 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:51,741 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗. start_time: 50732, end_time: 58232 interval:7500ms
+2026-01-14 16:23:51,923 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:51,924 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:51,924 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:51,924 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？那这个介绍. start_time: 50732, end_time: 58711 interval:7979ms
+2026-01-14 16:23:52,323 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:52,323 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:52,324 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:52,324 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？那这个介绍肯定. start_time: 50732, end_time: 59031 interval:8299ms
+2026-01-14 16:23:52,699 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:52,699 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:52,699 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:52,700 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？那这个介绍肯定是. start_time: 50732, end_time: 59351 interval:8619ms
+2026-01-14 16:23:52,967 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:52,967 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:52,967 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:52,967 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？那这个介绍肯定是要. start_time: 50732, end_time: 59511 interval:8779ms
+2026-01-14 16:23:53,417 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:53,417 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:53,417 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:53,417 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？那这个介绍肯定是要围绕. start_time: 50732, end_time: 59832 interval:9100ms
+2026-01-14 16:23:53,655 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:53,655 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:53,655 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:53,655 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:53,655 - INFO - text:那这个介绍肯定是要围绕着你这个. start_time: 58252, end_time: 60312 interval:2060ms
+2026-01-14 16:23:54,338 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:54,338 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:54,338 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:54,339 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:54,339 - INFO - text:那这个介绍肯定是要围绕着你这个账号. start_time: 58252, end_time: 60711 interval:2459ms
+2026-01-14 16:23:54,514 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:54,515 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:54,515 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:54,515 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:54,515 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建. start_time: 58252, end_time: 61112 interval:2860ms
+2026-01-14 16:23:54,938 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:54,938 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:54,938 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:54,939 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:54,939 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候. start_time: 58252, end_time: 61432 interval:3180ms
+2026-01-14 16:23:55,187 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:55,187 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:55,187 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:55,187 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:55,187 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候想要. start_time: 58252, end_time: 61752 interval:3500ms
+2026-01-14 16:23:55,920 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:55,920 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:55,920 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:55,920 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:55,920 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候想要发生的. start_time: 58252, end_time: 62552 interval:4300ms
+2026-01-14 16:23:56,085 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:56,085 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:56,086 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:56,086 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:56,086 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候想要发生的是什么呢. start_time: 58252, end_time: 62871 interval:4619ms
+2026-01-14 16:23:56,488 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:56,488 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:56,488 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:56,488 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:56,488 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候，想要发生的是什么呢？内容. start_time: 58252, end_time: 63191 interval:4939ms
+2026-01-14 16:23:56,669 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:56,670 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:56,670 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:56,670 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:56,670 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候，想要发生的是什么呢？内容. start_time: 58252, end_time: 63191 interval:4939ms
+2026-01-14 16:23:56,999 - INFO - text:请做一个自我介绍。. start_time: 14072, end_time: 15272 interval:1200ms
+2026-01-14 16:23:56,999 - INFO - text:你好。. start_time: 20772, end_time: 20852 interval:80ms
+2026-01-14 16:23:56,999 - INFO - text:可以把这个 strip。. start_time: 38502, end_time: 40402 interval:1900ms
+2026-01-14 16:23:56,999 - INFO - text:不是你规划出来，出好之后，你那他现在想要去写一个关于这个账号下面那个介绍吗？. start_time: 50732, end_time: 58092 interval:7360ms
+2026-01-14 16:23:56,999 - INFO - text:那这个介绍肯定是要围绕着你这个账号搭建的时候，想要发生的是什么呢？内容. start_time: 58252, end_time: 63191 interval:4939ms
+2026-01-14 16:24:01,040 - INFO - Microphone ASR finished
+2026-01-14 16:25:57,076 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:25:57,077 - INFO - Request header: 11111100
+2026-01-14 16:25:57,077 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:25:57,077 - INFO - Sent full client request with seq: 1
+2026-01-14 16:25:57,142 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114162557BC797FB2B32B7ACF7909'}}}}
+2026-01-14 16:25:57,254 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:25:59,744 - INFO - text:现在 definite:False start_time: 1822, end_time: 1902 interval:80ms
+2026-01-14 16:26:00,123 - INFO - text:现在我 definite:False start_time: 1682, end_time: 2382 interval:700ms
+2026-01-14 16:26:00,266 - INFO - text:现在我开始 definite:False start_time: 1682, end_time: 2622 interval:940ms
+2026-01-14 16:26:01,114 - INFO - text:现在我开始进行 definite:False start_time: 1682, end_time: 3182 interval:1500ms
+2026-01-14 16:26:01,330 - INFO - text:现在我开始进行自我 definite:False start_time: 1682, end_time: 3582 interval:1900ms
+2026-01-14 16:26:01,720 - INFO - text:现在我开始进行自我介绍 definite:False start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:03,041 - INFO - text:现在我开始进行自我介绍。 definite:False start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:05,307 - INFO - text:现在我开始进行自我介绍。语音大 definite:False start_time: 1682, end_time: 7702 interval:6020ms
+2026-01-14 16:26:05,741 - INFO - text:现在我开始进行自我介绍。语音大模型 definite:False start_time: 1682, end_time: 7862 interval:6180ms
+2026-01-14 16:26:06,063 - INFO - text:现在我开始进行自我介绍。语音大模型，包括 definite:False start_time: 1682, end_time: 8342 interval:6660ms
+2026-01-14 16:26:08,067 - INFO - text:现在我开始进行自我介绍。语音大模型，包括。 definite:False start_time: 1682, end_time: 8342 interval:6660ms
+2026-01-14 16:26:10,689 - INFO - text:现在我开始进行自我介绍。语音大模型，包括。实时 definite:False start_time: 1682, end_time: 12922 interval:11240ms
+2026-01-14 16:26:11,119 - INFO - text:现在我开始进行自我介绍。语音大模型，包括。实时大模型 definite:False start_time: 1682, end_time: 13242 interval:11560ms
+2026-01-14 16:26:11,651 - INFO - text:现在我开始进行自我介绍。语音大模型，包括。实时大模型 definite:False start_time: 1682, end_time: 13242 interval:11560ms
+2026-01-14 16:26:12,941 - INFO - text:现在我开始进行自我介绍。 definite:True start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:12,942 - INFO - text:语音大模型，包括。实时大模型同船大 definite:False start_time: 7242, end_time: 15322 interval:8080ms
+2026-01-14 16:26:13,352 - INFO - text:现在我开始进行自我介绍。 definite:True start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:13,353 - INFO - text:语音大模型，包括。实时大模型同船大拇指 definite:False start_time: 7242, end_time: 15402 interval:8160ms
+2026-01-14 16:26:13,923 - INFO - text:现在我开始进行自我介绍。 definite:True start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:13,924 - INFO - text:语音大模型，包括。实时大模型同船大拇指合成 definite:False start_time: 7242, end_time: 16282 interval:9040ms
+2026-01-14 16:26:14,294 - INFO - text:现在我开始进行自我介绍。 definite:True start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:14,294 - INFO - text:语音大模型，包括。 definite:True start_time: 7242, end_time: 8342 interval:1100ms
+2026-01-14 16:26:14,294 - INFO - text:实时大模型同船大拇指合成大拇指 definite:False start_time: 12702, end_time: 16522 interval:3820ms
+2026-01-14 16:26:14,504 - INFO - text:现在我开始进行自我介绍。 definite:True start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:14,504 - INFO - text:语音大模型，包括。 definite:True start_time: 7242, end_time: 8342 interval:1100ms
+2026-01-14 16:26:14,504 - INFO - text:实时大模型同船大拇指合成大拇指 definite:False start_time: 12702, end_time: 16522 interval:3820ms
+2026-01-14 16:26:15,643 - INFO - text:现在我开始进行自我介绍。 definite:True start_time: 1682, end_time: 3902 interval:2220ms
+2026-01-14 16:26:15,644 - INFO - text:语音大模型，包括。 definite:True start_time: 7242, end_time: 8342 interval:1100ms
+2026-01-14 16:26:15,644 - INFO - text:实时大模型同船大拇指合成大拇指。 definite:False start_time: 12702, end_time: 16522 interval:3820ms
+2026-01-14 16:26:17,893 - INFO - Microphone ASR finished
+2026-01-14 16:27:10,103 - INFO - Connected to wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+2026-01-14 16:27:10,103 - INFO - Request header: 11111100
+2026-01-14 16:27:10,103 - INFO - Request seq: 1, payload_size: 169
+2026-01-14 16:27:10,104 - INFO - Sent full client request with seq: 1
+2026-01-14 16:27:10,161 - INFO - Received response: {'code': 0, 'event': 0, 'is_last_package': False, 'payload_sequence': 0, 'payload_size': 72, 'payload_msg': {'result': {'additions': {'log_id': '20260114162710BA12A88163C6AFF11FD6'}}}}
+2026-01-14 16:27:10,272 - INFO - 🎙 Microphone streaming started
+2026-01-14 16:27:11,697 - INFO - text:现在 definite:False start_time: 822, end_time: 902 interval:80ms
+2026-01-14 16:27:12,135 - INFO - text:现在开始 definite:False start_time: 682, end_time: 1302 interval:620ms
+2026-01-14 16:27:12,698 - INFO - text:现在开始自我介绍 definite:False start_time: 682, end_time: 2022 interval:1340ms
+2026-01-14 16:27:13,199 - INFO - text:现在开始自我介绍 definite:False start_time: 682, end_time: 2022 interval:1340ms
+2026-01-14 16:27:14,700 - INFO - text:现在开始自我介绍这 definite:False start_time: 682, end_time: 3942 interval:3260ms
+2026-01-14 16:27:14,975 - INFO - text:现在开始自我介绍，这是第 definite:False start_time: 682, end_time: 4262 interval:3580ms
+2026-01-14 16:27:15,343 - INFO - text:现在开始自我介绍，这是第一句话 definite:False start_time: 682, end_time: 4422 interval:3740ms
+2026-01-14 16:27:16,337 - INFO - text:现在开始自我介绍，这是第一句话 definite:False start_time: 682, end_time: 4422 interval:3740ms
+2026-01-14 16:27:17,326 - INFO - text:现在开始自我介绍，这是第一句话，这是 definite:False start_time: 682, end_time: 6622 interval:5940ms
+2026-01-14 16:27:17,761 - INFO - text:现在开始自我介绍，这是第一句话，这是第二句话 definite:False start_time: 682, end_time: 6942 interval:6260ms
+2026-01-14 16:27:17,949 - INFO - text:现在开始自我介绍，这是第一句话，这是第二句话 definite:False start_time: 682, end_time: 6942 interval:6260ms
+2026-01-14 16:27:19,961 - INFO - Microphone ASR finished
