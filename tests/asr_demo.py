@@ -11,6 +11,9 @@ from typing import Optional, List, Dict, Any, Tuple, AsyncGenerator
 import signal
 import sounddevice as sd
 import numpy as np
+import webrtcvad
+# 导入大模型流式处理函数
+from doubao_api_test import stream_text_to_llm
 
 # 配置日志
 logging.basicConfig(
@@ -495,9 +498,13 @@ class AsrWsClient:
         rms = np.sqrt(np.mean(data.astype(np.float32)**2))
         return rms < threshold
     
-    async def execute_mic(self,sample_rate: int = 16000,channels: int = 1,seg_duration: int = 200,):
+    async def execute_mic(self,channels: int = 1, use_llm: bool = True):
         """
         Real-time microphone streaming ASR
+        
+        Args:
+            channels: 声道数
+            use_llm: 是否将ASR结果传递给大模型
         """
 
         # ========= 1. 建立连接 & Full Request =========
@@ -506,34 +513,55 @@ class AsrWsClient:
         await self.send_full_client_request()
 
         loop = asyncio.get_running_loop()
-        audio_q: asyncio.Queue[bytes] = asyncio.Queue(maxsize=10)
-
-        blocksize = int(sample_rate * seg_duration / 1000)
+        audio_q: asyncio.Queue[bytes] = asyncio.Queue(maxsize=10)   
+        text_q: asyncio.Queue[str] = asyncio.Queue(maxsize=10)  # 用于传递ASR结果的队列
+        
+        SAMPLE_RATE = 16000
+        FRAME_DURATION = 30     # 每帧时长 ms（WebRTC VAD 只支持 10/20/30）
+        FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000)   #需要480个采样点
+        vad = webrtcvad.Vad(3)  # 0~3，越大越激进
+        MAX_SILENCE = 0.8
+        silence_duration = 0.0
+        is_speaking = False
+        is_pause = True
 
         # ========= 2. sounddevice 回调 =========
         def callback(indata, frames, time, status):
+            nonlocal silence_duration, is_speaking, is_pause
             if status:
                 logger.warning(status)
             try:
-                loop.call_soon_threadsafe(
+                pcm_bytes = bytes(indata)
+                is_voice = vad.is_speech(pcm_bytes, SAMPLE_RATE)
+                if is_voice:
+                    silence_duration = 0.0
+                    if not is_speaking:
+                        is_speaking = True
+                        is_pause = False
+                else:
+                    silence_duration += FRAME_DURATION / 1000
+                    if is_speaking and silence_duration > MAX_SILENCE:
+                        is_speaking = False
+                        is_pause = True
+                loop.call_soon_threadsafe( 
                     audio_q.put_nowait,
-                    bytes(indata),
+                    pcm_bytes,
                 )
             except asyncio.QueueFull:
                 pass  # 丢帧比阻塞安全
 
         stream = sd.RawInputStream(
-            samplerate=sample_rate,
+            samplerate=SAMPLE_RATE,
             channels=channels,
             dtype="int16",
-            blocksize=blocksize,
+            blocksize=FRAME_SIZE,
             callback=callback,
         )
 
         stream.start()
         logger.info("🎙 Microphone streaming started")
         
-        # ========= 3. 接收协程 =========
+        # ========= 主线程 添加ASR接收协程 =========
         async def receiver():
             last_text = ""
             last_end_time = None
@@ -550,28 +578,38 @@ class AsrWsClient:
                     start_time = utt.get("start_time")
                     end_time = utt.get("end_time")  
                     
-                    if (end_time is not None 
-                        and start_time is not None):
-                        # and end_time - start_time >= SILENCE_THRESHOLD_MS):
+                    if is_pause:
                         text = utt.get("text")
                         definite = utt.get("definite")
                         logger.info(f"text:{text} definite:{definite} start_time: {start_time}, end_time: {end_time} interval:{end_time - start_time}ms")
-                        # start_time = end_time
+                        
+                        # 将ASR结果放入队列
+                        if text and use_llm:
+                            try:
+                                await text_q.put(text)
+                            except asyncio.QueueFull:
+                                pass  # 队列满时丢弃
 
                 if resp.is_last_package:
                     break
-
         recv_task = asyncio.create_task(receiver())
+        
+        # ========= 4. LLM处理协程 =========
+       
+        async def consume_llm():
+            async for llm_chunk in stream_text_to_llm(text_q):
+                print(llm_chunk, end="", flush=True)
+        llm_consume_task = asyncio.create_task(consume_llm())
 
-        # ========= 4. 发送音频 =========
+        # ========= 5. 给ASR服务器 发送音频 ========= 主循环，不断从audio_q队列中获取分割的声音块
         first_packet = True
         try:
             while True:
                 segment = await audio_q.get()
-
+                #为第一个数据包添加wav格式头
                 if first_packet:
                     wav_header = self.build_wav_header(
-                        sample_rate=sample_rate,
+                        sample_rate=SAMPLE_RATE,
                         channels=channels,
                         bits_per_sample=16,
                         data_size=0,)
@@ -598,7 +636,7 @@ class AsrWsClient:
                 is_last=True,
             )
             await self.conn.send_bytes(final_req)
-
+            await llm_consume_task
             await recv_task
 
         finally:
@@ -665,6 +703,7 @@ async def main():
     parser.add_argument("--sample-rate", type=int, default=16000)
     parser.add_argument("--channels", type=int, default=1,help="Mic channels, default:1")
     parser.add_argument("--mic", action="store_true", default =True ,help="Use microphone for live input")
+    parser.add_argument("--use-llm", default=True, help="Pass ASR results to LLM for processing")
     
     args = parser.parse_args()
     
@@ -672,7 +711,7 @@ async def main():
     async with AsrWsClient(args.url, args.seg_duration) as client:  # 使用async with 会自动触发AsrWsClient的__aenter__()方法，即创建session
         try:
             if args.mic:
-                await client.execute_mic()
+                await client.execute_mic(use_llm=args.use_llm)
             else:
                 async for response in client.execute(args.file):
                     logger.info(f"Received response: {json.dumps(response.to_dict(), indent=2, ensure_ascii=False)}")
