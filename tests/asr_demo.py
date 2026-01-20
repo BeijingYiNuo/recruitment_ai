@@ -14,17 +14,18 @@ import numpy as np
 import webrtcvad
 # 导入大模型流式处理函数
 from doubao_api_test import stream_text_to_llm
+import asyncio
+import json
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI(title = "Recruitment Service")
+
+asr_task: asyncio.Task | None = None
+stop_event: asyncio.Event | None = None
 
 # 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('run.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
@@ -231,7 +232,6 @@ class RequestBuilder:
         request.extend(struct.pack('>I', payload_size))
         request.extend(compressed_payload)
         
-        logger.info(f"Request header: {header.to_bytes().hex()}")
         logger.info(f"Request seq: {seq}, payload_size: {payload_size}")
         
 
@@ -498,7 +498,7 @@ class AsrWsClient:
         rms = np.sqrt(np.mean(data.astype(np.float32)**2))
         return rms < threshold
     
-    async def execute_mic(self,channels: int = 1, use_llm: bool = True):
+    async def execute_mic(self,channels: int = 1, use_llm: bool = True, stop_event: asyncio.Event | None = None):
         """
         Real-time microphone streaming ASR
         
@@ -528,6 +528,8 @@ class AsrWsClient:
         # ========= 2. sounddevice 回调 =========
         def callback(indata, frames, time, status):
             nonlocal silence_duration, is_speaking, is_pause
+            if stop_event and stop_event.is_set():
+                return
             if status:
                 logger.warning(status)
             try:
@@ -563,9 +565,9 @@ class AsrWsClient:
         
         # ========= 主线程 添加ASR接收协程 =========
         async def receiver():
-            last_text = ""
-            last_end_time = None
             async for resp in self.recv_messages():
+                if stop_event and stop_event.is_set():
+                    break
                 msg = resp.payload_msg
                 if not msg:
                     continue
@@ -604,7 +606,7 @@ class AsrWsClient:
         # ========= 5. 给ASR服务器 发送音频 ========= 主循环，不断从audio_q队列中获取分割的声音块
         first_packet = True
         try:
-            while True:
+            while not (stop_event and stop_event.is_set()):
                 segment = await audio_q.get()
                 #为第一个数据包添加wav格式头
                 if first_packet:
@@ -625,25 +627,27 @@ class AsrWsClient:
                 await self.conn.send_bytes(req)
                 logger.debug(f"Sent mic segment seq={self.seq}")
                 self.seq += 1
-
-        except KeyboardInterrupt:
-            logger.info("Stopping microphone stream...")
-
-            # 发送 EOF
-            final_req = RequestBuilder.new_audio_only_request(
-                seq=self.seq,
-                segment=b"",
-                is_last=True,
-            )
-            await self.conn.send_bytes(final_req)
-            await llm_consume_task
-            await recv_task
-
+        except asyncio.TimeoutError:
+            pass
         finally:
-            stream.stop()
-            stream.close()
-            await self.conn.close()
-            logger.info("Microphone ASR finished")
+            logger.info("Stopping microphone stream...")
+            if stop_event and stop_event.is_set():
+                try:
+                # 发送 EOF
+                    final_req = RequestBuilder.new_audio_only_request(
+                    seq=self.seq,
+                    segment=b"",
+                    is_last=True,
+                    )
+                    await self.conn.send_bytes(final_req)
+                except Exception:
+                    pass
+                recv_task.cancel()
+                asr_task.cancel()
+                llm_consume_task.cancel()
+                stream.stop()
+                stream.close()
+                await self.conn.close()
 
 
     
@@ -684,39 +688,108 @@ class AsrWsClient:
             if self.conn:
                 await self.conn.close()
 
-async def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="ASR WebSocket Client")
-    parser.add_argument("--file", type=str, required=False, help="Audio file path")
 
-    #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
-    #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
-    #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream
-    #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
-    
-    parser.add_argument("--url", type=str, default="wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async", 
-                       help="WebSocket URL")
-    parser.add_argument("--seg-duration", type=int, default=200, 
-                       help="Audio duration(ms) per packet, default:200")
-    
-    parser.add_argument("--sample-rate", type=int, default=16000)
-    parser.add_argument("--channels", type=int, default=1,help="Mic channels, default:1")
-    parser.add_argument("--mic", action="store_true", default =True ,help="Use microphone for live input")
-    parser.add_argument("--use-llm", default=True, help="Pass ASR results to LLM for processing")
-    
-    args = parser.parse_args()
-    
-    #创建Asr WebSocket 客户端
-    async with AsrWsClient(args.url, args.seg_duration) as client:  # 使用async with 会自动触发AsrWsClient的__aenter__()方法，即创建session
-        try:
+
+class StartAsrRequest(BaseModel):
+    url: str = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
+    seg_duration: int = 200
+    mic: bool = True
+    file: str | None = None
+    use_llm: bool = True
+
+async def asr_runner(args: StartAsrRequest, stop_event: asyncio.Event):
+    try:
+        async with AsrWsClient(args.url, args.seg_duration) as client:
             if args.mic:
-                await client.execute_mic(use_llm=args.use_llm)
+                logger.info("ASR mic mode started")
+                await client.execute_mic(
+                    use_llm=args.use_llm,
+                    stop_event = stop_event
+                )
             else:
+                logger.info("ASR file mode started")
                 async for response in client.execute(args.file):
-                    logger.info(f"Received response: {json.dumps(response.to_dict(), indent=2, ensure_ascii=False)}")
-        except Exception as e:
-            logger.error(f"ASR processing failed: {e}")
+                    if stop_event.is_set():
+                        logger.info("🛑 Stop event received, exiting ASR loop")
+                        break
+                    logger.info(
+                        f"Received response: {json.dumps(response.to_dict(), ensure_ascii=False)}"
+                    )
+    except asyncio.CancelledError:
+        logger.info("⛔ ASR task cancelled")
+    except Exception as e:
+        logger.error(f"❌ ASR processing failed: {e}")
+    finally:
+        logger.info("✅ ASR task exited")
+
+@app.post("/asr/start")
+async def start_asr(req: StartAsrRequest):
+    global asr_task, stop_event
+    if asr_task and not asr_task.done():
+        raise HTTPException(status_code=400, detail="ASR service already running")
+    stop_event = asyncio.Event()
+    asr_task = asyncio.create_task(asr_runner(req, stop_event))
+    return {
+        "status": "started",
+        "mode": "mic" if req.mic else "file"
+    }
+
+
+@app.post("/asr/stop")
+async def stop_asr():
+    global asr_task, stop_event
+    if not asr_task or asr_task.done():
+        raise HTTPException(status_code=400, detail="ASR service not running")
+    
+    stop_event.set()
+    asr_task.cancel()
+    try:
+        await asr_task
+    except asyncio.CancelledError:
+        pass
+    asr_task = None
+    stop_event = None
+    return {
+        "status":"stopped"
+    }
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import uvicorn
+    uvicorn.run("asr_demo:app", host="127.0.0.1", port=8000, reload=True)
+
+# async def main():
+#     import argparse
+    
+#     parser = argparse.ArgumentParser(description="ASR WebSocket Client")
+#     parser.add_argument("--file", type=str, required=False, help="Audio file path")
+
+#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
+#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream
+#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+    
+#     parser.add_argument("--url", type=str, default="wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async", 
+#                        help="WebSocket URL")
+#     parser.add_argument("--seg-duration", type=int, default=200, 
+#                        help="Audio duration(ms) per packet, default:200")
+    
+#     parser.add_argument("--sample-rate", type=int, default=16000)
+#     parser.add_argument("--channels", type=int, default=1,help="Mic channels, default:1")
+#     parser.add_argument("--mic", action="store_true", default =True ,help="Use microphone for live input")
+#     parser.add_argument("--use-llm", default=True, help="Pass ASR results to LLM for processing")
+    
+#     args = parser.parse_args()
+    
+#     #创建Asr WebSocket 客户端
+#     async with AsrWsClient(args.url, args.seg_duration) as client:  # 使用async with 会自动触发AsrWsClient的__aenter__()方法，即创建session
+#         try:
+#             if args.mic:
+#                 await client.execute_mic(use_llm=args.use_llm)
+#             else:
+#                 async for response in client.execute(args.file):
+#                     logger.info(f"Received response: {json.dumps(response.to_dict(), indent=2, ensure_ascii=False)}")
+#         except Exception as e:
+#             logger.error(f"ASR processing failed: {e}")
+
+# if __name__ == "__main__":
+#     asyncio.run(main())
