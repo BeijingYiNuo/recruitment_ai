@@ -16,14 +16,30 @@ import webrtcvad
 from doubao_api_test import stream_text_to_llm
 import asyncio
 import json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from ASRTextMerger import ASRTextMerger
 
 app = FastAPI(title = "Recruitment Service")
+
+# 配置CORS中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 在生产环境中应该设置具体的前端域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 asr_task: asyncio.Task | None = None
 stop_event: asyncio.Event | None = None
 
+# 用于存储流式数据的队列
+asr_queue: asyncio.Queue | None = None
+llm_queue: asyncio.Queue | None = None
+merger = ASRTextMerger()
 # 配置日志
 logger = logging.getLogger("uvicorn.error")
 
@@ -515,6 +531,9 @@ class AsrWsClient:
         loop = asyncio.get_running_loop()
         audio_q: asyncio.Queue[bytes] = asyncio.Queue(maxsize=10)   
         text_q: asyncio.Queue[str] = asyncio.Queue(maxsize=10)  # 用于传递ASR结果的队列
+        global asr_queue, llm_queue
+        asr_queue = asyncio.Queue(maxsize=1000)
+        llm_queue = asyncio.Queue(maxsize=1000)
         
         SAMPLE_RATE = 16000
         FRAME_DURATION = 30     # 每帧时长 ms（WebRTC VAD 只支持 10/20/30）
@@ -573,19 +592,30 @@ class AsrWsClient:
                     continue
                 result = msg.get("result")
                 if not result:
+                    logger.info("未检测到声音")
                     continue
                 utterances = result.get("utterances", []) or []
                 for utt in utterances:
                     text = utt.get("text")
                     start_time = utt.get("start_time")
                     end_time = utt.get("end_time")  
+                    definite = utt.get("definite")
+                    
+                    # 当得到text文本后，立即将其放入asr_queue用于SSE传输，实现实时显示
+                    delta = merger.diff(text)
+                    
+                    if delta:
+                        try:
+                            if asr_queue:
+                                logger.info(f"delta:{delta}")
+                                await asr_queue.put({"text": delta})
+                        except asyncio.QueueFull:
+                            pass  # 队列满时丢弃
                     
                     if is_pause:
-                        text = utt.get("text")
-                        definite = utt.get("definite")
                         logger.info(f"text:{text} definite:{definite} start_time: {start_time}, end_time: {end_time} interval:{end_time - start_time}ms")
                         
-                        # 将ASR结果放入队列
+                        # 当is_pause为True时，才将ASR结果放入text_q，开始输出LLM回复内容
                         if text and use_llm:
                             try:
                                 await text_q.put(text)
@@ -601,6 +631,12 @@ class AsrWsClient:
         async def consume_llm():
             async for llm_chunk in stream_text_to_llm(text_q):
                 print(llm_chunk, end="", flush=True)
+                # 将LLM结果放入队列用于SSE传输
+                if llm_queue:
+                    try:
+                        await llm_queue.put(llm_chunk)
+                    except asyncio.QueueFull:
+                        pass  # 队列满时丢弃
         llm_consume_task = asyncio.create_task(consume_llm())
 
         # ========= 5. 给ASR服务器 发送音频 ========= 主循环，不断从audio_q队列中获取分割的声音块
@@ -737,7 +773,7 @@ async def start_asr(req: StartAsrRequest):
 
 @app.post("/asr/stop")
 async def stop_asr():
-    global asr_task, stop_event
+    global asr_task, stop_event, asr_queue, llm_queue
     if not asr_task or asr_task.done():
         raise HTTPException(status_code=400, detail="ASR service not running")
     
@@ -749,47 +785,40 @@ async def stop_asr():
         pass
     asr_task = None
     stop_event = None
+    asr_queue = None
+    llm_queue = None
     return {
         "status":"stopped"
     }
 
+@app.get("/asr/stream")
+async def stream_asr():
+    """
+    SSE端点，用于传输ASR和LLM的流式数据
+    """
+    async def event_generator():
+        while True:
+            # 检查ASR队列
+            if asr_queue and not asr_queue.empty():
+                try:
+                    asr_data = await asr_queue.get()
+                    yield f"data: {json.dumps({'type': 'asr', 'data': asr_data})}\n\n"
+                except Exception as e:
+                    logger.error(f"Error getting ASR data: {e}")
+            
+            # 检查LLM队列
+            if llm_queue and not llm_queue.empty():
+                try:
+                    llm_data = await llm_queue.get()
+                    yield f"data: {json.dumps({'type': 'llm', 'data': llm_data})}\n\n"
+                except Exception as e:
+                    logger.error(f"Error getting LLM data: {e}")
+            
+            # 短暂休眠，避免CPU占用过高
+            await asyncio.sleep(0.1)
+    
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("asr_demo:app", host="127.0.0.1", port=8000, reload=True)
-
-# async def main():
-#     import argparse
-    
-#     parser = argparse.ArgumentParser(description="ASR WebSocket Client")
-#     parser.add_argument("--file", type=str, required=False, help="Audio file path")
-
-#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
-#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
-#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream
-#     #wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
-    
-#     parser.add_argument("--url", type=str, default="wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async", 
-#                        help="WebSocket URL")
-#     parser.add_argument("--seg-duration", type=int, default=200, 
-#                        help="Audio duration(ms) per packet, default:200")
-    
-#     parser.add_argument("--sample-rate", type=int, default=16000)
-#     parser.add_argument("--channels", type=int, default=1,help="Mic channels, default:1")
-#     parser.add_argument("--mic", action="store_true", default =True ,help="Use microphone for live input")
-#     parser.add_argument("--use-llm", default=True, help="Pass ASR results to LLM for processing")
-    
-#     args = parser.parse_args()
-    
-#     #创建Asr WebSocket 客户端
-#     async with AsrWsClient(args.url, args.seg_duration) as client:  # 使用async with 会自动触发AsrWsClient的__aenter__()方法，即创建session
-#         try:
-#             if args.mic:
-#                 await client.execute_mic(use_llm=args.use_llm)
-#             else:
-#                 async for response in client.execute(args.file):
-#                     logger.info(f"Received response: {json.dumps(response.to_dict(), indent=2, ensure_ascii=False)}")
-#         except Exception as e:
-#             logger.error(f"ASR processing failed: {e}")
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
+    uvicorn.run("asr_demo:app", host="127.0.0.1", port=8001, reload=True)

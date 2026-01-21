@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面试助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        #interview-btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        #interview-btn.start {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        #interview-btn.stop {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        #interview-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .text-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .text-box {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 400px;
+            background-color: #f9f9f9;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+        
+        .text-box h3 {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .text-content {
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            .text-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>面试助手</h1>
+        
+        <div class="controls">
+            <button id="interview-btn" class="start">开始面试</button>
+        </div>
+        
+        <div class="text-container">
+            <div class="text-box">
+                <h3>ASR 语音转文本</h3>
+                <div id="asr-text" class="text-content"></div>
+            </div>
+            
+            <div class="text-box">
+                <h3>LLM 回复</h3>
+                <div id="llm-text" class="text-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const interviewBtn = document.getElementById('interview-btn');
+        const asrText = document.getElementById('asr-text');
+        const llmText = document.getElementById('llm-text');
+        
+        let isInterviewing = false;
+        let eventSource = null;
+        
+        interviewBtn.addEventListener('click', async () => {
+            if (!isInterviewing) {
+                // 开始面试
+                await startInterview();
+            } else {
+                // 结束面试
+                await stopInterview();
+            }
+        });
+        
+        async function startInterview() {
+            try {
+                const response = await fetch('http://localhost:8001/asr/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
+                        seg_duration: 200,
+                        mic: true,
+                        use_llm: true
+                    })
+                });
+                
+                if (response.ok) {
+                    isInterviewing = true;
+                    interviewBtn.textContent = '结束面试';
+                    interviewBtn.classList.remove('start');
+                    interviewBtn.classList.add('stop');
+                    
+                    // 清空文本框
+                    asrText.textContent = '';
+                    llmText.textContent = '';
+                    
+                    // 建立 SSE 连接获取流式数据
+                    setupEventSource();
+                } else {
+                    const error = await response.json();
+                    alert(`启动面试失败: ${error.detail}`);
+                }
+            } catch (error) {
+                console.error('启动面试出错:', error);
+                alert('启动面试失败，请检查后端服务是否运行');
+            }
+        }
+        
+        async function stopInterview() {
+            try {
+                const response = await fetch('http://localhost:8001/asr/stop', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    isInterviewing = false;
+                    interviewBtn.textContent = '开始面试';
+                    interviewBtn.classList.remove('stop');
+                    interviewBtn.classList.add('start');
+                    
+                    // 关闭 SSE 连接
+                    if (eventSource) {
+                        eventSource.close();
+                        eventSource = null;
+                    }
+                } else {
+                    const error = await response.json();
+                    alert(`结束面试失败: ${error.detail}`);
+                }
+            } catch (error) {
+                console.error('结束面试出错:', error);
+                alert('结束面试失败，请检查后端服务是否运行');
+            }
+        }
+        
+        function setupEventSource() {
+            // 建立 SSE 连接获取流式数据
+            eventSource = new EventSource('http://localhost:8001/asr/stream');
+            
+            eventSource.addEventListener('message', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'asr') {
+                        // 检查是否已经包含相同的文本，避免重复
+                        const currentText = asrText.textContent;
+                        if (!currentText.endsWith(data.data.text)) {
+                            // 追加新的文本，不添加换行符，让文本自然填满文本框后再换行
+                            asrText.textContent += data.data.text;
+                            asrText.scrollTop = asrText.scrollHeight;
+                        }
+                    } else if (data.type === 'llm') {
+                        // LLM文本继续追加显示
+                        llmText.textContent += data.data;
+                        llmText.scrollTop = llmText.scrollHeight;
+                    }
+                } catch (error) {
+                    console.error('解析SSE数据出错:', error);
+                }
+            });
+            
+            eventSource.addEventListener('error', (event) => {
+                console.error('SSE 连接错误:', event);
+                if (event.readyState === EventSource.CLOSED) {
+                    eventSource = null;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
