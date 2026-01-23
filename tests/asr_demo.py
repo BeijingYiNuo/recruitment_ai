@@ -234,7 +234,10 @@ class RequestBuilder:
                 "enable_punc": True,
                 "enable_ddc": True,
                 "show_utterances": True,
-                "enable_nonstream": False
+                "enable_nonstream": False,
+                "end_window_size": 200,
+                "force_to_speech_time": 1000,
+                "result_type": "single"
             }
         }
         
@@ -599,27 +602,16 @@ class AsrWsClient:
                     text = utt.get("text")
                     start_time = utt.get("start_time")
                     end_time = utt.get("end_time")  
-                    definite = utt.get("definite")
-                    
-                    # 当得到text文本后，立即将其放入asr_queue用于SSE传输，实现实时显示
-                    delta = merger.diff(text)
-                    
-                    if delta:
-                        try:
-                            if asr_queue:
-                                logger.info(f"delta:{delta}")
-                                await asr_queue.put({"text": delta})
-                        except asyncio.QueueFull:
-                            pass  # 队列满时丢弃
-                    
-                    if is_pause:
+                    definite = utt.get("definite")   
+                    logger.info("*****正在说话*****")
+                    if definite:
                         logger.info(f"text:{text} definite:{definite} start_time: {start_time}, end_time: {end_time} interval:{end_time - start_time}ms")
-                        
-                        # 当is_pause为True时，才将ASR结果放入text_q，开始输出LLM回复内容
                         if text and use_llm:
                             try:
                                 await text_q.put(text)
+                                await asr_queue.put(text)
                             except asyncio.QueueFull:
+                                logger.info("queue full")
                                 pass  # 队列满时丢弃
 
                 if resp.is_last_package:
@@ -630,7 +622,7 @@ class AsrWsClient:
        
         async def consume_llm():
             async for llm_chunk in stream_text_to_llm(text_q):
-                print(llm_chunk, end="", flush=True)
+                # print(llm_chunk, end="", flush=True)
                 # 将LLM结果放入队列用于SSE传输
                 if llm_queue:
                     try:

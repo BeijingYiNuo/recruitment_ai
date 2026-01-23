@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面试助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .control-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-start {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .btn-start:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-stop {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            background-color: #da190b;
+        }
+        
+        .textboxes-container {
+            display: flex;
+            gap: 20px;
+            height: 500px;
+        }
+        
+        .textbox-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .textbox-label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        
+        .textbox {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        
+        .status {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>面试助手</h1>
+        
+        <div class="control-section">
+            <button id="interviewBtn" class="btn btn-start">开始面试</button>
+        </div>
+        
+        <div class="textboxes-container">
+            <div class="textbox-section">
+                <div class="textbox-label">ASR 识别结果</div>
+                <div id="asrTextbox" class="textbox"></div>
+            </div>
+            <div class="textbox-section">
+                <div class="textbox-label">LLM 回复</div>
+                <div id="llmTextbox" class="textbox"></div>
+            </div>
+        </div>
+        
+        <div class="status" id="status">就绪</div>
+    </div>
+    
+    <script>
+        let eventSource = null;
+        let isInterviewing = false;
+        let llmBuffer = '';
+        let llmIndex = 0;
+        let llmInterval = null;
+        
+        const interviewBtn = document.getElementById('interviewBtn');
+        const asrTextbox = document.getElementById('asrTextbox');
+        const llmTextbox = document.getElementById('llmTextbox');
+        const status = document.getElementById('status');
+        
+        interviewBtn.addEventListener('click', async () => {
+            if (!isInterviewing) {
+                // 开始面试
+                try {
+                    const response = await fetch('http://127.0.0.1:8001/asr/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({})
+                    });
+                    
+                    if (response.ok) {
+                        isInterviewing = true;
+                        interviewBtn.textContent = '结束面试';
+                        interviewBtn.className = 'btn btn-stop';
+                        status.textContent = '面试中...';
+                        
+                        // 清空文本框
+                        asrTextbox.textContent = '';
+                        llmTextbox.textContent = '';
+                        llmBuffer = '';
+                        llmIndex = 0;
+                        if (llmInterval) {
+                            clearInterval(llmInterval);
+                        }
+                        
+                        // 启动SSE连接
+                        startSSE();
+                    } else {
+                        const error = await response.json();
+                        alert('启动面试失败: ' + error.detail);
+                    }
+                } catch (error) {
+                    console.error('启动面试失败:', error);
+                    alert('启动面试失败，请检查后端服务是否运行');
+                }
+            } else {
+                // 结束面试
+                try {
+                    const response = await fetch('http://127.0.0.1:8001/asr/stop', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({})
+                    });
+                    
+                    if (response.ok) {
+                        isInterviewing = false;
+                        interviewBtn.textContent = '开始面试';
+                        interviewBtn.className = 'btn btn-start';
+                        status.textContent = '面试已结束';
+                        
+                        // 关闭SSE连接
+                        stopSSE();
+                        
+                        // 清除LLM打字效果
+                        if (llmInterval) {
+                            clearInterval(llmInterval);
+                            llmInterval = null;
+                        }
+                    } else {
+                        const error = await response.json();
+                        alert('结束面试失败: ' + error.detail);
+                    }
+                } catch (error) {
+                    console.error('结束面试失败:', error);
+                    alert('结束面试失败，请检查后端服务是否运行');
+                }
+            }
+        });
+        
+        function startSSE() {
+            // 关闭之前的连接
+            stopSSE();
+            
+            // 创建新的SSE连接
+            eventSource = new EventSource('http://127.0.0.1:8001/asr/stream');
+            
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'asr') {
+                        // ASR结果，直接追加
+                        asrTextbox.textContent += data.data + '\n';
+                        asrTextbox.scrollTop = asrTextbox.scrollHeight;
+                    } else if (data.type === 'llm') {
+                        // LLM结果，添加到缓冲区
+                        llmBuffer += data.data;
+                        
+                        // 启动打字效果
+                        if (!llmInterval) {
+                            startLLMTyping();
+                        }
+                    }
+                } catch (error) {
+                    console.error('解析SSE数据失败:', error);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                console.error('SSE连接错误:', error);
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    console.log('SSE连接已关闭');
+                }
+            };
+        }
+        
+        function stopSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+        
+        function startLLMTyping() {
+            llmInterval = setInterval(() => {
+                if (llmIndex < llmBuffer.length) {
+                    llmTextbox.textContent += llmBuffer[llmIndex];
+                    llmTextbox.scrollTop = llmTextbox.scrollHeight;
+                    llmIndex++;
+                } else {
+                    clearInterval(llmInterval);
+                    llmInterval = null;
+                }
+            }, 50); // 每个字之间的延迟
+        }
+    </script>
+</body>
+</html>
