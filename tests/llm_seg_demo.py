@@ -132,7 +132,7 @@ SEGMENT_JUDGE_PROMPT = """
 - 一个问题大概率由面试官提出，小概率由面试者提出
 - 回答可能由面试者连续多行组成
 - 回答结束后，若语义完整，即认为一个单元完成
-- 对于问句需要重点关注，问句的上文可能为一段【问题-回答单元】的分界点
+- 对于问句需要重点关注，问句的上文很有可能为一段【问题-回答单元】的分界点
 
 你的输出只能是以下三种之一（严格）：
 CONTINUE  —— 还在当前问题或回答中
@@ -169,7 +169,7 @@ class Conf:
     openai_apikey: str = "76a878dc-4905-44c3-858c-8ef33006250f"
     openai_model: str = "doubao-seed-1-6-251015"
 
-class SegmentJudge:
+class llm_SegmentJudge:
 
     def __init__(self,text_q: asyncio.Queue):
         self.messages = [
@@ -187,7 +187,7 @@ class SegmentJudge:
     async def judge(self, recent_text: str) -> str:
         self.llm_call_count += 1
         ts = time.strftime("%H:%M:%S")
-        print(f"[{ts}] 📞 LLM Call #{self.llm_call_count}")
+        print(f"[{ts}] Seg LLM Call #{self.llm_call_count}")
         
         messages = [
             {"role": "system", "content": SEGMENT_JUDGE_PROMPT},
@@ -211,16 +211,18 @@ def build_segment_input(buffer_lines: list[str]):
 
 def emit_split(buffer: list, reason: str):
     print("\n" + "=" * 60)
-    print(f"📌 SPLIT ({reason})")
+    print(f"SPLIT ({reason})")
     print("\n".join(buffer))
     print("=" * 60)
 
 async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
     buffer = []
-    segment_judge = SegmentJudge(text_q)
+    segment_judge = llm_SegmentJudge(text_q)
     last_judge_time = time.time()  # 初始化时间戳为当前时间
     min_batch_size = 10  # 最小批量处理行数，增加到10行
     judge_interval = 3.0  # 调用LLM的最小时间间隔（秒），增加到3秒
+    
+    analysis = llm_analysis(memory_rounds=5, use_same_api=True, shared_client=segment_judge.client)
     
     while True:
         try:
@@ -246,22 +248,251 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
                 if decision == "CONTINUE":
                     continue
                 if decision == "SPLIT":
-                    emit_split(buffer,reason="semantic")
+                    block_text = "\n".join(buffer)
+                    emit_split(buffer, reason="semantic")
+                    
+                    # ===== 分析 block =====
+                    result = await analysis.analyze(block_text)
+                    print(f"给前端的：{result}")
+                    yield result
+                    # print("*"*60)
+                    # print(f"\n分析结果：")
+                    # print(f"追问问题建议：")
+                    # for i, q in enumerate(result['follow_up_questions'], 1):
+                    #     print(f"  {i}. {q}")
+                    # print(f"\n面试者评价：{result['evaluation']}\n")
+                    # print("*"*60)
+                    
                     buffer.clear()
                 if decision not in {"CONTINUE", "SPLIT", "IGNORE"}:
                     decision = "CONTINUE"
         except asyncio.TimeoutError:
             # ===== 时间 SPLIT 判定 =====
             if buffer:
-                emit_split(buffer=buffer, reason="silence")
+                block_text = "\n".join(buffer)
+                # emit_split(buffer=buffer, reason="silence")
+                
+                # ===== 分析 block =====
+                result = await analysis.analyze(block_text)
+                yield result
+                # print("*"*60)
+                # print(f"\n 分析结果：")
+                # print(f"追问问题建议：")
+                # for i, q in enumerate(result['follow_up_questions'], 1):
+                #     print(f"  {i}. {q}")
+                # print(f"\n面试者评价：{result['evaluation']}\n")
+                # print("*"*60)
+                
                 buffer.clear()
+
+ANALYSIS_PROMPT = """
+你是一个专业的【面试分析助手】。
+
+输入是面试对话的一个完整问答单元（block），你需要分析面试者的回答过程，重点评判以下三个方面：
+1. 逻辑能力：回答是否有条理、逻辑是否清晰、论证是否充分
+2. 表达能力：语言表达是否流畅、用词是否准确、重点是否突出
+3. 内生动力：是否展现出积极主动的态度、学习意愿和职业热情
+
+你的输出必须严格按照以下格式（仅输出这两部分，不要输出任何其他内容）：
+
+【追问问题建议】
+1. 问题一
+2. 问题二
+
+【面试者评价】
+评价内容（300字以内）
+
+要求：
+- 追问问题建议：1-2个问题，针对回答中的不足或需要深入了解的点
+- 面试者评价：简洁明了，300字以内，包括但不限于逻辑、表达、动力三个方面
+- 不要输出任何解释或额外内容
+"""
+
+class llm_analysis:
+    def __init__(self, memory_rounds: int = 5, use_same_api: bool = False, shared_client: AsyncOpenAI = None):
+        """
+        初始化面试分析类
+        
+        Args:
+            memory_rounds: 短期记忆的轮次数，超过此轮次的历史将被总结
+            use_same_api: 是否与 llm_SegmentJudge 共用同一个豆包API客户端
+            shared_client: 共享的API客户端实例（如果use_same_api为True）
+        """
+        self.memory_rounds = memory_rounds
+        self.short_term_memory = []
+        self.long_term_summary = ""
+        self.knowledge_base = {}
+        self.conversation_rounds = 0
+        self.llm_call_count = 0
+        
+        if use_same_api and shared_client:
+            self.client = shared_client
+        elif use_same_api:
+            self.client = None
+        else:
+            self.client = AsyncOpenAI(
+                api_key=Conf.openai_apikey,
+                base_url=Conf.openai_url,
+            )
+        
+        self.extra_body = {"thinking": {"type": "disabled"}}
+    
+    def add_knowledge(self, key: str, value: str):
+        """
+        添加外部知识库信息
+        
+        Args:
+            key: 知识点的键（如"岗位空缺数量"）
+            value: 知识点的值
+        """
+        self.knowledge_base[key] = value
+    
+    def search_knowledge(self, query: str) -> dict:
+        """
+        搜索外部知识库
+        
+        Args:
+            query: 查询关键词
+            
+        Returns:
+            匹配的知识点字典
+        """
+        results = {}
+        for key, value in self.knowledge_base.items():
+            if query.lower() in key.lower() or query.lower() in value.lower():
+                results[key] = value
+        return results
+    
+    def _update_memory(self, block: str):
+        """
+        更新记忆管理
+        
+        Args:
+            block: 当前的问答单元
+        """
+        self.short_term_memory.append(block)
+        self.conversation_rounds += 1
+        
+        if len(self.short_term_memory) > self.memory_rounds:
+            oldest_block = self.short_term_memory.pop(0)
+            if self.long_term_summary:
+                self.long_term_summary += f"\n{oldest_block}"
+            else:
+                self.long_term_summary = oldest_block
+    
+    async def analyze(self, block: str, external_client: AsyncOpenAI = None) -> dict:
+        """
+        分析面试者的回答
+        
+        Args:
+            block: 面试对话的一个完整问答单元
+            external_client: 外部提供的API客户端（如果共用API）
+            
+        Returns:
+            包含追问问题和评价的字典
+        """
+        self.llm_call_count += 1
+        ts = time.strftime("%H:%M:%S")
+        print(f"[{ts}] Analysis Call #{self.llm_call_count}")
+        
+        self._update_memory(block)
+        
+        client = external_client if external_client else self.client
+        
+        messages = [
+            {"role": "system", "content": ANALYSIS_PROMPT},
+            {"role": "user", "content": f"面试对话单元：\n{block}"}
+        ]
+        
+        resp = await client.chat.completions.create(
+            model=Conf.openai_model,
+            messages=messages,
+            extra_body=self.extra_body,
+            max_tokens=500,
+            stream=False,
+        )
+        
+        result = resp.choices[0].message.content.strip()
+        
+        return self._parse_result(result, block)
+    
+    def _parse_result(self, result: str, block: str) -> dict:
+        """
+        解析LLM返回的结果
+        
+        Args:
+            result: LLM返回的原始结果
+            block: 面试对话的一个完整问答单元
+            
+        Returns:
+            包含追问问题和评价的字典
+        """
+        follow_up_questions = []
+        evaluation = ""
+        
+        lines = result.split('\n')
+        current_section = None
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('【追问问题建议】'):
+                current_section = 'questions'
+            elif line.startswith('【面试者评价】'):
+                current_section = 'evaluation'
+            elif current_section == 'questions' and line:
+                if line.startswith(('1.', '2.', '3.', '4.', '5.')):
+                    follow_up_questions.append(line[2:].strip())
+            elif current_section == 'evaluation':
+                evaluation = line
+                break
+        
+        return {
+            'follow_up_questions': follow_up_questions,
+            'evaluation': evaluation,
+            'block': block
+        }
+    
+    def get_memory_summary(self) -> str:
+        """
+        获取记忆摘要
+        
+        Returns:
+            长期记忆和短期记忆的摘要
+        """
+        summary = f"长期记忆摘要：\n{self.long_term_summary}\n\n"
+        summary += f"短期记忆（最近{len(self.short_term_memory)}轮）：\n"
+        summary += "\n".join(self.short_term_memory)
+        return summary
+    
+    def clear_memory(self):
+        """
+        清空所有记忆
+        """
+        self.short_term_memory = []
+        self.long_term_summary = ""
+        self.conversation_rounds = 0
+        
+
+
 
 async def main():
     text_q = asyncio.Queue()
-    await asyncio.gather(
-        simulate_human_speech(TEXT_LINES, text_q=text_q),
-        pipeline(text_q=text_q)
-    )
+    
+    # 启动模拟人类说话的任务
+    speech_task = asyncio.create_task(simulate_human_speech(TEXT_LINES, text_q=text_q))
+    
+    # 处理pipeline生成的结果
+    async for result in pipeline(text_q=text_q):
+        print("*"*60)
+        print(f"\n分析结果：")
+        print(f"追问问题建议：")
+        for i, q in enumerate(result['follow_up_questions'], 1):
+            print(f"  {i}. {q}")
+        print(f"\n面试者评价：{result['evaluation']}\n")
+        print("*"*60)
+    
+    # 等待说话任务完成
+    await speech_task
 
 if __name__ == "__main__":
     asyncio.run(main())
