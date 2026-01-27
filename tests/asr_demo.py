@@ -37,6 +37,7 @@ asr_task: asyncio.Task | None = None
 stop_event: asyncio.Event | None = None
 
 # 用于存储流式数据的队列
+audio_q: asyncio.Queue | None = None
 asr_queue: asyncio.Queue | None = None
 llm_queue: asyncio.Queue | None = None
 merger = ASRTextMerger()
@@ -531,12 +532,13 @@ class AsrWsClient:
         await self.create_connection()
         await self.send_full_client_request()
 
+        global asr_queue, llm_queue, audio_q
+
         loop = asyncio.get_running_loop()
-        audio_q: asyncio.Queue[bytes] = asyncio.Queue(maxsize=10)   
-        text_q: asyncio.Queue[str] = asyncio.Queue(maxsize=10)  # 用于传递ASR结果的队列
-        global asr_queue, llm_queue
-        asr_queue = asyncio.Queue(maxsize=1000)
-        llm_queue = asyncio.Queue(maxsize=1000)
+        audio_q = asyncio.Queue(maxsize=500)   
+        text_q: asyncio.Queue[str] = asyncio.Queue(maxsize=500)  # 用于传递ASR结果的队列
+        asr_queue = asyncio.Queue(maxsize=500)
+        llm_queue = asyncio.Queue(maxsize=500)
         
         SAMPLE_RATE = 16000
         FRAME_DURATION = 30     # 每帧时长 ms（WebRTC VAD 只支持 10/20/30）
@@ -622,13 +624,12 @@ class AsrWsClient:
        
         async def consume_llm():
             async for llm_chunk in stream_text_to_llm(text_q):
-                # print(llm_chunk, end="", flush=True)
                 # 将LLM结果放入队列用于SSE传输
                 if llm_queue:
                     try:
                         await llm_queue.put(llm_chunk)
                     except asyncio.QueueFull:
-                        pass  # 队列满时丢弃
+                        logger.info("队列已满，有丢失数据")
         llm_consume_task = asyncio.create_task(consume_llm())
 
         # ========= 5. 给ASR服务器 发送音频 ========= 主循环，不断从audio_q队列中获取分割的声音块
