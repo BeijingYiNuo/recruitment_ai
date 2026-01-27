@@ -249,11 +249,10 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
                     continue
                 if decision == "SPLIT":
                     block_text = "\n".join(buffer)
-                    emit_split(buffer, reason="semantic")
+                    # emit_split(buffer, reason="semantic")
                     
                     # ===== 分析 block =====
                     result = await analysis.analyze(block_text)
-                    print(f"给前端的：{result}")
                     yield result
                     # print("*"*60)
                     # print(f"\n分析结果：")
@@ -414,15 +413,14 @@ class llm_analysis:
         
         result = resp.choices[0].message.content.strip()
         
-        return self._parse_result(result, block)
+        return self._parse_result(result, block=block)
     
-    def _parse_result(self, result: str, block: str) -> dict:
+    def _parse_result(self, result: str,block: str) -> dict:
         """
         解析LLM返回的结果
         
         Args:
             result: LLM返回的原始结果
-            block: 面试对话的一个完整问答单元
             
         Returns:
             包含追问问题和评价的字典

@@ -8,12 +8,12 @@ import logging
 import os
 import subprocess
 from typing import Optional, List, Dict, Any, Tuple, AsyncGenerator
-import signal
 import sounddevice as sd
 import numpy as np
-import webrtcvad
+import pdb
 # 导入大模型流式处理函数
 from doubao_api_test import stream_text_to_llm
+from llm_seg_demo import pipeline
 import asyncio
 import json
 from fastapi import FastAPI, HTTPException, Request
@@ -543,32 +543,15 @@ class AsrWsClient:
         SAMPLE_RATE = 16000
         FRAME_DURATION = 30     # 每帧时长 ms（WebRTC VAD 只支持 10/20/30）
         FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000)   #需要480个采样点
-        vad = webrtcvad.Vad(3)  # 0~3，越大越激进
-        MAX_SILENCE = 0.8
-        silence_duration = 0.0
-        is_speaking = False
-        is_pause = True
 
         # ========= 2. sounddevice 回调 =========
         def callback(indata, frames, time, status):
-            nonlocal silence_duration, is_speaking, is_pause
             if stop_event and stop_event.is_set():
                 return
             if status:
                 logger.warning(status)
             try:
                 pcm_bytes = bytes(indata)
-                is_voice = vad.is_speech(pcm_bytes, SAMPLE_RATE)
-                if is_voice:
-                    silence_duration = 0.0
-                    if not is_speaking:
-                        is_speaking = True
-                        is_pause = False
-                else:
-                    silence_duration += FRAME_DURATION / 1000
-                    if is_speaking and silence_duration > MAX_SILENCE:
-                        is_speaking = False
-                        is_pause = True
                 loop.call_soon_threadsafe( 
                     audio_q.put_nowait,
                     pcm_bytes,
@@ -623,7 +606,7 @@ class AsrWsClient:
         # ========= 4. LLM处理协程 =========
        
         async def consume_llm():
-            async for llm_chunk in stream_text_to_llm(text_q):
+            async for llm_chunk in pipeline(text_q):
                 # 将LLM结果放入队列用于SSE传输
                 if llm_queue:
                     try:
@@ -803,7 +786,25 @@ async def stream_asr():
             if llm_queue and not llm_queue.empty():
                 try:
                     llm_data = await llm_queue.get()
-                    yield f"data: {json.dumps({'type': 'llm', 'data': llm_data})}\n\n"
+                    logger.info(f"llm receive data :{llm_data}")
+                    follow_up_text = "\n".join([f"{i+1}. {q}" for i, q in enumerate(llm_data.get('follow_up_questions', []))])
+                    evaluation_text = llm_data.get('evaluation', '')
+                    block_text = llm_data.get('block','')
+                    formatted_data = {
+                        'type': 'llm',
+                        'data': {
+                            'follow_up_questions': llm_data.get('follow_up_questions', []),
+                            'evaluation': evaluation_text,
+                            'block_text': block_text,
+                            'formatted': {
+                                'follow_up': follow_up_text,
+                                'evaluation': evaluation_text,
+                                'block_text': block_text
+                            }
+                        }
+                    }
+                    logger.info(f"send frontend:{json.dumps(formatted_data, ensure_ascii=False)}")
+                    yield f"data: {json.dumps(formatted_data, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     logger.error(f"Error getting LLM data: {e}")
             
