@@ -3,7 +3,7 @@ from time import sleep, perf_counter
 import asyncio
 import random
 import time
-
+import pdb
 TEXT_LINES = [
     "再问您一个场景题，若您跟进了很久的大客户即将签单，竞争对手突然抛出更低报价，您会如何保留这个客户？",
     "就在这种情况下，我是不会盲目的跟风降价的。",
@@ -146,7 +146,7 @@ async def simulate_human_speech(
         lines,
         text_q: asyncio.Queue,
         min_interval=0.5,
-        max_interval=1.5
+        max_interval=2
 ):
     """
     simulate_human_speech 的 Docstring
@@ -219,8 +219,10 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
     buffer = []
     segment_judge = llm_SegmentJudge(text_q)
     last_judge_time = time.time()  # 初始化时间戳为当前时间
-    min_batch_size = 10  # 最小批量处理行数，增加到10行
-    judge_interval = 3.0  # 调用LLM的最小时间间隔（秒），增加到3秒
+    min_batch_size = 5  # 最小批量处理行数，增加到10行
+    judge_interval_min = 3.0  # 调用LLM的最小时间间隔（秒），增加到3秒
+    judge_interval_max = 30.0
+
     
     analysis = llm_analysis(memory_rounds=5, use_same_api=True, shared_client=segment_judge.client)
     
@@ -234,9 +236,12 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
             time_elapsed = current_time - last_judge_time
             
             # 只有当满足以下条件时才调用LLM：
-            # 1. 累积了足够的行数
-            # 2. 距离上次调用已经超过了一定时间
-            if len(buffer) >= min_batch_size and time_elapsed >= judge_interval:
+            is_should_call_llm = (
+                (len(buffer) >= min_batch_size and time_elapsed >= judge_interval_min)
+                or
+                (time_elapsed >= judge_interval_max)
+            )
+            if is_should_call_llm:
                 # ===== 语义 SPLIT 判定 =====
                 judge_input = build_segment_input(buffer)
                 decision = await segment_judge.judge(judge_input)
@@ -249,18 +254,11 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
                     continue
                 if decision == "SPLIT":
                     block_text = "\n".join(buffer)
-                    # emit_split(buffer, reason="semantic")
+                    emit_split(buffer, reason="semantic")
                     
                     # ===== 分析 block =====
                     result = await analysis.analyze(block_text)
                     yield result
-                    # print("*"*60)
-                    # print(f"\n分析结果：")
-                    # print(f"追问问题建议：")
-                    # for i, q in enumerate(result['follow_up_questions'], 1):
-                    #     print(f"  {i}. {q}")
-                    # print(f"\n面试者评价：{result['evaluation']}\n")
-                    # print("*"*60)
                     
                     buffer.clear()
                 if decision not in {"CONTINUE", "SPLIT", "IGNORE"}:
@@ -269,18 +267,11 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
             # ===== 时间 SPLIT 判定 =====
             if buffer:
                 block_text = "\n".join(buffer)
-                # emit_split(buffer=buffer, reason="silence")
+                emit_split(buffer=buffer, reason="silence")
                 
                 # ===== 分析 block =====
                 result = await analysis.analyze(block_text)
                 yield result
-                # print("*"*60)
-                # print(f"\n 分析结果：")
-                # print(f"追问问题建议：")
-                # for i, q in enumerate(result['follow_up_questions'], 1):
-                #     print(f"  {i}. {q}")
-                # print(f"\n面试者评价：{result['evaluation']}\n")
-                # print("*"*60)
                 
                 buffer.clear()
 
@@ -299,7 +290,7 @@ ANALYSIS_PROMPT = """
 2. 问题二
 
 【面试者评价】
-评价内容（300字以内）
+结合评价内容（300字以内）
 
 要求：
 - 追问问题建议：1-2个问题，针对回答中的不足或需要深入了解的点
@@ -362,22 +353,27 @@ class llm_analysis:
                 results[key] = value
         return results
     
-    def _update_memory(self, block: str):
+    def _update_memory(self, block: str) -> str:
         """
         更新记忆管理
         
         Args:
             block: 当前的问答单元
         """
-        self.short_term_memory.append(block)
-        self.conversation_rounds += 1
         
-        if len(self.short_term_memory) > self.memory_rounds:
-            oldest_block = self.short_term_memory.pop(0)
-            if self.long_term_summary:
-                self.long_term_summary += f"\n{oldest_block}"
-            else:
-                self.long_term_summary = oldest_block
+        self.conversation_rounds += 1
+
+        if not self.short_term_memory:
+            self.short_term_memory.append(block)
+            return ""
+        
+        context = "\n\n".join(
+            [f"[历史对话单元{i+1}]\n{b}" for i,b in enumerate(self.short_term_memory)]
+        )
+        self.short_term_memory.append(block)
+        return context
+        
+        
     
     async def analyze(self, block: str, external_client: AsyncOpenAI = None) -> dict:
         """
@@ -394,14 +390,20 @@ class llm_analysis:
         ts = time.strftime("%H:%M:%S")
         print(f"[{ts}] Analysis Call #{self.llm_call_count}")
         
-        self._update_memory(block)
-        
-        client = external_client if external_client else self.client
-        
+
         messages = [
-            {"role": "system", "content": ANALYSIS_PROMPT},
-            {"role": "user", "content": f"面试对话单元：\n{block}"}
+            {"role": "system", "content": ANALYSIS_PROMPT}
         ]
+        short_context = self._update_memory(block)
+        if short_context:
+            messages.append(
+                {"role": "user", "content":f"以下是最近几轮面试对话上下文(短期记忆):\n{short_context}"}
+            )
+        messages.append(
+            {"role":"user", "content": f"当前面试对话单元：\n{block}"}
+        )
+
+        client = external_client if external_client else self.client
         
         resp = await client.chat.completions.create(
             model=Conf.openai_model,
@@ -481,13 +483,7 @@ async def main():
     
     # 处理pipeline生成的结果
     async for result in pipeline(text_q=text_q):
-        print("*"*60)
-        print(f"\n分析结果：")
-        print(f"追问问题建议：")
-        for i, q in enumerate(result['follow_up_questions'], 1):
-            print(f"  {i}. {q}")
-        print(f"\n面试者评价：{result['evaluation']}\n")
-        print("*"*60)
+        pass
     
     # 等待说话任务完成
     await speech_task

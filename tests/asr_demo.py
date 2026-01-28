@@ -20,7 +20,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from ASRTextMerger import ASRTextMerger
+
 
 app = FastAPI(title = "Recruitment Service")
 
@@ -35,12 +35,11 @@ app.add_middleware(
 
 asr_task: asyncio.Task | None = None
 stop_event: asyncio.Event | None = None
-
 # 用于存储流式数据的队列
 audio_q: asyncio.Queue | None = None
 asr_queue: asyncio.Queue | None = None
 llm_queue: asyncio.Queue | None = None
-merger = ASRTextMerger()
+
 # 配置日志
 logger = logging.getLogger("uvicorn.error")
 
