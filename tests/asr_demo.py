@@ -571,75 +571,116 @@ class AsrWsClient:
         
         # ========= 主线程 添加ASR接收协程 =========
         async def receiver():
-            async for resp in self.recv_messages():
-                if stop_event and stop_event.is_set():
-                    break
-                msg = resp.payload_msg
-                if not msg:
-                    continue
-                result = msg.get("result")
-                if not result:
-                    logger.info("未检测到声音")
-                    continue
-                utterances = result.get("utterances", []) or []
-                for utt in utterances:
-                    text = utt.get("text")
-                    start_time = utt.get("start_time")
-                    end_time = utt.get("end_time")  
-                    definite = utt.get("definite")   
-                    logger.info("*****正在说话*****")
-                    if definite:
-                        logger.info(f"text:{text} definite:{definite} start_time: {start_time}, end_time: {end_time} interval:{end_time - start_time}ms")
-                        if text and use_llm:
-                            try:
-                                await text_q.put(text)
-                                await asr_queue.put(text)
-                            except asyncio.QueueFull:
-                                logger.info("queue full")
-                                pass  # 队列满时丢弃
+            try:
+                while not (stop_event and stop_event.is_set()):
+                    try:
+                        # 使用wait_for为recv_messages添加超时，避免WebSocket连接异常时阻塞
+                        msg = await asyncio.wait_for(self.conn.receive(), timeout=1.0)
+                        if msg.type == aiohttp.WSMsgType.BINARY:
+                            resp = ResponseParser.parse_response(msg.data)
+                            msg = resp.payload_msg
+                            if not msg:
+                                continue
+                            result = msg.get("result")
+                            if not result:
+                                logger.info("未检测到声音")
+                                continue
+                            utterances = result.get("utterances", []) or []
+                            for utt in utterances:
+                                text = utt.get("text")
+                                
+                                definite = utt.get("definite")   
+                                logger.info("*****正在说话*****")
+                                if definite:
+                                    logger.info(f"text:{text} definite:{definite}")
+                                    if text and use_llm:
+                                        try:
+                                            await text_q.put(text)
+                                            await asr_queue.put(text)
+                                        except asyncio.QueueFull:
+                                            logger.info("queue full")
+                                            pass
 
-                if resp.is_last_package:
-                    break
+                            if resp.is_last_package:
+                                break
+                        elif msg.type == aiohttp.WSMsgType.ERROR:
+                            logger.error(f"WebSocket error: {msg.data}")
+                            break
+                        elif msg.type == aiohttp.WSMsgType.CLOSED:
+                            logger.info("WebSocket connection closed")
+                            break
+                    except asyncio.TimeoutError:
+                        # 超时后继续循环，避免阻塞
+                        continue
+                    except Exception as e:
+                        logger.error(f"Error receiving message: {e}")
+                        # 发生异常时短暂休眠，避免CPU占用过高
+                        await asyncio.sleep(0.1)
+                        continue
+            except Exception as e:
+                logger.error(f"Unexpected error in receiver task: {e}")
         recv_task = asyncio.create_task(receiver())
         
         # ========= 4. LLM处理协程 =========
        
         async def consume_llm():
-            async for llm_chunk in pipeline(text_q):
-                # 将LLM结果放入队列用于SSE传输
-                if llm_queue:
-                    try:
-                        await llm_queue.put(llm_chunk)
-                    except asyncio.QueueFull:
-                        logger.info("队列已满，有丢失数据")
+            try:
+                # 直接使用pipeline函数，让它持续从text_q中读取数据并处理
+                async for llm_chunk in pipeline(text_q):
+                    # 检查是否需要停止
+                    if stop_event and stop_event.is_set():
+                        break
+                    # 将LLM结果放入队列用于SSE传输
+                    if llm_queue:
+                        try:
+                            await llm_queue.put(llm_chunk)
+                        except asyncio.QueueFull:
+                            logger.info("队列已满，有丢失数据")
+            except Exception as e:
+                logger.error(f"Error in LLM processing: {e}")
+                # 发生异常时短暂休眠，避免CPU占用过高
+                await asyncio.sleep(0.1)
         llm_consume_task = asyncio.create_task(consume_llm())
 
         # ========= 5. 给ASR服务器 发送音频 ========= 主循环，不断从audio_q队列中获取分割的声音块
         first_packet = True
         try:
             while not (stop_event and stop_event.is_set()):
-                segment = await audio_q.get()
-                #为第一个数据包添加wav格式头
-                if first_packet:
-                    wav_header = self.build_wav_header(
-                        sample_rate=SAMPLE_RATE,
-                        channels=channels,
-                        bits_per_sample=16,
-                        data_size=0,)
-                    segment = wav_header + segment
-                    first_packet = False
+                try:
+                    # 为audio_q.get()添加超时，避免长时间阻塞
+                    segment = await asyncio.wait_for(audio_q.get(), timeout=0.1)
+                    #为第一个数据包添加wav格式头
+                    if first_packet:
+                        wav_header = self.build_wav_header(
+                            sample_rate=SAMPLE_RATE,
+                            channels=channels,
+                            bits_per_sample=16,
+                            data_size=0,)
+                        segment = wav_header + segment
+                        first_packet = False
 
 
-                req = RequestBuilder.new_audio_only_request(
-                    seq=self.seq,
-                    segment=segment,
-                    is_last=False,
-                )
-                await self.conn.send_bytes(req)
-                logger.debug(f"Sent mic segment seq={self.seq}")
-                self.seq += 1
-        except asyncio.TimeoutError:
-            pass
+                    req = RequestBuilder.new_audio_only_request(
+                        seq=self.seq,
+                        segment=segment,
+                        is_last=False,
+                    )
+                    # 为send_bytes添加超时，避免WebSocket缓冲区填满时阻塞
+                    await asyncio.wait_for(self.conn.send_bytes(req), timeout=0.5)
+                    logger.debug(f"Sent mic segment seq={self.seq}")
+                    self.seq += 1
+                    # 短暂休眠，让出控制权给其他任务
+                    await asyncio.sleep(0.01)
+                except asyncio.TimeoutError:
+                    # 超时后继续循环，避免阻塞
+                    continue
+                except Exception as e:
+                    logger.error(f"Error in audio sending loop: {e}")
+                    # 发生异常时短暂休眠，避免CPU占用过高
+                    await asyncio.sleep(0.1)
+                    continue
+        except Exception as e:
+            logger.error(f"Unexpected error in execute_mic: {e}")
         finally:
             logger.info("Stopping microphone stream...")
             if stop_event and stop_event.is_set():
@@ -650,15 +691,24 @@ class AsrWsClient:
                     segment=b"",
                     is_last=True,
                     )
-                    await self.conn.send_bytes(final_req)
-                except Exception:
+                    await asyncio.wait_for(self.conn.send_bytes(final_req), timeout=0.5)
+                except Exception as e:
+                    logger.error(f"Error sending final packet: {e}")
                     pass
+            try:
                 recv_task.cancel()
-                asr_task.cancel()
                 llm_consume_task.cancel()
+            except Exception as e:
+                logger.error(f"Error cancelling tasks: {e}")
+            try:
                 stream.stop()
                 stream.close()
+            except Exception as e:
+                logger.error(f"Error closing stream: {e}")
+            try:
                 await self.conn.close()
+            except Exception as e:
+                logger.error(f"Error closing WebSocket: {e}")
 
 
     
@@ -785,7 +835,7 @@ async def stream_asr():
             if llm_queue and not llm_queue.empty():
                 try:
                     llm_data = await llm_queue.get()
-                    logger.info(f"llm receive data :{llm_data}")
+                    # logger.info(f"llm receive data :{llm_data}")
                     follow_up_text = "\n".join([f"{i+1}. {q}" for i, q in enumerate(llm_data.get('follow_up_questions', []))])
                     evaluation_text = llm_data.get('evaluation', '')
                     block_text = llm_data.get('block','')
@@ -802,7 +852,7 @@ async def stream_asr():
                             }
                         }
                     }
-                    logger.info(f"send frontend:{json.dumps(formatted_data, ensure_ascii=False)}")
+                    # logger.info(f"send frontend:{json.dumps(formatted_data, ensure_ascii=False)}")
                     yield f"data: {json.dumps(formatted_data, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     logger.error(f"Error getting LLM data: {e}")

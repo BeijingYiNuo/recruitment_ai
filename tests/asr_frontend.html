@@ -67,32 +67,61 @@
         .textboxes-container {
             display: flex;
             gap: 20px;
-            height: 500px;
+            height: 600px;
         }
         
-        .textbox-section {
+        .left-section {
             flex: 1;
             display: flex;
             flex-direction: column;
+            height: 100%;
+        }
+        
+        .right-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+        }
+        
+        .textbox-section {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            height: 100%;
+            overflow: hidden;
         }
         
         .textbox-label {
             font-weight: bold;
-            margin-bottom: 8px;
-            color: #555;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
         }
         
         .textbox {
-            flex: 1;
+            height: 100%;
             border: 1px solid #ddd;
             border-radius: 4px;
-            padding: 10px;
+            padding: 12px;
             font-size: 14px;
             line-height: 1.5;
             white-space: pre-wrap;
             overflow-y: auto;
-            background-color: #f9f9f9;
+            background-color: white;
+            cursor: pointer;
         }
+        
+        .highlighted {
+            background-color: #fff9c4 !important;
+        }
+        
+
         
         .status {
             margin-top: 10px;
@@ -111,13 +140,21 @@
         </div>
         
         <div class="textboxes-container">
-            <div class="textbox-section">
-                <div class="textbox-label">ASR 识别结果</div>
-                <div id="asrTextbox" class="textbox"></div>
+            <div class="left-section">
+                <div class="textbox-section">
+                    <div class="textbox-label">ASR实时语音转文本</div>
+                    <div id="asrTextbox" class="textbox"></div>
+                </div>
             </div>
-            <div class="textbox-section">
-                <div class="textbox-label">LLM 回复</div>
-                <div id="llmTextbox" class="textbox"></div>
+            <div class="right-section">
+                <div class="textbox-section">
+                    <div class="textbox-label">建议追问问题</div>
+                    <div id="followUpBox" class="textbox"></div>
+                </div>
+                <div class="textbox-section">
+                    <div class="textbox-label">面试者评价</div>
+                    <div id="evaluationBox" class="textbox"></div>
+                </div>
             </div>
         </div>
         
@@ -127,13 +164,30 @@
     <script>
         let eventSource = null;
         let isInterviewing = false;
-        let llmBuffer = '';
-        let llmIndex = 0;
-        let llmInterval = null;
+        let asrBuffer = '';
+        let asrIndex = 0;
+        let asrInterval = null;
+        let asrCount = 0;
+        let blockTexts = [];
+        let llmBuffers = {
+            followUp: '',
+            evaluation: ''
+        };
+        let llmIndices = {
+            followUp: 0,
+            evaluation: 0
+        };
+        let llmIntervals = {
+            followUp: null,
+            evaluation: null
+        };
+        let followUpCount = 0;
+        let evaluationCount = 0;
         
         const interviewBtn = document.getElementById('interviewBtn');
         const asrTextbox = document.getElementById('asrTextbox');
-        const llmTextbox = document.getElementById('llmTextbox');
+        const followUpBox = document.getElementById('followUpBox');
+        const evaluationBox = document.getElementById('evaluationBox');
         const status = document.getElementById('status');
         
         interviewBtn.addEventListener('click', async () => {
@@ -156,12 +210,34 @@
                         
                         // 清空文本框
                         asrTextbox.textContent = '';
-                        llmTextbox.textContent = '';
-                        llmBuffer = '';
-                        llmIndex = 0;
-                        if (llmInterval) {
-                            clearInterval(llmInterval);
+                        followUpBox.textContent = '';
+                        evaluationBox.textContent = '';
+                        asrBuffer = '';
+                        asrIndex = 0;
+                        asrCount = 0;
+                        blockTexts = [];
+                        if (asrInterval) {
+                            clearInterval(asrInterval);
                         }
+                        llmBuffers = {
+                            followUp: '',
+                            evaluation: ''
+                        };
+                        llmIndices = {
+                            followUp: 0,
+                            evaluation: 0
+                        };
+                        followUpCount = 0;
+                        evaluationCount = 0;
+                        Object.values(llmIntervals).forEach(interval => {
+                            if (interval) {
+                                clearInterval(interval);
+                            }
+                        });
+                        Object.keys(llmIntervals).forEach(key => {
+                            llmIntervals[key] = null;
+                        });
+                        removeHighlights();
                         
                         // 启动SSE连接
                         startSSE();
@@ -192,12 +268,6 @@
                         
                         // 关闭SSE连接
                         stopSSE();
-                        
-                        // 清除LLM打字效果
-                        if (llmInterval) {
-                            clearInterval(llmInterval);
-                            llmInterval = null;
-                        }
                     } else {
                         const error = await response.json();
                         alert('结束面试失败: ' + error.detail);
@@ -221,18 +291,56 @@
                     const data = JSON.parse(event.data);
                     
                     if (data.type === 'asr') {
-                        // ASR结果，直接追加
-                        asrTextbox.textContent += data.data + '\n';
-                        asrTextbox.scrollTop = asrTextbox.scrollHeight;
-                    } else if (data.type === 'llm') {
-                        // LLM结果，添加到缓冲区
-                        llmBuffer += data.data;
-                        
-                        // 启动打字效果
-                        if (!llmInterval) {
-                            startLLMTyping();
+                        // ASR结果，使用打字机效果
+                        asrBuffer = data.data;
+                        asrIndex = 0;
+                        if (asrInterval) {
+                            clearInterval(asrInterval);
                         }
-                    }
+                        startASRTyping();
+                    } else if (data.type === 'llm') {
+                            const formatted = data.data.formatted;
+
+                            // 保存block_text数据
+                            if (data.data.block_text) {
+                                blockTexts.push(data.data.block_text);
+                            }
+
+                            if (formatted?.follow_up) {
+                                // 追加到下一行
+                                if (followUpBox.textContent) {
+                                    followUpBox.textContent += '\n';
+                                }
+                                // 为每个追问问题添加序号
+                                const questions = data.data.follow_up_questions || [];
+                                let followUpText = '';
+                                questions.forEach((q, index) => {
+                                    followUpCount++;
+                                    followUpText += `${followUpCount}. ${q}\n`;
+                                });
+                                llmBuffers.followUp = followUpText;
+                                llmIndices.followUp = 0;
+                                if (llmIntervals.followUp) {
+                                    clearInterval(llmIntervals.followUp);
+                                }
+                                startLLMTyping('followUp');
+                            }
+
+                            if (formatted?.evaluation) {
+                                // 追加到下一行
+                                if (evaluationBox.textContent) {
+                                    evaluationBox.textContent += '\n';
+                                }
+                                // 为每个评价添加序号
+                                evaluationCount++;
+                                llmBuffers.evaluation = `${evaluationCount}. ${formatted.evaluation}`;
+                                llmIndices.evaluation = 0;
+                                if (llmIntervals.evaluation) {
+                                    clearInterval(llmIntervals.evaluation);
+                                }
+                                startLLMTyping('evaluation');
+                            }
+                        }
                 } catch (error) {
                     console.error('解析SSE数据失败:', error);
                 }
@@ -251,19 +359,116 @@
                 eventSource.close();
                 eventSource = null;
             }
+            
+            // 清除所有打字机效果定时器
+            if (asrInterval) {
+                clearInterval(asrInterval);
+                asrInterval = null;
+            }
+            
+            Object.values(llmIntervals).forEach(interval => {
+                if (interval) {
+                    clearInterval(interval);
+                }
+            });
+            
+            Object.keys(llmIntervals).forEach(key => {
+                llmIntervals[key] = null;
+            });
         }
         
-        function startLLMTyping() {
-            llmInterval = setInterval(() => {
-                if (llmIndex < llmBuffer.length) {
-                    llmTextbox.textContent += llmBuffer[llmIndex];
-                    llmTextbox.scrollTop = llmTextbox.scrollHeight;
-                    llmIndex++;
+        function startASRTyping() {
+            asrInterval = setInterval(() => {
+                if (asrIndex < asrBuffer.length) {
+                    // 追加到现有内容
+                    asrTextbox.textContent += asrBuffer[asrIndex];
+                    asrTextbox.scrollTop = asrTextbox.scrollHeight;
+                    asrIndex++;
                 } else {
-                    clearInterval(llmInterval);
-                    llmInterval = null;
+                    clearInterval(asrInterval);
+                    asrInterval = null;
                 }
-            }, 50); // 每个字之间的延迟
+            }, 50); // 每个字之间的延迟，符合人眼阅读速度
+        }
+        
+        function startLLMTyping(type) {
+            const targetBox = type === 'followUp' ? followUpBox : evaluationBox;
+            
+            llmIntervals[type] = setInterval(() => {
+                if (llmIndices[type] < llmBuffers[type].length) {
+                    targetBox.textContent += llmBuffers[type][llmIndices[type]];
+                    targetBox.scrollTop = targetBox.scrollHeight;
+                    llmIndices[type]++;
+                } else {
+                    clearInterval(llmIntervals[type]);
+                    llmIntervals[type] = null;
+                }
+            }, 50); // 每个字之间的延迟，符合打字机效果
+        }
+        
+        // 为ASR文本框添加鼠标移动事件监听器
+        asrTextbox.addEventListener('mousemove', (event) => {
+            // 清除之前的高亮
+            removeHighlights();
+            
+            // 获取鼠标位置的文本
+            const range = document.caretRangeFromPoint(event.clientX, event.clientY);
+            if (range) {
+                // 扩展范围以获取更多上下文
+                range.expand('word');
+                const hoveredText = range.toString();
+                
+                // 检查是否在block_text中找到匹配
+                const matchedBlock = blockTexts.find(block => block.includes(hoveredText));
+                
+                if (matchedBlock) {
+                    // 高亮ASR文本框中的对应内容
+                    highlightText(asrTextbox, matchedBlock);
+                    
+                    // 高亮建议追问问题文本框中的对应内容
+                    // 这里简化处理，实际可能需要更复杂的匹配逻辑
+                    highlightText(followUpBox, '');
+                    
+                    // 高亮面试者评价文本框中的对应内容
+                    highlightText(evaluationBox, '');
+                }
+            }
+        });
+        
+        function highlightText(element, text) {
+            if (!text) return;
+            
+            // 移除之前的高亮
+            removeHighlights();
+            
+            // 创建一个临时元素来保存原始内容
+            const tempElement = document.createElement('div');
+            tempElement.innerHTML = element.innerHTML;
+            
+            // 获取元素的文本内容
+            const elementText = element.textContent;
+            
+            // 找到文本中匹配的部分
+            const index = elementText.indexOf(text);
+            if (index !== -1) {
+                // 创建一个新的HTML内容，包含高亮部分
+                const newHtml = elementText.substring(0, index) + 
+                    '<span class="highlighted">' + text + '</span>' + 
+                    elementText.substring(index + text.length);
+                
+                // 设置元素的新HTML内容
+                element.innerHTML = newHtml;
+            }
+        }
+        
+        function removeHighlights() {
+            // 移除所有高亮元素
+            const highlights = document.querySelectorAll('.highlighted');
+            highlights.forEach(highlight => {
+                const text = highlight.textContent;
+                const parent = highlight.parentNode;
+                parent.replaceChild(document.createTextNode(text), highlight);
+            });
         }
     </script>
 </body>

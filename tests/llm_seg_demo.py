@@ -123,23 +123,63 @@ TEXT_LINES = [
 ]
 
 SEGMENT_JUDGE_PROMPT = """
-你是一个【对话切分判定器】。
+你是一个【面试对话切分判定器】。
 
-输入是面试对话的 ASR 连续文本（逐行）。
-请你判断：当前是否已经形成了一个【完整的问题-回答单元】。
+输入是一段面试对话的 ASR 连续文本（逐行累积）。
+你的任务是判断：截至目前，是否已经形成一个完整的【问题-回答单元】。
 
-说明：
-- 一个问题大概率由面试官提出，小概率由面试者提出
-- 回答可能由面试者连续多行组成
-- 回答结束后，若语义完整，即认为一个单元完成
-- 对于问句需要重点关注，问句的上文很有可能为一段【问题-回答单元】的分界点
+==============================
+切分判定核心规则
+==============================
 
-你的输出只能是以下三种之一（严格）：
-CONTINUE  —— 还在当前问题或回答中
-SPLIT     —— 一个完整【问题-回答】已经完成
-IGNORE    —— 当前输入是语气词/填充/不影响结构
+一个完整单元通常结构为：
+- 面试官提出一个问题
+- 面试者进行连续回答
+- 回答语义完整或出现结束信号，则单元结束
 
-不要输出任何解释。
+你需要重点关注以下高置信切分信号：
+
+【强切分信号（出现时优先判定 SPLIT）】
+1. 回答结束常见收尾语，例如：
+   - “好的好的”
+   - “了解了”
+   - “可以了”
+   - “谢谢”
+   - “嗯好”
+   - “那就这样”
+   - “面试结束”
+   这些通常意味着一个回答单元已经结束。
+
+2. 出现新的明确问句（尤其是面试官发问），例如包含：
+   - “请问…？”
+   - “你怎么看…？”
+   - “能否举例…？”
+   - “为什么…？”
+   - “如何…？”
+   - 句末出现“？”或明显提问语气
+   通常表示：上一个【问答单元】已经完成，应输出 SPLIT。
+
+【继续信号（判定 CONTINUE）】
+- 当前回答还在展开中
+- 没有出现语义收尾
+- 仍在解释过程、列举过程、补充过程
+
+【忽略信号（判定 IGNORE）】
+- 单独出现语气词、填充词，例如：
+  “嗯”“啊”“这个”“就是”“然后…”
+- 这些不构成单元边界，也不应触发切分
+
+==============================
+输出要求（严格）
+==============================
+
+你的输出只能是以下三种之一：
+
+CONTINUE  —— 当前问答仍未结束
+SPLIT     —— 已形成完整【问题-回答】单元
+IGNORE    —— 当前输入只是语气词/填充，不影响结构
+
+不要输出任何解释，不要输出其他内容。
 """
 
 async def simulate_human_speech(
@@ -201,7 +241,7 @@ class llm_SegmentJudge:
             stream=False,
             # temperature=0.0
         )
-
+        print(f"[{ts}] Analysi_Call #{self.llm_call_count}")
         return resp.choices[0].message.content.strip()
 
 def build_segment_input(buffer_lines: list[str]):
@@ -209,21 +249,24 @@ def build_segment_input(buffer_lines: list[str]):
     return f"最近对话：\n{text}"
 
 
-def emit_split(buffer: list, reason: str):
+def emit_split(block_text: str, reason: str):
     print("\n" + "=" * 60)
-    print(f"SPLIT ({reason})")
-    print("\n".join(buffer))
+    print(f"SPLIT ({reason}) ")
+    print(block_text)
     print("=" * 60)
 
-async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
-    buffer = []
-    segment_judge = llm_SegmentJudge(text_q)
-    last_judge_time = time.time()  # 初始化时间戳为当前时间
-    min_batch_size = 5  # 最小批量处理行数，增加到10行
-    judge_interval_min = 3.0  # 调用LLM的最小时间间隔（秒），增加到3秒
-    judge_interval_max = 30.0
-
+async def pipeline(text_q: asyncio.Queue, silence_time: float = 10.0):
     
+    buffer = []
+    last_judge_time = time.time()  # 初始化时间戳为当前时间
+    min_batch_size = 5  # 最小批量处理行数，降低到3行，使得在真实对话中更容易触发
+    judge_interval_min = 5.0  # 调用LLM的最小时间间隔（秒），降低到2秒
+    judge_interval_max = 15.0  # 最大时间间隔降低到15秒
+    continue_ignore_count = 0
+    max_continue_ignore = 10
+
+
+    segment_judge = llm_SegmentJudge(text_q)
     analysis = llm_analysis(memory_rounds=5, use_same_api=True, shared_client=segment_judge.client)
     
     while True:
@@ -241,61 +284,103 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 5):
                 or
                 (time_elapsed >= judge_interval_max)
             )
+
             if is_should_call_llm:
                 # ===== 语义 SPLIT 判定 =====
                 judge_input = build_segment_input(buffer)
                 decision = await segment_judge.judge(judge_input)
                 decision = decision.strip().upper()
-                last_judge_time = current_time  # 调用后更新时间戳
+                last_judge_time = current_time 
+
+                print(f"decision:{decision}")
                 
-                if decision == "IGNORE":
+                if decision in {"IGNORE","CONTINUE"}:
+                    continue_ignore_count += 1
+                    
+                    if continue_ignore_count >= max_continue_ignore:
+                        block_text = "\n".join(buffer)
+                        buffer.clear()
+                        continue_ignore_count = 0
+
+                        print("*"*50+"FORCE ANALYZE"+"*"*50)
+                        print(block_text)
+                        print("*"*50+"FORCE ANALYZE"+"*"*50)
+
+                        result = await analysis.analyze(
+                            block_text,
+                            trigger_type="timeout"
+                        )
+                        yield result
                     continue
-                if decision == "CONTINUE":
-                    continue
+
                 if decision == "SPLIT":
-                    block_text = "\n".join(buffer)
-                    emit_split(buffer, reason="semantic")
-                    
+                    block_text = "\n".join(buffer) 
+                    buffer.clear()   
+                    continue_ignore_count = 0
+
+                    print("*"*50+"SEG BLOCK"+"*"*50) 
+                    print(block_text)
+                    print("*"*50+"SEG BLOCK"+"*"*50)      
+
                     # ===== 分析 block =====
-                    result = await analysis.analyze(block_text)
+                    result = await analysis.analyze(block_text,trigger_type="semantic")
                     yield result
+                    continue
                     
-                    buffer.clear()
+                    
                 if decision not in {"CONTINUE", "SPLIT", "IGNORE"}:
                     decision = "CONTINUE"
         except asyncio.TimeoutError:
             # ===== 时间 SPLIT 判定 =====
-            if buffer:
-                block_text = "\n".join(buffer)
-                emit_split(buffer=buffer, reason="silence")
+            pass
+            # if buffer:
+            #     block_text = "\n".join(buffer)     
+            #     buffer.clear()           
+            #     # ===== 分析 block =====
+            #     result = await analysis.analyze(block_text,trigger_type="timeout")
+            #     yield result
                 
-                # ===== 分析 block =====
-                result = await analysis.analyze(block_text)
-                yield result
                 
-                buffer.clear()
 
 ANALYSIS_PROMPT = """
 你是一个专业的【面试分析助手】。
 
-输入是面试对话的一个完整问答单元（block），你需要分析面试者的回答过程，重点评判以下三个方面：
-1. 逻辑能力：回答是否有条理、逻辑是否清晰、论证是否充分
-2. 表达能力：语言表达是否流畅、用词是否准确、重点是否突出
-3. 内生动力：是否展现出积极主动的态度、学习意愿和职业热情
+你将持续收到面试对话的【一个完整问答单元（block）】。
+同时你需要参考【之前已经出现过的问答单元内容】，提出连贯的追问。
 
-你的输出必须严格按照以下格式（仅输出这两部分，不要输出任何其他内容）：
+你的任务是分析面试者在该 block 中的回答表现，重点评判：
+1. 逻辑能力：回答是否有条理、推理是否清晰、论证是否充分
+2. 表达能力：语言是否流畅、重点是否突出、用词是否准确
+3. 内生动力：是否体现主动性、学习意愿与职业热情
+
+==============================
+输出格式要求（严格）
+==============================
+
+你只能输出以下两部分，不得输出任何解释或多余内容：
 
 【追问问题建议】
-1. 问题一
-2. 问题二
+1. （仅输出一个追问问题，必须结合当前回答 + 过往 block 的内容，提出自然衔接的深入追问）
 
 【面试者评价】
-结合评价内容（300字以内）
+（300字以内，综合评价逻辑、表达与内生动力，简洁明确）
 
-要求：
-- 追问问题建议：1-2个问题，针对回答中的不足或需要深入了解的点
-- 面试者评价：简洁明了，300字以内，包括但不限于逻辑、表达、动力三个方面
-- 不要输出任何解释或额外内容
+==============================
+追问问题生成规则
+==============================
+
+- 只能输出 1 个问题
+- 必须基于当前回答中的不足点或模糊点
+- 必须结合过往问答单元的上下文，使追问具有连续性（不能是孤立问题）
+- 优先追问“细节案例、动机原因、结果量化、前后矛盾点”
+
+==============================
+其他限制
+==============================
+
+- 不要输出编号以外的内容
+- 不要输出多个问题
+- 不要输出任何解释、分析过程或额外文字
 """
 
 class llm_analysis:
@@ -314,6 +399,7 @@ class llm_analysis:
         self.knowledge_base = {}
         self.conversation_rounds = 0
         self.llm_call_count = 0
+        self.timeout_call_count = 0
         
         if use_same_api and shared_client:
             self.client = shared_client
@@ -375,7 +461,7 @@ class llm_analysis:
         
         
     
-    async def analyze(self, block: str, external_client: AsyncOpenAI = None) -> dict:
+    async def analyze(self, block: str, external_client: AsyncOpenAI = None, trigger_type: str = "semantic") -> dict:
         """
         分析面试者的回答
         
@@ -386,9 +472,7 @@ class llm_analysis:
         Returns:
             包含追问问题和评价的字典
         """
-        self.llm_call_count += 1
-        ts = time.strftime("%H:%M:%S")
-        print(f"[{ts}] Analysis Call #{self.llm_call_count}")
+        
         
 
         messages = [
@@ -412,7 +496,14 @@ class llm_analysis:
             max_tokens=500,
             stream=False,
         )
-        
+        if trigger_type == "semantic":
+            self.llm_call_count += 1
+            print(f"[{time.strftime('%H:%M:%S')}] Analysi_Call #{self.llm_call_count}")
+        else:
+            self.timeout_call_count += 1
+            print(f"[{time.strftime('%H:%M:%S')}] time out Analysi_Call #{self.timeout_call_count}")
+
+
         result = resp.choices[0].message.content.strip()
         
         return self._parse_result(result, block=block)
