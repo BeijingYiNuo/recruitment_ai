@@ -137,6 +137,7 @@
         
         <div class="control-section">
             <button id="interviewBtn" class="btn btn-start">开始面试</button>
+            <button id="analyzeBtn" class="btn btn-start" style="margin-left: 10px; background-color: #2196F3;">手动分析</button>
         </div>
         
         <div class="textboxes-container">
@@ -185,6 +186,7 @@
         let evaluationCount = 0;
         
         const interviewBtn = document.getElementById('interviewBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
         const asrTextbox = document.getElementById('asrTextbox');
         const followUpBox = document.getElementById('followUpBox');
         const evaluationBox = document.getElementById('evaluationBox');
@@ -276,6 +278,77 @@
                     console.error('结束面试失败:', error);
                     alert('结束面试失败，请检查后端服务是否运行');
                 }
+            }
+        });
+        
+        analyzeBtn.addEventListener('click', async () => {
+            // 手动触发LLM分析
+            try {
+                if (blockTexts.length === 0) {
+                    alert('没有可分析的面试内容，请先开始面试并获取对话内容');
+                    return;
+                }
+                
+                // 使用最后一个block进行分析
+                const lastBlock = blockTexts[blockTexts.length - 1];
+                status.textContent = '正在分析...';
+                
+                const response = await fetch('http://127.0.0.1:8001/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ block_text: lastBlock })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // 处理分析结果
+                    if (result.follow_up_questions && result.follow_up_questions.length > 0) {
+                        // 追加到下一行
+                        if (followUpBox.textContent) {
+                            followUpBox.textContent += '\n';
+                        }
+                        // 为每个追问问题添加序号
+                        let followUpText = '';
+                        result.follow_up_questions.forEach((q, index) => {
+                            followUpCount++;
+                            followUpText += `${followUpCount}. ${q}\n`;
+                        });
+                        llmBuffers.followUp = followUpText;
+                        llmIndices.followUp = 0;
+                        if (llmIntervals.followUp) {
+                            clearInterval(llmIntervals.followUp);
+                        }
+                        startLLMTyping('followUp');
+                    }
+                    
+                    if (result.evaluation) {
+                        // 追加到下一行
+                        if (evaluationBox.textContent) {
+                            evaluationBox.textContent += '\n';
+                        }
+                        // 为每个评价添加序号
+                        evaluationCount++;
+                        llmBuffers.evaluation = `${evaluationCount}. ${result.evaluation}`;
+                        llmIndices.evaluation = 0;
+                        if (llmIntervals.evaluation) {
+                            clearInterval(llmIntervals.evaluation);
+                        }
+                        startLLMTyping('evaluation');
+                    }
+                    
+                    status.textContent = '分析完成';
+                } else {
+                    const error = await response.json();
+                    alert('分析失败: ' + error.detail);
+                    status.textContent = '分析失败';
+                }
+            } catch (error) {
+                console.error('分析失败:', error);
+                alert('分析失败，请检查后端服务是否运行');
+                status.textContent = '分析失败';
             }
         });
         

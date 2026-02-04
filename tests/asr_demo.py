@@ -10,9 +10,6 @@ import subprocess
 from typing import Optional, List, Dict, Any, Tuple, AsyncGenerator
 import sounddevice as sd
 import numpy as np
-import pdb
-# 导入大模型流式处理函数
-from doubao_api_test import stream_text_to_llm
 from llm_seg_demo import pipeline
 import asyncio
 import json
@@ -20,6 +17,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# 使用共享日志模块
+from utils.logger import logger
 
 
 app = FastAPI(title = "Recruitment Service")
@@ -40,8 +40,8 @@ audio_q: asyncio.Queue | None = None
 asr_queue: asyncio.Queue | None = None
 llm_queue: asyncio.Queue | None = None
 
-# 配置日志
-logger = logging.getLogger("uvicorn.error")
+# 使用共享日志模块
+from utils.logger import logger
 
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
@@ -511,11 +511,6 @@ class AsrWsClient:
             b"data",
             data_size,
         )
-    #能量检测
-    def is_silence(self, pcm,threshold=500):
-        data = np.frombuffer(pcm, dtype=np.int16)
-        rms = np.sqrt(np.mean(data.astype(np.float32)**2))
-        return rms < threshold
     
     async def execute_mic(self,channels: int = 1, use_llm: bool = True, stop_event: asyncio.Event | None = None):
         """
@@ -588,6 +583,8 @@ class AsrWsClient:
                             utterances = result.get("utterances", []) or []
                             for utt in utterances:
                                 text = utt.get("text")
+                                start_time = utt.get("start_time")
+                                end_time = utt.get("end_time")
                                 
                                 definite = utt.get("definite")   
                                 logger.info("*****正在说话*****")
@@ -595,7 +592,14 @@ class AsrWsClient:
                                     logger.info(f"text:{text} definite:{definite}")
                                     if text and use_llm:
                                         try:
-                                            await text_q.put(text)
+                                            # 发送包含文本和时间信息的字典到 text_q
+                                            text_data = {
+                                                "text": text,
+                                                "start_time": start_time,
+                                                "end_time": end_time
+                                            }
+                                            await text_q.put(text_data)
+                                            # 对于 asr_queue，仍然只发送文本
                                             await asr_queue.put(text)
                                         except asyncio.QueueFull:
                                             logger.info("queue full")
