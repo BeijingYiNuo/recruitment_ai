@@ -17,10 +17,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-# 使用共享日志模块
+from state_manager import state
 from utils.logger import logger
-
+import time
 
 app = FastAPI(title = "Recruitment Service")
 
@@ -564,23 +563,31 @@ class AsrWsClient:
         stream.start()
         logger.info("🎙 Microphone streaming started")
         
+        # 初始化最后一次检测到声音的时间
+        import time
+        last_sound_time = time.time()
+        
         # ========= 主线程 添加ASR接收协程 =========
         async def receiver():
+            nonlocal last_sound_time
             try:
                 while not (stop_event and stop_event.is_set()):
                     try:
                         # 使用wait_for为recv_messages添加超时，避免WebSocket连接异常时阻塞
-                        msg = await asyncio.wait_for(self.conn.receive(), timeout=1.0)
+                        msg = await asyncio.wait_for(self.conn.receive(), timeout=3.0)
                         if msg.type == aiohttp.WSMsgType.BINARY:
                             resp = ResponseParser.parse_response(msg.data)
                             msg = resp.payload_msg
-                            if not msg:
-                                continue
+                            # if not msg:
+                            #     # 检查是否有3秒无声音
+                            #     current_time = time.time()
+                            #     if current_time - last_sound_time > 3:
+                            #         state.is_silence = True
+                            #         logger.info("3秒无声音检测")
+                            #     continue
                             result = msg.get("result")
-                            if not result:
-                                logger.info("未检测到声音")
-                                continue
                             utterances = result.get("utterances", []) or []
+                            # current_time = time.time()
                             for utt in utterances:
                                 text = utt.get("text")
                                 start_time = utt.get("start_time")
@@ -588,10 +595,18 @@ class AsrWsClient:
                                 
                                 definite = utt.get("definite")   
                                 logger.info("*****正在说话*****")
+                                if text:
+                                    # 更新最后一次检测到声音的时间
+                                    last_sound_time = current_time
+                                    state.is_silence = False
+                    
                                 if definite:
                                     logger.info(f"text:{text} definite:{definite}")
                                     if text and use_llm:
                                         try:
+                                            # 更新最后一次检测到声音的时间
+                                            last_sound_time = time.time()
+                                            state.is_silence = False
                                             # 发送包含文本和时间信息的字典到 text_q
                                             text_data = {
                                                 "text": text,
@@ -614,7 +629,11 @@ class AsrWsClient:
                             logger.info("WebSocket connection closed")
                             break
                     except asyncio.TimeoutError:
-                        # 超时后继续循环，避免阻塞
+                        #超时后检查是否有3秒无声音
+                        current_time = time.time()
+                        if current_time - last_sound_time > 3:
+                            state.is_silence = True
+                            logger.info("无声音（检测周期3s）")
                         continue
                     except Exception as e:
                         logger.error(f"Error receiving message: {e}")
@@ -625,12 +644,11 @@ class AsrWsClient:
                 logger.error(f"Unexpected error in receiver task: {e}")
         recv_task = asyncio.create_task(receiver())
         
-        # ========= 4. LLM处理协程 =========
-       
+        # ========= 4. LLM处理协程 =========        
         async def consume_llm():
             try:
                 # 直接使用pipeline函数，让它持续从text_q中读取数据并处理
-                async for llm_chunk in pipeline(text_q):
+                async for llm_chunk in pipeline(text_q, state=state):
                     # 检查是否需要停止
                     if stop_event and stop_event.is_set():
                         break
@@ -651,6 +669,7 @@ class AsrWsClient:
         try:
             while not (stop_event and stop_event.is_set()):
                 try:
+                   
                     # 为audio_q.get()添加超时，避免长时间阻塞
                     segment = await asyncio.wait_for(audio_q.get(), timeout=0.1)
                     #为第一个数据包添加wav格式头

@@ -4,7 +4,7 @@ import asyncio
 from openai import AsyncOpenAI
 import sys
 import os
-from utils.logger import logger
+from tests.utils.logger import logger
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -122,7 +122,7 @@ class KnowledgeTrigger:
         混合策略触发函数
         按照三层策略顺序执行，决定是否触发知识库检索
         """
-        logger.info(f"\n=== 开始混合策略触发判断 ===")
+        logger.info(f"=== 开始混合策略触发判断 ===")
         
         # 第一层：关键词快速触发
         if self.rule_search(block_text):
