@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能面试助手 - ASR语音分析系统</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary-color: #10b981;
+            --secondary-hover: #059669;
+            --danger-color: #ef4444;
+            --danger-hover: #dc2626;
+            --dark-color: #1e293b;
+            --light-color: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --border-radius: 8px;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --transition: all 0.2s ease-in-out;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--light-color);
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--gray-600);
+            margin-bottom: 2rem;
+        }
+        
+        .session-info {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-id-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .user-id-label {
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+        
+        .user-id-value {
+            font-weight: 600;
+            color: var(--primary-color);
+            background: var(--gray-100);
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            font-family: monospace;
+        }
+        
+        .control-section {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+        }
+        
+        .panel:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .panel-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+        
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        .asr-icon {
+            background: linear-gradient(135deg, var(--primary-color), #60a5fa);
+        }
+        
+        .follow-up-icon {
+            background: linear-gradient(135deg, var(--secondary-color), #34d399);
+        }
+        
+        .evaluation-icon {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+        }
+        
+        .panel-content {
+            flex: 1;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: var(--gray-100);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .status-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .status-indicator {
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            background-color: var(--gray-400);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.active {
+            background-color: var(--secondary-color);
+        }
+        
+        .status-text {
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        /* 滚动条样式 */
+        .panel-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .panel-content::-webkit-scrollbar-track {
+            background: var(--gray-200);
+            border-radius: 4px;
+        }
+        
+        .panel-content::-webkit-scrollbar-thumb {
+            background: var(--gray-400);
+            border-radius: 4px;
+        }
+        
+        .panel-content::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-500);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .session-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .control-section {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 打字机效果增强 */
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: var(--gray-800);
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            from, to { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>面试智能分析平台</h1>
+            <p class="subtitle">AI驱动的语音识别与面试评估系统</p>
+        </header>
+        
+        <div class="session-info">
+            <div class="user-id-section">
+                <span class="user-id-label">用户ID:</span>
+                <span id="userIdDisplay" class="user-id-value">未创建</span>
+            </div>
+            <div class="control-section">
+                <button id="createSessionBtn" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    创建会话
+                </button>
+                <button id="startAsrBtn" class="btn btn-secondary" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    启动ASR
+                </button>
+                <button id="stopAsrBtn" class="btn btn-danger" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    停止ASR
+                </button>
+            </div>
+        </div>
+        
+        <div class="grid-container">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-icon asr-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    </div>
+                    <h2 class="panel-title">ASR实时语音转文本</h2>
+                </div>
+                <div id="asrTextbox" class="panel-content">面试官：您好，欢迎参加今天的面试，请做一个简短的自我介绍。
+
+面试者：您好，我叫张三，毕业于北京大学计算机科学专业，有3年前端开发经验。我熟悉React、Vue等前端框架，曾参与过多个大型项目的开发。我对技术充满热情，喜欢不断学习新的技术栈。在工作中，我注重代码质量和用户体验，善于解决复杂的技术问题。
+
+面试官：请介绍一下你参与过的最具挑战性的项目。
+
+面试者：我参与过一个电商平台的前端重构项目，该项目使用了React和TypeScript。挑战主要来自于需要在不影响现有功能的情况下，对代码进行重构和性能优化。我们面临的问题包括代码冗余、性能瓶颈和用户体验不佳等。通过使用React.memo、useCallback等优化手段，以及引入代码分割和懒加载技术，最终我们成功将页面加载时间减少了40%，提升了用户体验。
+
+面试官：你是如何处理团队协作中的冲突的？
+
+面试者：在团队协作中，冲突是不可避免的。我通常会采取以下方法：首先，保持冷静，倾听对方的观点；其次，分析问题的根本原因；然后，提出解决方案并与团队成员讨论；最后，达成共识并执行。我认为有效的沟通和换位思考是解决冲突的关键。
+
+面试官：你对未来的职业发展有什么规划？
+
+面试者：我希望在未来的3-5年内，成为一名高级前端工程师，能够独立负责复杂项目的架构设计和技术选型。同时，我也希望能够参与更多开源项目，与社区分享我的经验和知识。我相信持续学习和实践是实现职业目标的关键。</div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-icon follow-up-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    </div>
+                    <h2 class="panel-title">建议追问问题</h2>
+                </div>
+                <div id="followUpBox" class="panel-content">1. 您在前端重构项目中具体使用了哪些性能优化技术？能否举例说明其中一种技术的实现细节？
+
+2. 您认为前端开发中最具挑战性的部分是什么？您是如何应对这些挑战的？</div>
+            <div class="panel" style="grid-column: 1 / -1;">
+                <div class="panel-header">
+                    <div class="panel-icon evaluation-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <h2 class="panel-title">面试者评价</h2>
+                </div>
+                <div id="evaluationBox" class="panel-content">1. 面试者具有扎实的前端开发知识和3年相关工作经验，熟悉React、Vue等主流前端框架。在项目经验方面，能够清晰描述电商平台重构项目的挑战和解决方案，展示了较强的问题解决能力和技术实力。沟通表达流畅，逻辑清晰，对前端性能优化有一定的理解。
+
+2. 面试者对团队协作和职业规划有明确的认识，展现了良好的团队合作精神和自我发展意识。在回答问题时思路清晰，能够结合实际经验进行阐述，表现出较强的专业素养和学习能力。整体表现符合前端开发岗位的要求，建议进入下一阶段面试。</div>
+            </div>
+        </div>
+        
+        <div class="status-section">
+            <div id="statusIndicator" class="status-indicator"></div>
+            <span id="status" class="status-text">就绪</span>
+        </div>
+    </div>
+    
+    <script>
+        let eventSource = null;
+        let isAsrRunning = false;
+        let currentUserId = null;
+        let asrBuffer = '';
+        let asrIndex = 0;
+        let asrInterval = null;
+        let llmBuffers = {
+            followUp: '',
+            evaluation: ''
+        };
+        let llmIndices = {
+            followUp: 0,
+            evaluation: 0
+        };
+        let llmIntervals = {
+            followUp: null,
+            evaluation: null
+        };
+        let followUpCount = 0;
+        let evaluationCount = 0;
+        
+        const createSessionBtn = document.getElementById('createSessionBtn');
+        const startAsrBtn = document.getElementById('startAsrBtn');
+        const stopAsrBtn = document.getElementById('stopAsrBtn');
+        const asrTextbox = document.getElementById('asrTextbox');
+        const followUpBox = document.getElementById('followUpBox');
+        const evaluationBox = document.getElementById('evaluationBox');
+        const status = document.getElementById('status');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        
+        createSessionBtn.addEventListener('click', async () => {
+            try {
+                status.textContent = '正在创建会话...';
+                statusIndicator.classList.remove('active');
+                
+                // 添加加载动画
+                const originalText = createSessionBtn.textContent;
+                createSessionBtn.innerHTML = '<div class="loading"></div> 创建中...';
+                createSessionBtn.disabled = true;
+                
+                const response = await fetch('http://localhost:8001/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    currentUserId = result.user_id;
+                    userIdDisplay.textContent = currentUserId;
+                    status.textContent = '会话创建成功';
+                    startAsrBtn.disabled = false;
+                    
+                    // 动画效果
+                    userIdDisplay.style.animation = 'pulse 0.5s ease-in-out';
+                    setTimeout(() => {
+                        userIdDisplay.style.animation = '';
+                    }, 500);
+                } else {
+                    const error = await response.json();
+                    alert('创建会话失败: ' + error.detail);
+                    status.textContent = '创建会话失败';
+                }
+            } catch (error) {
+                console.error('创建会话失败:', error);
+                alert('创建会话失败，请检查后端服务是否运行');
+                status.textContent = '创建会话失败';
+            } finally {
+                // 恢复按钮状态
+                createSessionBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 创建会话';
+                createSessionBtn.disabled = false;
+            }
+        });
+        
+        startAsrBtn.addEventListener('click', async () => {
+            if (!currentUserId) {
+                alert('请先创建会话');
+                return;
+            }
+            
+            try {
+                status.textContent = '正在启动ASR...';
+                statusIndicator.classList.remove('active');
+                
+                // 添加加载动画
+                const originalText = startAsrBtn.textContent;
+                startAsrBtn.innerHTML = '<div class="loading"></div> 启动中...';
+                startAsrBtn.disabled = true;
+                
+                const requestData = {
+                    url: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
+                    seg_duration: 200,
+                    mic: true,
+                    use_llm: true
+                };
+                
+                const response = await fetch(`http://localhost:8001/api/asr/start/${currentUserId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (response.ok) {
+                    isAsrRunning = true;
+                    stopAsrBtn.disabled = false;
+                    status.textContent = 'ASR已启动';
+                    statusIndicator.classList.add('active');
+                    
+                    // 清空文本框
+                    asrTextbox.textContent = '';
+                    followUpBox.textContent = '';
+                    evaluationBox.textContent = '';
+                    asrBuffer = '';
+                    asrIndex = 0;
+                    if (asrInterval) {
+                        clearInterval(asrInterval);
+                    }
+                    llmBuffers = {
+                        followUp: '',
+                        evaluation: ''
+                    };
+                    llmIndices = {
+                        followUp: 0,
+                        evaluation: 0
+                    };
+                    followUpCount = 0;
+                    evaluationCount = 0;
+                    Object.values(llmIntervals).forEach(interval => {
+                        if (interval) {
+                            clearInterval(interval);
+                        }
+                    });
+                    Object.keys(llmIntervals).forEach(key => {
+                        llmIntervals[key] = null;
+                    });
+                    
+                    // 启动SSE连接
+                    startSSE();
+                } else {
+                    const error = await response.json();
+                    alert('启动ASR失败: ' + error.detail);
+                    status.textContent = '启动ASR失败';
+                    startAsrBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('启动ASR失败:', error);
+                alert('启动ASR失败，请检查后端服务是否运行');
+                status.textContent = '启动ASR失败';
+                startAsrBtn.disabled = false;
+            } finally {
+                // 恢复按钮状态
+                if (!isAsrRunning) {
+                    startAsrBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> 启动ASR';
+                }
+            }
+        });
+        
+        stopAsrBtn.addEventListener('click', async () => {
+            if (!currentUserId) {
+                alert('请先创建会话');
+                return;
+            }
+            
+            try {
+                status.textContent = '正在停止ASR...';
+                statusIndicator.classList.remove('active');
+                
+                // 添加加载动画
+                const originalText = stopAsrBtn.textContent;
+                stopAsrBtn.innerHTML = '<div class="loading"></div> 停止中...';
+                stopAsrBtn.disabled = true;
+                
+                const response = await fetch(`http://localhost:8001/api/asr/stop/${currentUserId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    isAsrRunning = false;
+                    startAsrBtn.disabled = false;
+                    status.textContent = 'ASR已停止';
+                    
+                    // 关闭SSE连接
+                    stopSSE();
+                } else {
+                    const error = await response.json();
+                    alert('停止ASR失败: ' + error.detail);
+                    status.textContent = '停止ASR失败';
+                    stopAsrBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('停止ASR失败:', error);
+                alert('停止ASR失败，请检查后端服务是否运行');
+                status.textContent = '停止ASR失败';
+                stopAsrBtn.disabled = false;
+            } finally {
+                // 恢复按钮状态
+                if (!isAsrRunning) {
+                    stopAsrBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg> 停止ASR';
+                }
+            }
+        });
+        
+        function startSSE() {
+            // 关闭之前的连接
+            stopSSE();
+            
+            console.log('开始创建SSE连接:', `http://localhost:8001/api/asr/stream/${currentUserId}`);
+            // 创建新的SSE连接
+            eventSource = new EventSource(`http://localhost:8001/api/asr/stream/${currentUserId}`);
+            
+            eventSource.onopen = () => {
+                console.log('SSE连接已建立');
+                status.textContent = 'SSE连接已建立';
+                statusIndicator.classList.add('active');
+            };
+            
+            eventSource.onmessage = (event) => {
+                try {
+                    console.log('接收到SSE数据:', event.data);
+                    const data = JSON.parse(event.data);
+                    console.log('解析后的数据:', data);
+                    
+                    if (data.type === 'asr') {
+                        console.log('处理ASR数据:', data.data);
+                        // ASR结果，使用打字机效果
+                        asrBuffer = data.data;
+                        asrIndex = 0;
+                        if (asrInterval) {
+                            clearInterval(asrInterval);
+                        }
+                        startASRTyping();
+                    } else if (data.type === 'llm') {
+                        console.log('处理LLM数据:', data.data);
+                        const formatted = data.data.formatted;
+                        console.log('LLM格式化数据:', formatted);
+
+                        if (formatted?.follow_up) {
+                            console.log('处理follow_up:', formatted.follow_up);
+                            // 追加到下一行
+                            if (followUpBox.textContent) {
+                                followUpBox.textContent += '\n';
+                            }
+                            // 为每个追问问题添加序号
+                            const questions = data.data.follow_up_questions || [];
+                            console.log('追问问题:', questions);
+                            let followUpText = '';
+                            questions.forEach((q, index) => {
+                                followUpCount++;
+                                followUpText += `${followUpCount}. ${q}\n`;
+                            });
+                            llmBuffers.followUp = followUpText;
+                            llmIndices.followUp = 0;
+                            if (llmIntervals.followUp) {
+                                clearInterval(llmIntervals.followUp);
+                            }
+                            startLLMTyping('followUp');
+                        }
+
+                        if (formatted?.evaluation) {
+                            console.log('处理evaluation:', formatted.evaluation);
+                            // 追加到下一行
+                            if (evaluationBox.textContent) {
+                                evaluationBox.textContent += '\n';
+                            }
+                            // 为每个评价添加序号
+                            evaluationCount++;
+                            llmBuffers.evaluation = `${evaluationCount}. ${formatted.evaluation}`;
+                            llmIndices.evaluation = 0;
+                            if (llmIntervals.evaluation) {
+                                clearInterval(llmIntervals.evaluation);
+                            }
+                            startLLMTyping('evaluation');
+                        }
+                    } else if(data.type == "questions_stream") {
+                        // 处理流式问题数据
+                    }
+                } catch (error) {
+                    console.error('解析SSE数据失败:', error);
+                    console.error('原始数据:', event.data);
+                }
+            };
+            
+            eventSource.onerror = (error) => {
+                console.error('SSE连接错误:', error);
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    console.log('SSE连接已关闭');
+                    status.textContent = 'SSE连接已关闭';
+                    statusIndicator.classList.remove('active');
+                }
+            };
+        }
+        
+        function stopSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            
+            // 清除所有打字机效果定时器
+            if (asrInterval) {
+                clearInterval(asrInterval);
+                asrInterval = null;
+            }
+            
+            Object.values(llmIntervals).forEach(interval => {
+                if (interval) {
+                    clearInterval(interval);
+                }
+            });
+            
+            Object.keys(llmIntervals).forEach(key => {
+                llmIntervals[key] = null;
+            });
+        }
+        
+        function startASRTyping() {
+            asrInterval = setInterval(() => {
+                if (asrIndex < asrBuffer.length) {
+                    // 追加到现有内容
+                    asrTextbox.textContent += asrBuffer[asrIndex];
+                    asrTextbox.scrollTop = asrTextbox.scrollHeight;
+                    asrIndex++;
+                } else {
+                    clearInterval(asrInterval);
+                    asrInterval = null;
+                }
+            }, 30); // 调整打字速度
+        }
+        
+        function startLLMTyping(type) {
+            const targetBox = type === 'followUp' ? followUpBox : evaluationBox;
+            
+            llmIntervals[type] = setInterval(() => {
+                if (llmIndices[type] < llmBuffers[type].length) {
+                    targetBox.textContent += llmBuffers[type][llmIndices[type]];
+                    targetBox.scrollTop = targetBox.scrollHeight;
+                    llmIndices[type]++;
+                } else {
+                    clearInterval(llmIntervals[type]);
+                    llmIntervals[type] = null;
+                }
+            }, 30); // 调整打字速度
+        }
+    </script>
+</body>
+</html>

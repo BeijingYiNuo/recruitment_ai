@@ -8,7 +8,15 @@ from llm_analysis import llm_analysis
 from knowledge_trigger import KnowledgeTrigger
 from prompts import SEGMENT_JUDGE_PROMPT, Prompts
 from utils.logger import logger
-from state_manager import State
+from state_manager import state
+
+# 全局变量，用于存储流式LLM数据
+streaming_llm_queue = None
+
+# 设置流式LLM队列
+def set_streaming_llm_queue(queue):
+    global streaming_llm_queue
+    streaming_llm_queue = queue
 
 async def simulate_human_speech(
         lines,
@@ -92,7 +100,7 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 3.0, state=None)
     judge_interval_max = 15.0  # 最大时间间隔降低到15秒
     continue_ignore_count = 0
     max_continue_ignore = 15
-
+    current_time = time.time()
 
     segment_judge = llm_SegmentJudge(text_q)
     analysis = llm_analysis(memory_rounds=5, use_same_api=True, shared_client=segment_judge.client)
@@ -106,7 +114,30 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 3.0, state=None)
                     logger.info(f"检测到静默，分析buffer内容")
                     block_text = "\n".join([item.get("text", item) if isinstance(item, dict) else item for item in buffer])
                     buffer.clear()
-                    result = await analysis.analyze(block_text, trigger_type="silence", knowledge_trigger=knowledge_trigger)
+                    
+                    async def on_chunk(chunk_content):
+                        """回调函数，处理流式数据"""
+                        # 这里可以添加前端通信逻辑，例如WebSocket发送
+                        # print(f"{chunk_content}", end="", flush=True)
+                        # 如果有状态管理，可以更新状态
+                        if state:
+                            state.add_streaming_content(chunk_content)
+                        # 将流式数据发送到队列，用于SSE传输
+                        if streaming_llm_queue:
+                            try:
+                                await streaming_llm_queue.put({
+                                    'type': 'follow_up' if '建议' in chunk_content else 'evaluation',
+                                    'content': chunk_content
+                                })
+                            except asyncio.QueueFull:
+                                logger.info("流式队列已满，有丢失数据")
+                    
+                    result = await analysis.analyze(
+                        block_text, 
+                        trigger_type="silence", 
+                        knowledge_trigger=knowledge_trigger,
+                        on_chunk=on_chunk
+                    )
                     yield result
                     # 分析完成后重置静默状态
                     state.is_silence = False
@@ -114,34 +145,6 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 3.0, state=None)
             # 等待获取队列中的数据
             data = await asyncio.wait_for(text_q.get(), timeout=silence_time)
             
-            # 提取文本内容
-            if isinstance(data, dict):
-                line = data.get("text", "")
-                current_start_time = data.get("start_time")
-                current_end_time = data.get("end_time")
-            else:
-                # 兼容旧格式（纯文本）
-                line = data
-                current_start_time = None
-                current_end_time = None
-            
-            # 检查相邻文本的时间间隔
-            if last_end_time and current_start_time:
-                time_gap = current_start_time - last_end_time
-                logger.info(f"start time {current_start_time} | end time {current_end_time} | Time gap between texts: {time_gap} ms")
-                
-                # 如果时间间隔超过silence_time，触发超时分析
-                if time_gap > silence_time*1000:
-                    if buffer:
-                        logger.info(f"Time gap ({time_gap}ms) exceeds silence time ({silence_time}ms), triggering timeout analysis")
-                        block_text = "\n".join([item.get("text", item) if isinstance(item, dict) else item for item in buffer])
-                        buffer.clear()
-                        result = await analysis.analyze(block_text, trigger_type="timeout", knowledge_trigger=knowledge_trigger)
-                        yield result
-            
-            # 更新last_end_time
-            if current_end_time:
-                last_end_time = current_end_time
             
             # 将数据添加到缓冲区
             buffer.append(data)
@@ -180,10 +183,28 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 3.0, state=None)
                         
                         logger.info(f"LONG CONTINUE FORCE ANALYZE: {block_text}")
 
+                        async def on_chunk(chunk_content):
+                            """回调函数，处理流式数据"""
+                            # 这里可以添加前端通信逻辑，例如WebSocket发送
+                            # print(f"{chunk_content}", end="", flush=True)
+                            # 如果有状态管理，可以更新状态
+                            if state:
+                                state.add_streaming_content(chunk_content)
+                            # 将流式数据发送到队列，用于SSE传输
+                            if streaming_llm_queue:
+                                try:
+                                    await streaming_llm_queue.put({
+                                        'type': 'follow_up' if '建议' in chunk_content else 'evaluation',
+                                        'content': chunk_content
+                                    })
+                                except asyncio.QueueFull:
+                                    logger.info("流式队列已满，有丢失数据")
+                        
                         result = await analysis.analyze(
                             block_text,
                             trigger_type="timeout",
-                            knowledge_trigger=knowledge_trigger
+                            knowledge_trigger=knowledge_trigger,
+                            on_chunk=on_chunk
                         )
                         yield result
                     continue
@@ -196,8 +217,30 @@ async def pipeline(text_q: asyncio.Queue, silence_time: float = 3.0, state=None)
 
                     logger.info(f"SPLIT SEG BLOCK: {block_text}")
                     
+                    async def on_chunk(chunk_content):
+                        """回调函数，处理流式数据"""
+                        # 这里可以添加前端通信逻辑，例如WebSocket发送
+                        # print(f"{chunk_content}", end="", flush=True)
+                        # 如果有状态管理，可以更新状态
+                        if state:
+                            state.add_streaming_content(chunk_content)
+                        # 将流式数据发送到队列，用于SSE传输
+                        if streaming_llm_queue:
+                            try:
+                                await streaming_llm_queue.put({
+                                    'type': 'follow_up' if '建议' in chunk_content else 'evaluation',
+                                    'content': chunk_content
+                                })
+                            except asyncio.QueueFull:
+                                logger.info("流式队列已满，有丢失数据")
+                    
                     # ===== 分析 block =====
-                    result = await analysis.analyze(block_text,trigger_type="semantic",knowledge_trigger=knowledge_trigger)
+                    result = await analysis.analyze(
+                        block_text,
+                        trigger_type="semantic",
+                        knowledge_trigger=knowledge_trigger,
+                        on_chunk=on_chunk
+                    )
                     yield result
                     continue
                     

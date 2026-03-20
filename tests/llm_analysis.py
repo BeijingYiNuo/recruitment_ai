@@ -6,9 +6,9 @@ from utils.logger import logger
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.knowledge_trigger import KnowledgeTrigger
-from tests.vector_store.VikingDB_search import search_knowledge
-from tests.prompts import ANALYSIS_PROMPT, Prompts
+from knowledge_trigger import KnowledgeTrigger
+from vector_store.VikingDB_search import search_knowledge
+from prompts import ANALYSIS_PROMPT, Prompts
 import time
 class Conf:
     openai_url: str = "https://ark.cn-beijing.volces.com/api/v3/"
@@ -69,13 +69,14 @@ class llm_analysis:
         
         
     
-    async def analyze(self, block: str, external_client: AsyncOpenAI = None, trigger_type: str = "semantic", knowledge_trigger: KnowledgeTrigger = None) -> dict:
+    async def analyze(self, block: str, external_client: AsyncOpenAI = None, trigger_type: str = "semantic", knowledge_trigger: KnowledgeTrigger = None, on_chunk=None) -> dict:
         """
         分析面试者的回答
         
         Args:
             block: 面试对话的一个完整问答单元
             external_client: 外部提供的API客户端（如果共用API）
+            on_chunk: 回调函数，用于实时传递流式数据到前端
             
         Returns:
             包含追问问题和评价的字典
@@ -86,9 +87,14 @@ class llm_analysis:
         knowledge_base_info = "无相关知识库信息需要参考"
         if result:
             # 调用知识库检索，获取相关文档
+            retrieval_start_time = time.time()
             knowledge_results = search_knowledge(query=block, k=3)
+            retrieval_end_time = time.time()
+            retrieval_time = retrieval_end_time - retrieval_start_time
+            logger.info(f"[{time.strftime('%H:%M:%S')}] RAG检索耗时: {retrieval_time:.4f} 秒")
             if knowledge_results:
                 knowledge_base_info = "\n".join([f"- {item[:200]}..." for item in knowledge_results])
+                logger.info(f"[{time.strftime('%H:%M:%S')}] RAG检索结果数量: {len(knowledge_results)}")
         
         # 构建系统提示词
         system_prompt = ANALYSIS_PROMPT.replace("{knowledge_base_info}", knowledge_base_info)
@@ -106,14 +112,43 @@ class llm_analysis:
         )
 
         client = external_client if external_client else self.client
+        llm_analysis_start_time = time.time()
+        first_token_time = None
         
-        resp = await client.chat.completions.create(
+        # 使用流式响应
+        stream = await client.chat.completions.create(
             model=Conf.openai_model,
             messages=messages,
             extra_body=self.extra_body,
             max_tokens=500,
-            stream=False,
+            stream=True,
         )
+        
+        # 处理流式响应
+        full_content = ""
+        async for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta:
+                if chunk.choices[0].delta.content:
+                    # 记录第一个token的时间
+                    if first_token_time is None:
+                        first_token_time = time.time()
+                        time_to_first_token = first_token_time - llm_analysis_start_time
+                        logger.info(f"[{time.strftime('%H:%M:%S')}] 到第一个token的时间: {time_to_first_token:.4f} 秒")
+                    # 累加内容
+                    full_content += chunk.choices[0].delta.content
+                    # 实时传递数据到前端
+                    if on_chunk:
+                        await on_chunk(chunk.choices[0].delta.content)
+        
+        llm_analysis_end_time = time.time()
+        llm_use_time = llm_analysis_end_time - llm_analysis_start_time
+        logger.info(f"[{time.strftime('%H:%M:%S')}] llm_analysis耗时: {llm_use_time:.4f} 秒")
+        
+        # 记录Token使用情况
+        # 注意：流式响应中可能不包含usage信息，需要在结束时获取
+        # 这里暂时保留日志，后续可能需要从完整响应中获取
+        logger.info(f"[{time.strftime('%H:%M:%S')}] Token使用情况 - 响应中未包含Token信息（流式响应）")
+        
         if trigger_type == "semantic":
             self.llm_call_count += 1
             logger.info(f"[{time.strftime('%H:%M:%S')}] Analysi_Call #{self.llm_call_count}")
@@ -121,7 +156,7 @@ class llm_analysis:
             logger.info(f"[{time.strftime('%H:%M:%S')}] time out Analysi_Call #{self.timeout_call_count}")
 
 
-        result = resp.choices[0].message.content.strip()
+        result = full_content.strip()
         
         return self._parse_result(result, block=block)
     
@@ -144,10 +179,10 @@ class llm_analysis:
         
         for line in lines:
             line = line.strip()
-            if line.startswith('【建议】'):
+            if line.startswith('建议'):
                 current_section = 'questions'
                 got_question = False
-            elif line.startswith('【面试者评价】'):
+            elif line.startswith('面试者评价'):
                 current_section = 'evaluation'
             elif current_section == 'questions' and line:
                 if not got_question:

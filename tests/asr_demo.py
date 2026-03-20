@@ -10,7 +10,7 @@ import subprocess
 from typing import Optional, List, Dict, Any, Tuple, AsyncGenerator
 import sounddevice as sd
 import numpy as np
-from llm_seg_demo import pipeline
+from llm_seg_demo import pipeline, set_streaming_llm_queue
 import asyncio
 import json
 from fastapi import FastAPI, HTTPException, Request
@@ -26,7 +26,7 @@ app = FastAPI(title = "Recruitment Service")
 # 配置CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生产环境中应该设置具体的前端域名
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,8 +36,9 @@ asr_task: asyncio.Task | None = None
 stop_event: asyncio.Event | None = None
 # 用于存储流式数据的队列
 audio_q: asyncio.Queue | None = None
-asr_queue: asyncio.Queue | None = None
+asr_queue: asyncio.Queue | None = None  # 传递ASR结果的队列
 llm_queue: asyncio.Queue | None = None
+streaming_llm_queue: asyncio.Queue | None = None
 
 # 使用共享日志模块
 from utils.logger import logger
@@ -435,7 +436,7 @@ class AsrWsClient:
             if not is_last:
                 self.seq += 1
                 
-            await asyncio.sleep(self.segment_duration / 1000) # 逐个发送，间隔时间模拟实时流
+            await asyncio.sleep(self.segment_duration / 1000)
             # 让出控制权，允许接受消息
             yield
             
@@ -528,10 +529,10 @@ class AsrWsClient:
         global asr_queue, llm_queue, audio_q
 
         loop = asyncio.get_running_loop()
-        audio_q = asyncio.Queue(maxsize=500)   
-        text_q: asyncio.Queue[str] = asyncio.Queue(maxsize=500)  # 用于传递ASR结果的队列
-        asr_queue = asyncio.Queue(maxsize=500)
-        llm_queue = asyncio.Queue(maxsize=500)
+        audio_q = asyncio.Queue(maxsize=500)                    # 传递语音数据的队列
+        text_q: asyncio.Queue[str] = asyncio.Queue(maxsize=500) # 用于传递ASR结果给llm处理的队列
+        asr_queue = asyncio.Queue(maxsize=500)                  # 传递ASR实时识别结果给前端的队列
+        llm_queue = asyncio.Queue(maxsize=500)                  # 传递llm回复的队列
         
         SAMPLE_RATE = 16000
         FRAME_DURATION = 30     # 每帧时长 ms（WebRTC VAD 只支持 10/20/30）
@@ -550,7 +551,7 @@ class AsrWsClient:
                     pcm_bytes,
                 )
             except asyncio.QueueFull:
-                pass  # 丢帧比阻塞安全
+                pass  # 队列满了就丢了
 
         stream = sd.RawInputStream(
             samplerate=SAMPLE_RATE,
@@ -567,6 +568,12 @@ class AsrWsClient:
         import time
         last_sound_time = time.time()
         
+        # 初始化流式LLM队列
+        global streaming_llm_queue
+        streaming_llm_queue = asyncio.Queue(maxsize=500)
+        # 设置全局流式LLM队列
+        set_streaming_llm_queue(streaming_llm_queue)
+        
         # ========= 主线程 添加ASR接收协程 =========
         async def receiver():
             nonlocal last_sound_time
@@ -578,16 +585,10 @@ class AsrWsClient:
                         if msg.type == aiohttp.WSMsgType.BINARY:
                             resp = ResponseParser.parse_response(msg.data)
                             msg = resp.payload_msg
-                            # if not msg:
-                            #     # 检查是否有3秒无声音
-                            #     current_time = time.time()
-                            #     if current_time - last_sound_time > 3:
-                            #         state.is_silence = True
-                            #         logger.info("3秒无声音检测")
-                            #     continue
+                            
                             result = msg.get("result")
                             utterances = result.get("utterances", []) or []
-                            # current_time = time.time()
+                            current_time = time.time()
                             for utt in utterances:
                                 text = utt.get("text")
                                 start_time = utt.get("start_time")
@@ -879,6 +880,16 @@ async def stream_asr():
                     yield f"data: {json.dumps(formatted_data, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     logger.error(f"Error getting LLM data: {e}")
+            
+            # # 检查流式LLM队列
+            # global streaming_llm_queue
+            # if streaming_llm_queue and not streaming_llm_queue.empty():
+            #     try:
+            #         llm_stream_data = await streaming_llm_queue.get()
+            #         logger.info(f"questions_stream:{llm_stream_data}")
+            #         yield f"data: {json.dumps({'type': 'questions_stream', 'data': llm_stream_data})}\n"
+            #     except Exception as e:
+            #         logger.error(f"Error getting streaming LLM data: {e}")
             
             # 短暂休眠，避免CPU占用过高
             await asyncio.sleep(0.1)

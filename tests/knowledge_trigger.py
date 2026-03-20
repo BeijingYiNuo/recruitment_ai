@@ -4,12 +4,12 @@ import asyncio
 from openai import AsyncOpenAI
 import sys
 import os
-from tests.utils.logger import logger
+from utils.logger import logger
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.vector_store.VikingDB_search import search_knowledge
-from tests.prompts import KNOWLEDGE_TRIGGER_PROMPT, Prompts
+from vector_store.VikingDB_search import search_knowledge
+from prompts import KNOWLEDGE_TRIGGER_PROMPT, Prompts
 class Conf:
     openai_url: str = "https://ark.cn-beijing.volces.com/api/v3/"
     openai_apikey: str = "76a878dc-4905-44c3-858c-8ef33006250f"
