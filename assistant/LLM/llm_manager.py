@@ -1,16 +1,21 @@
+
 from openai import AsyncOpenAI
 import asyncio
 import time
 from typing import Dict, Any, Optional, AsyncGenerator
 
 from utils.logger import logger
-from knowledge.knowledge_manager import KnowledgeManager
+from knowledge.knowledge_manager import KnowledgeManager, KnowledgeTrigger
+from ASR.state_manager import ASRState
+from prompt.prompt_manager import PromptManager
 
 class LLMManager:
     def __init__(self):
         self.processors: Dict[str, Dict] = {}
         self.knowledge_manager = KnowledgeManager()
         self.client_cache: Dict[str, AsyncOpenAI] = {}
+        self.prompt_manager = PromptManager()
+
     
     def get_llm_queue(self, user_id: str) -> Optional[asyncio.Queue]:
         """
@@ -26,8 +31,22 @@ class LLMManager:
             return self.processors[user_id].get('llm_queue')
         return None
     
+    def get_streaming_llm_queue(self, user_id: str) -> Optional[asyncio.Queue]:
+        """
+        获取用户的流式LLM队列
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            Optional[asyncio.Queue]: 流式LLM队列
+        """
+        if user_id in self.processors:
+            return self.processors[user_id].get('streaming_llm_queue')
+        return None
+    
     async def start_llm_processing(self, user_id: str, text_q: asyncio.Queue, 
-                                  llm_queue: asyncio.Queue, streaming_llm_queue: asyncio.Queue):
+                                  llm_queue: asyncio.Queue, streaming_llm_queue: asyncio.Queue, state: ASRState):
         """
         启动用户的LLM处理
         
@@ -55,7 +74,7 @@ class LLMManager:
         }
         
         # 启动LLM处理任务
-        task = asyncio.create_task(self._llm_processor(user_id, text_q, llm_queue, streaming_llm_queue, stop_event))
+        task = asyncio.create_task(self._llm_processor(user_id, text_q, llm_queue, streaming_llm_queue, stop_event, state))
         self.processors[user_id]['task'] = task
         self.processors[user_id]['status'] = 'running'
     
@@ -106,9 +125,7 @@ class LLMManager:
         Returns:
             str: 判定结果 (SPLIT, CONTINUE, IGNORE)
         """
-        from prompt.prompt_manager import PromptManager
-        prompt_manager = PromptManager()
-        segment_judge_prompt = prompt_manager.get_prompt_template('segment_judge')
+        segment_judge_prompt = self.prompt_manager.get_prompt_template('segment_judge')
         
         messages = [
             {"role": "system", "content": segment_judge_prompt},
@@ -127,7 +144,7 @@ class LLMManager:
     
     async def _llm_processor(self, user_id: str, text_q: asyncio.Queue, 
                              llm_queue: asyncio.Queue, streaming_llm_queue: asyncio.Queue, 
-                             stop_event: asyncio.Event):
+                             stop_event: asyncio.Event, state: ASRState):
         """
         LLM处理器
         
@@ -147,53 +164,43 @@ class LLMManager:
             
             buffer = []
             last_judge_time = time.time()
-            last_sound_time = time.time()  # 初始化最后一次检测到声音的时间
             min_batch_size = 5
-            judge_interval_min = 5.0
             judge_interval_max = 15.0
-            continue_ignore_count = 0
-            max_continue_ignore = 15
-            silence_time = 3.0  # 静默时间阈值
+            continue_ignore_count = 0   # 连续忽略次数
+            max_continue_ignore = 5     # 最大连续忽略次数
             
             while not stop_event.is_set():
                 try:
                     # 检查是否有静默（超过silence_time秒没有新数据）
-                    current_time = time.time()
-                    if current_time - last_sound_time > silence_time:
+                    if (state.is_silence):
                         if buffer:
                             logger.info(f"用户 {user_id} 检测到静默，分析buffer内容")
                             # 构建分析文本
                             block_text = "\n".join([item.get("text", item) if isinstance(item, dict) else item for item in buffer])
                             buffer.clear()
-                            
                             logger.info(f"Processing block for user {user_id} (silence): {block_text}")
-                            
-                            # 分析文本
                             result = await self._analyze(block_text, client, knowledge_trigger, 
-                                                       streaming_llm_queue, stop_event)
-                            
-                            # 将结果放入队列
+                                                       streaming_llm_queue, stop_event, user_id, "silence", state)
                             if llm_queue:
                                 try:
                                     await llm_queue.put(result)
                                 except asyncio.QueueFull:
                                     logger.info(f"LLM queue full for user {user_id}")
-                    
-                    # 等待获取队列中的数据
-                    data = await asyncio.wait_for(text_q.get(), timeout=1.0)  # 缩短超时时间，以便更频繁地检查静默
-                    
-                    # 更新最后一次检测到声音的时间
-                    last_sound_time = time.time()
-                    
-                    # 将数据添加到缓冲区
-                    buffer.append(data)
+
+                    current_time = time.time()
+                    # 等待获取队列中的数据，带超时以频繁检查静默状态
+                    try:
+                        data = await asyncio.wait_for(text_q.get(), timeout=1)
+                        # 将数据添加到缓冲区
+                        buffer.append(data)
+                    except asyncio.TimeoutError:
+                        continue
                     
                     # 检查是否需要调用LLM
                     current_time = time.time()
                     time_elapsed = current_time - last_judge_time
-                    
                     is_should_call_llm = (
-                        (len(buffer) >= min_batch_size and time_elapsed >= judge_interval_min)
+                        (len(buffer) >= min_batch_size)
                         or
                         (time_elapsed >= judge_interval_max)
                     )
@@ -218,9 +225,7 @@ class LLMManager:
                                 
                                 # 分析文本
                                 result = await self._analyze(block_text, client, knowledge_trigger, 
-                                                           streaming_llm_queue, stop_event)
-                                
-                                # 将结果放入队列
+                                                           streaming_llm_queue, stop_event, user_id, "timeout", state)
                                 if llm_queue:
                                     try:
                                         await llm_queue.put(result)
@@ -237,9 +242,7 @@ class LLMManager:
                             
                             # 分析文本
                             result = await self._analyze(block_text, client, knowledge_trigger, 
-                                                       streaming_llm_queue, stop_event)
-                            
-                            # 将结果放入队列
+                                                       streaming_llm_queue, stop_event, user_id, "semantic", state)
                             if llm_queue:
                                 try:
                                     await llm_queue.put(result)
@@ -275,8 +278,8 @@ class LLMManager:
             )
         return self.client_cache[cache_key]
     
-    async def _analyze(self, block: str, client: AsyncOpenAI, knowledge_trigger: Any, 
-                      streaming_llm_queue: asyncio.Queue, stop_event: asyncio.Event) -> dict:
+    async def _analyze(self, block: str, client: AsyncOpenAI, knowledge_trigger: KnowledgeTrigger, 
+                      streaming_llm_queue: asyncio.Queue, stop_event: asyncio.Event, user_id: str = None, trigger_type: str = "semantic", state=None) -> dict:
         """
         分析文本
         
@@ -286,6 +289,9 @@ class LLMManager:
             knowledge_trigger: 知识库触发器
             streaming_llm_queue: 流式LLM队列
             stop_event: 停止事件
+            user_id: 用户ID
+            trigger_type: 触发类型
+            state: 状态对象
             
         Returns:
             dict: 分析结果
@@ -297,7 +303,6 @@ class LLMManager:
                 'evaluation': "",
                 'block': block
             }
-        
         # 判断是否需要检索知识库
         result = knowledge_trigger.hybrid_trigger(block)
         
@@ -305,8 +310,7 @@ class LLMManager:
         knowledge_base_info = "无相关知识库信息需要参考"
         if result:
             # 调用知识库检索，获取相关文档
-            from knowledge.knowledge_manager import KnowledgeManager
-            knowledge_manager = KnowledgeManager()
+            knowledge_manager = self.knowledge_manager
             retrieval_start_time = time.time()
             knowledge_results = knowledge_manager.search_knowledge("", block, top_k=3)
             retrieval_end_time = time.time()
@@ -317,24 +321,17 @@ class LLMManager:
                 logger.info(f"[{time.strftime('%H:%M:%S')}] RAG检索结果数量: {len(knowledge_results)}")
         
         # 构建系统提示词
-        from prompt.prompt_manager import PromptManager
-        prompt_manager = PromptManager()
-        ANALYSIS_PROMPT = prompt_manager.get_prompt_template('analysis')
+        ANALYSIS_PROMPT = self.prompt_manager.get_prompt_template('analysis')
         system_prompt = ANALYSIS_PROMPT.replace("{knowledge_base_info}", knowledge_base_info)
 
         messages = [
             {"role": "system", "content": system_prompt}
         ]
-        
-        # 添加当前对话
         messages.append(
             {"role":"user", "content": f"当前面试对话单元：\n{block}"}
         )
-
         llm_analysis_start_time = time.time()
-        first_token_time = None
         
-        # 使用流式响应
         stream = await client.chat.completions.create(
             model="doubao-seed-1-6-251015",
             messages=messages,
@@ -350,32 +347,16 @@ class LLMManager:
                 break
             if chunk.choices and chunk.choices[0].delta:
                 if chunk.choices[0].delta.content:
-                    # 记录第一个token的时间
-                    if first_token_time is None:
-                        first_token_time = time.time()
-                        time_to_first_token = first_token_time - llm_analysis_start_time
-                        logger.info(f"[{time.strftime('%H:%M:%S')}] 到第一个token的时间: {time_to_first_token:.4f} 秒")
-                    # 累加内容
-                    full_content += chunk.choices[0].delta.content
-                    # 实时传递数据到前端
-                    if streaming_llm_queue:
-                        try:
-                            await streaming_llm_queue.put({
-                                'type': 'follow_up' if '建议' in chunk.choices[0].delta.content else 'evaluation',
-                                'content': chunk.choices[0].delta.content
-                            })
-                        except asyncio.QueueFull:
-                            logger.info("流式队列已满，有丢失数据")
+                    content = chunk.choices[0].delta.content
+                    full_content += content
+                    asyncio.create_task(streaming_llm_queue.put(content))
+
         
         llm_analysis_end_time = time.time()
         llm_use_time = llm_analysis_end_time - llm_analysis_start_time
         logger.info(f"[{time.strftime('%H:%M:%S')}] llm_analysis耗时: {llm_use_time:.4f} 秒")
-        
-        # 记录Token使用情况
-        logger.info(f"[{time.strftime('%H:%M:%S')}] Token使用情况 - 响应中未包含Token信息（流式响应）")
 
         result = full_content.strip()
-        
         return self._parse_result(result, block=block)
     
     def _parse_result(self, result: str, block: str) -> dict:
@@ -389,34 +370,34 @@ class LLMManager:
         Returns:
             dict: 包含追问问题和评价的字典
         """
+        if not result:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] LLM_analysis 返回空结果")
+        else:
+            logger.info(f"[{time.strftime('%H:%M:%S')}] LLM_analysis 返回结果: {result[:100]}...")
         follow_up_questions = []
         evaluation = ""
         
         lines = result.split('\n')
         current_section = None
-        got_question = False
         
         for line in lines:
             line = line.strip()
             if line.startswith('建议'):
                 current_section = 'questions'
-                got_question = False
             elif line.startswith('面试者评价'):
                 current_section = 'evaluation'
             elif current_section == 'questions' and line:
-                if not got_question:
-                    # 提取建议内容，无论是否有编号
-                    if line.startswith(('1.', '2.', '3.', '4.', '5.')):
-                        follow_up_questions = [line[2:].strip()]
-                    else:
-                        follow_up_questions = [line.strip()]
-                    got_question = True
+                # 提取建议内容，无论是否有编号
+                import re
+                # 匹配任何数字编号开头的行
+                match = re.match(r'^\d+\.\s*(.*)$', line)
+                if match:
+                    follow_up_questions.append(match.group(1).strip())
+                else:
+                    follow_up_questions.append(line.strip())
             elif current_section == 'evaluation' and line:
                 # 收集完整的评价内容，直到遇到下一个部分或文件结束
                 evaluation += line + ' '
-        logger.info(f"follow_up_questions: {follow_up_questions[:100]}")
-        logger.info(f"evaluation: {evaluation[:100]}")
-        # 去除评价末尾的空格
         evaluation = evaluation.strip()
         return {
             'follow_up_questions': follow_up_questions,

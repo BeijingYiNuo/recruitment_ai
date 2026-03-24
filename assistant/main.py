@@ -143,7 +143,13 @@ async def stream_asr(user_id: str):
             
             # 检查LLM队列
             llm_queue = llm_manager.get_llm_queue(user_id)
-            
+            streaming_llm_queue = llm_manager.get_streaming_llm_queue(user_id)
+            if streaming_llm_queue and not streaming_llm_queue.empty():
+                try:
+                    streaming_llm_data = await streaming_llm_queue.get()
+                    # logger.info(f"--------streaming_llm_data--------- :{streaming_llm_data}")
+                except Exception as e:
+                    logger.error(f"Error getting streaming LLM data: {e}")
             if llm_queue and not llm_queue.empty():
                 try:
                     llm_data = await llm_queue.get()

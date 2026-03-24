@@ -1,7 +1,7 @@
 import logging
 
 # 配置日志
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger("myapp")
 
 # 确保日志处理器已配置
 if not logger.handlers:
