@@ -6,3 +6,7 @@ sounddevice
 aiohttp
 openai
 volcengine
+mysql-connector-python
+bcrypt
+python-jose[cryptography]
+python-dotenv

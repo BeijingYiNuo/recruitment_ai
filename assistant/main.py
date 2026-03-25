@@ -1,12 +1,14 @@
 import asyncio
 import json
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
 from user_management.session_manager import SessionManager
+from user_management.user_manager import user_manager
+from user_management.auth_middleware import get_current_user
 from config.config_manager import ConfigManager
 from audio.audio_manager import AudioManager
 from ASR.asr_manager import ASRManager
@@ -56,7 +58,7 @@ class StartAsrRequest(BaseModel):
     use_llm: bool = True
 
 @app.post("/api/sessions")
-async def create_session():
+async def create_session(current_user: dict = Depends(get_current_user)):
     """
     创建新的用户会话
     """
@@ -64,7 +66,7 @@ async def create_session():
     return {"user_id": user_id, "status": "created"}
 
 @app.get("/api/sessions")
-async def list_sessions():
+async def list_sessions(current_user: dict = Depends(get_current_user)):
     """
     列出所有会话
     """
@@ -72,7 +74,7 @@ async def list_sessions():
     return {"sessions": sessions, "count": session_manager.get_session_count()}
 
 @app.get("/api/sessions/{user_id}")
-async def get_session(user_id: str):
+async def get_session(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     获取用户会话
     """
@@ -82,7 +84,7 @@ async def get_session(user_id: str):
     return {"user_id": user_id, "session": session}
 
 @app.delete("/api/sessions/{user_id}")
-async def remove_session(user_id: str):
+async def remove_session(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     移除用户会话
     """
@@ -90,7 +92,7 @@ async def remove_session(user_id: str):
     return {"status": "removed"}
 
 @app.post("/api/asr/start/{user_id}")
-async def start_asr(user_id: str, req: StartAsrRequest):
+async def start_asr(user_id: str, req: StartAsrRequest, current_user: dict = Depends(get_current_user)):
     """
     为指定用户启动ASR服务
     """
@@ -108,7 +110,7 @@ async def start_asr(user_id: str, req: StartAsrRequest):
         raise HTTPException(status_code=500, detail=f"Failed to start ASR: {str(e)}")
 
 @app.post("/api/asr/stop/{user_id}")
-async def stop_asr(user_id: str):
+async def stop_asr(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     为指定用户停止ASR服务
     """
@@ -123,7 +125,7 @@ async def stop_asr(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to stop ASR: {str(e)}")
 
 @app.get("/api/asr/stream/{user_id}")
-async def stream_asr(user_id: str):
+async def stream_asr(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     SSE端点，用于传输ASR和LLM的流式数据
     """
@@ -193,7 +195,7 @@ async def list_devices():
     return {"devices": devices}
 
 @app.post("/api/audio/stream/{user_id}")
-async def create_audio_stream(user_id: str, device_id: Optional[int] = None):
+async def create_audio_stream(user_id: str, device_id: Optional[int] = None, current_user: dict = Depends(get_current_user)):
     """
     为用户创建音频流
     """
@@ -208,7 +210,7 @@ async def create_audio_stream(user_id: str, device_id: Optional[int] = None):
         raise HTTPException(status_code=500, detail=f"Failed to create audio stream: {str(e)}")
 
 @app.post("/api/audio/stream/{user_id}/start")
-async def start_audio_stream(user_id: str):
+async def start_audio_stream(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     启动用户音频流
     """
@@ -223,7 +225,7 @@ async def start_audio_stream(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to start audio stream: {str(e)}")
 
 @app.post("/api/audio/stream/{user_id}/stop")
-async def stop_audio_stream(user_id: str):
+async def stop_audio_stream(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     停止用户音频流
     """
@@ -246,7 +248,7 @@ async def get_active_streams():
     return {"streams": streams}
 
 @app.get("/api/context/{user_id}")
-async def get_context(user_id: str):
+async def get_context(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     获取用户上下文
     """
@@ -257,7 +259,7 @@ async def get_context(user_id: str):
     return {"context": context}
 
 @app.post("/api/context/{user_id}")
-async def update_context(user_id: str, update: dict):
+async def update_context(user_id: str, update: dict, current_user: dict = Depends(get_current_user)):
     """
     更新用户上下文
     """
@@ -268,7 +270,7 @@ async def update_context(user_id: str, update: dict):
     return {"status": "updated"}
 
 @app.post("/api/context/{user_id}/message")
-async def add_message(user_id: str, role: str, content: str):
+async def add_message(user_id: str, role: str, content: str, current_user: dict = Depends(get_current_user)):
     """
     添加消息到用户上下文
     """
@@ -279,7 +281,7 @@ async def add_message(user_id: str, role: str, content: str):
     return {"status": "added"}
 
 @app.delete("/api/context/{user_id}")
-async def clear_context(user_id: str):
+async def clear_context(user_id: str, current_user: dict = Depends(get_current_user)):
     """
     清空用户上下文
     """
@@ -290,7 +292,7 @@ async def clear_context(user_id: str):
     return {"status": "cleared"}
 
 @app.get("/api/knowledge/search/{user_id}")
-async def search_knowledge(user_id: str, query: str, top_k: int = 3):
+async def search_knowledge(user_id: str, query: str, top_k: int = 3, current_user: dict = Depends(get_current_user)):
     """
     为用户搜索知识库
     """
@@ -301,7 +303,7 @@ async def search_knowledge(user_id: str, query: str, top_k: int = 3):
     return {"results": results}
 
 @app.post("/api/report/{user_id}")
-async def generate_report(user_id: str, conversation: dict):
+async def generate_report(user_id: str, conversation: dict, current_user: dict = Depends(get_current_user)):
     """
     为用户生成报告
     """
@@ -312,7 +314,7 @@ async def generate_report(user_id: str, conversation: dict):
     return {"report": report}
 
 @app.get("/api/report/{user_id}/{report_id}")
-async def get_report(user_id: str, report_id: str):
+async def get_report(user_id: str, report_id: str, current_user: dict = Depends(get_current_user)):
     """
     获取用户报告
     """
@@ -325,7 +327,7 @@ async def get_report(user_id: str, report_id: str):
     return {"report": report}
 
 @app.get("/api/files/{user_id}")
-async def list_user_files(user_id: str, file_type: Optional[str] = None):
+async def list_user_files(user_id: str, file_type: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """
     列出用户的文件
     """
@@ -334,6 +336,73 @@ async def list_user_files(user_id: str, file_type: Optional[str] = None):
     
     files = file_manager.list_user_files(user_id, file_type)
     return {"files": files}
+
+# 用户认证相关接口
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@app.post("/api/auth/register")
+async def register(req: RegisterRequest):
+    """
+    用户注册
+    """
+    result = user_manager.register_user(req.username, req.email, req.password)
+    if result["success"]:
+        return {"status": "success", "message": result["message"]}
+    else:
+        raise HTTPException(status_code=400, detail=result["message"])
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    """
+    用户登录
+    """
+    result = user_manager.login_user(req.email, req.password)
+    if result["success"]:
+        return {
+            "status": "success", 
+            "message": result["message"], 
+            "user": result["user"],
+            "access_token": result.get("access_token"),
+            "token_type": result.get("token_type")
+        }
+    else:
+        raise HTTPException(status_code=401, detail=result["message"])
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    """
+    忘记密码
+    """
+    result = user_manager.forgot_password(req.email)
+    if result["success"]:
+        return {"status": "success", "message": result["message"], "reset_link": result.get("reset_link")}
+    else:
+        raise HTTPException(status_code=400, detail=result["message"])
+
+@app.post("/api/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    """
+    重置密码
+    """
+    result = user_manager.reset_password(req.token, req.new_password)
+    if result["success"]:
+        return {"status": "success", "message": result["message"]}
+    else:
+        raise HTTPException(status_code=400, detail=result["message"])
 
 if __name__ == "__main__":
     import uvicorn

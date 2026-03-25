@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户认证测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>用户认证接口测试</h1>
+
+    <!-- 注册测试 -->
+    <div class="test-section">
+        <h2>1. 用户注册</h2>
+        <form id="register-form">
+            <input type="text" id="register-username" placeholder="用户名" required>
+            <input type="email" id="register-email" placeholder="邮箱" required>
+            <input type="password" id="register-password" placeholder="密码" required>
+            <button type="submit">注册</button>
+        </form>
+        <div id="register-response" class="response"></div>
+    </div>
+
+    <!-- 登录测试 -->
+    <div class="test-section">
+        <h2>2. 用户登录</h2>
+        <form id="login-form">
+            <input type="email" id="login-email" placeholder="邮箱" required>
+            <input type="password" id="login-password" placeholder="密码" required>
+            <button type="submit">登录</button>
+        </form>
+        <div id="login-response" class="response"></div>
+    </div>
+
+    <!-- 忘记密码测试 -->
+    <div class="test-section">
+        <h2>3. 忘记密码</h2>
+        <form id="forgot-password-form">
+            <input type="email" id="forgot-email" placeholder="邮箱" required>
+            <button type="submit">发送重置链接</button>
+        </form>
+        <div id="forgot-password-response" class="response"></div>
+    </div>
+
+    <!-- 重置密码测试 -->
+    <div class="test-section">
+        <h2>4. 重置密码</h2>
+        <form id="reset-password-form">
+            <input type="text" id="reset-token" placeholder="重置令牌" required>
+            <input type="password" id="reset-new-password" placeholder="新密码" required>
+            <button type="submit">重置密码</button>
+        </form>
+        <div id="reset-password-response" class="response"></div>
+    </div>
+
+    <script>
+        // 注册测试
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                const result = await response.json();
+                document.getElementById('register-response').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('register-response').textContent = '请求失败: ' + error.message;
+            }
+        });
+
+        // 登录测试
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const result = await response.json();
+                document.getElementById('login-response').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('login-response').textContent = '请求失败: ' + error.message;
+            }
+        });
+
+        // 忘记密码测试
+        document.getElementById('forgot-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+            
+            try {
+                const response = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const result = await response.json();
+                document.getElementById('forgot-password-response').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('forgot-password-response').textContent = '请求失败: ' + error.message;
+            }
+        });
+
+        // 重置密码测试
+        document.getElementById('reset-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = document.getElementById('reset-token').value;
+            const new_password = document.getElementById('reset-new-password').value;
+            
+            try {
+                const response = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token, new_password })
+                });
+                
+                const result = await response.json();
+                document.getElementById('reset-password-response').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('reset-password-response').textContent = '请求失败: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
