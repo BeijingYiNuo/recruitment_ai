@@ -6,7 +6,7 @@ from volcengine.auth.SignerV4 import SignerV4
 from volcengine.base.Request import Request
 from volcengine.Credentials import Credentials
 
-from utils.logger import logger
+from assistant.utils.logger import logger
 
 class KnowledgeManager:
     def __init__(self):

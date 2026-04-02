@@ -8,10 +8,10 @@ import logging
 from typing import Dict, Any, Optional, AsyncGenerator
 import sounddevice as sd
 import numpy as np
-from config.config_manager import ConfigManager
-from utils.logger import logger
-from LLM.llm_manager import LLMManager
-from ASR.state_manager import ASRState
+from assistant.config.config_manager import ConfigManager
+from assistant.utils.logger import logger
+from assistant.LLM.llm_manager import LLMManager
+from assistant.ASR.state_manager import ASRState
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -515,7 +515,7 @@ class ASRManager:
         if llm_manager:
             self.llm_manager = llm_manager
         else:
-            from LLM.llm_manager import LLMManager
+            from assistant.LLM.llm_manager import LLMManager
             self.llm_manager = LLMManager()
         # 初始化配置管理器
         self.config_manager = ConfigManager()

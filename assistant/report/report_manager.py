@@ -2,7 +2,7 @@ import uuid
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from file.file_manager import FileManager
+from assistant.file.file_manager import FileManager
 
 class ReportManager:
     def __init__(self):

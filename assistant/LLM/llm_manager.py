@@ -4,10 +4,11 @@ import asyncio
 import time
 from typing import Dict, Any, Optional, AsyncGenerator
 
-from utils.logger import logger
-from knowledge.knowledge_manager import KnowledgeManager, KnowledgeTrigger
-from ASR.state_manager import ASRState
-from prompt.prompt_manager import PromptManager
+from assistant.utils.logger import logger
+from assistant.knowledge.knowledge_manager import KnowledgeManager, KnowledgeTrigger
+from assistant.ASR.state_manager import ASRState
+from assistant.prompt.prompt_manager import PromptManager
+import re
 
 class LLMManager:
     def __init__(self):
@@ -388,7 +389,7 @@ class LLMManager:
                 current_section = 'evaluation'
             elif current_section == 'questions' and line:
                 # 提取建议内容，无论是否有编号
-                import re
+                
                 # 匹配任何数字编号开头的行
                 match = re.match(r'^\d+\.\s*(.*)$', line)
                 if match:

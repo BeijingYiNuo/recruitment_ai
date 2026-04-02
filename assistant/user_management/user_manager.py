@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any
 from datetime import datetime
-from .db_manager import db_manager
-from .auth_utils import AuthUtils
+from assistant.user_management.db_manager import db_manager
+from assistant.user_management.auth_utils import AuthUtils
 
 class UserManager:
     def __init__(self):
