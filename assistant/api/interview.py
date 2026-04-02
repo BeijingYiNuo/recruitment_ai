@@ -28,6 +28,7 @@ from assistant.entity.VO import (
 )
 
 from assistant.user_management.session_manager import SessionManager
+from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.audio.audio_manager import AudioManager
 from assistant.ASR.asr_manager import ASRManager
 from assistant.LLM.llm_manager import LLMManager
@@ -51,7 +52,7 @@ class StartAsrRequest(BaseModel):
 
 # 语音识别相关接口
 @router.post("/asr/start/{user_id}", tags=["语音识别"])
-async def start_asr(user_id: str, req: StartAsrRequest):
+async def start_asr(user_id: str, req: StartAsrRequest, current_user_id: int = Depends(get_current_user_id)):
     """
     为指定用户启动ASR服务
     """
@@ -69,7 +70,7 @@ async def start_asr(user_id: str, req: StartAsrRequest):
         raise HTTPException(status_code=500, detail=f"Failed to start ASR: {str(e)}")
 
 @router.post("/asr/stop/{user_id}", tags=["语音识别"])
-async def stop_asr(user_id: str):
+async def stop_asr(user_id: str, current_user_id: int = Depends(get_current_user_id)):
     """
     为指定用户停止ASR服务
     """
@@ -84,7 +85,7 @@ async def stop_asr(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to stop ASR: {str(e)}")
 
 @router.get("/asr/stream/{user_id}", tags=["语音识别"])
-async def stream_asr(user_id: str):
+async def stream_asr(user_id: str, current_user_id: int = Depends(get_current_user_id)):
     """
     SSE端点，用于传输ASR和LLM的流式数据
     """
@@ -147,7 +148,7 @@ async def stream_asr(user_id: str):
 
 # 音频设备相关接口
 @router.post("/audio/stream/{user_id}", tags=["音频设备"])
-async def create_audio_stream(user_id: str, device_id: Optional[int] = None):
+async def create_audio_stream(user_id: str, device_id: Optional[int] = None, current_user_id: int = Depends(get_current_user_id)):
     """
     为用户创建音频流
     """
@@ -162,7 +163,7 @@ async def create_audio_stream(user_id: str, device_id: Optional[int] = None):
         raise HTTPException(status_code=500, detail=f"Failed to create audio stream: {str(e)}")
 
 @router.post("/audio/stream/{user_id}/start", tags=["音频设备"])
-async def start_audio_stream(user_id: str):
+async def start_audio_stream(user_id: str, current_user_id: int = Depends(get_current_user_id)):
     """
     启动用户音频流
     """
@@ -177,7 +178,7 @@ async def start_audio_stream(user_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to start audio stream: {str(e)}")
 
 @router.post("/audio/stream/{user_id}/stop", tags=["音频设备"])
-async def stop_audio_stream(user_id: str):
+async def stop_audio_stream(user_id: str, current_user_id: int = Depends(get_current_user_id)):
     """
     停止用户音频流
     """
@@ -199,7 +200,8 @@ async def stop_audio_stream(user_id: str):
 def get_interview_reports(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取面试报告列表"""
     reports = db.query(InterviewReport).offset(skip).limit(limit).all()
@@ -209,7 +211,8 @@ def get_interview_reports(
 @router.get("/interviews/reports/{report_id}", response_model=InterviewReportResponse)
 def get_interview_report(
     report_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取单个面试报告"""
     report = db.query(InterviewReport).filter(InterviewReport.id == report_id).first()
@@ -224,7 +227,8 @@ def get_interview_report(
 @router.post("/interviews/reports", response_model=InterviewReportResponse, status_code=status.HTTP_201_CREATED)
 def create_interview_report(
     report: InterviewReportCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """创建面试报告"""
     # 检查面试会话是否存在
@@ -252,7 +256,8 @@ def create_interview_report(
 def update_interview_report(
     report_id: int,
     report: InterviewReportUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """更新面试报告"""
     db_report = db.query(InterviewReport).filter(InterviewReport.id == report_id).first()
@@ -277,7 +282,8 @@ def update_interview_report(
 def get_interview_reminders(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取面试提醒列表"""
     reminders = db.query(InterviewReminder).offset(skip).limit(limit).all()
@@ -287,7 +293,8 @@ def get_interview_reminders(
 @router.get("/interviews/reminders/{reminder_id}", response_model=InterviewReminderResponse)
 def get_interview_reminder(
     reminder_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取单个面试提醒"""
     reminder = db.query(InterviewReminder).filter(InterviewReminder.id == reminder_id).first()
@@ -302,7 +309,8 @@ def get_interview_reminder(
 @router.post("/interviews/reminders", response_model=InterviewReminderResponse, status_code=status.HTTP_201_CREATED)
 def create_interview_reminder(
     reminder: InterviewReminderCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """创建面试提醒"""
     # 检查面试会话是否存在
@@ -333,7 +341,8 @@ def create_interview_reminder(
 def update_interview_reminder(
     reminder_id: int,
     reminder: InterviewReminderUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """更新面试提醒"""
     db_reminder = db.query(InterviewReminder).filter(InterviewReminder.id == reminder_id).first()

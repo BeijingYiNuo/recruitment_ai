@@ -9,9 +9,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from assistant.config.database import get_db
 from assistant.entity import User, UserStatus
-from assistant.entity.DTO import UserCreate, UserUpdate, UserLogin
+from assistant.entity.DTO import UserCreate, UserUpdate, UserLogin, TokenResponse
 from assistant.entity.VO import UserResponse
 from assistant.utils.logger import logger
+from assistant.user_management.auth_utils import create_access_token
+from assistant.user_management.auth_middleware import get_current_user_id
 
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -26,7 +28,8 @@ router = APIRouter(prefix="/api/users", tags=["用户管理"])
 def get_users(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取用户列表"""
     users = db.query(User).offset(skip).limit(limit).all()
@@ -36,7 +39,8 @@ def get_users(
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取单个用户"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -114,7 +118,7 @@ def create_user(
     
     return db_user
     
-@router.post("/login", response_model=UserResponse)
+@router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login_user(
     user: UserLogin,
@@ -163,19 +167,32 @@ def login_user(
             detail="服务器内部错误"
         )
     
-    return db_user
+    # 生成JWT Token
+    access_token = create_access_token(
+        data={"sub": str(db_user.id)}
+    )
+    
+    # 返回Token响应
+    return TokenResponse(
+        access_token=access_token,
+        token_type="Bearer",
+        user_id=db_user.id,
+        username=db_user.username,
+        email=db_user.email
+    )
 
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(
     user_id: int,
     user: UserUpdate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """更新用户"""
     # 记录更新请求
     client_ip = get_remote_address(request)
-    logger.info(f"User update attempt from IP: {client_ip}, user_id: {user_id}")
+    logger.info(f"User update attempt from IP: {client_ip}, user_id: {user_id}, current_user_id: {current_user_id}")
     
     # 查找用户
     db_user = db.query(User).filter(User.id == user_id).first()
@@ -266,7 +283,8 @@ def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """删除用户"""
     db_user = db.query(User).filter(User.id == user_id).first()

@@ -25,12 +25,3 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # 包含API路由
 app.include_router(api_router)
 
-# 根路径
-@app.get("/")
-def read_root():
-    return {"message": "Recruitment Service API"}
-
-# 健康检查
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}

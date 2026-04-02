@@ -1,4 +1,4 @@
-from assistant.entity.DTO.user_dto import UserCreate, UserUpdate, UserLogin
+from assistant.entity.DTO.user_dto import UserCreate, UserUpdate, UserLogin, TokenResponse
 from assistant.entity.DTO.resume_dto import (
     ResumeCreate, ResumeUpdate, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate
@@ -18,7 +18,7 @@ from assistant.entity.DTO.interview_helper_dto import (
 
 __all__ = [
     # User
-    "UserCreate", "UserUpdate", "UserLogin",
+    "UserCreate", "UserUpdate", "UserLogin", "TokenResponse",
     # Resume
     "ResumeCreate", "ResumeUpdate", "ResumeEducationCreate",
     "ResumeWorkExperienceCreate", "ResumeSkillCreate", "ResumeProjectCreate",

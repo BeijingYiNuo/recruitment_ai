@@ -12,6 +12,7 @@ from assistant.entity.VO import (
     InterviewQuestionResponse, EvaluationStandardResponse,
     InterviewAudioTranscriptResponse
 )
+from assistant.user_management.auth_middleware import get_current_user_id
 
 router = APIRouter(prefix="/api/interview-helper", tags=["面试辅助"])
 
@@ -21,7 +22,8 @@ router = APIRouter(prefix="/api/interview-helper", tags=["面试辅助"])
 def get_interview_questions(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取面试问题列表"""
     questions = db.query(InterviewQuestion).offset(skip).limit(limit).all()
@@ -31,7 +33,8 @@ def get_interview_questions(
 @router.get("/questions/{question_id}", response_model=InterviewQuestionResponse)
 def get_interview_question(
     question_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取单个面试问题"""
     question = db.query(InterviewQuestion).filter(InterviewQuestion.id == question_id).first()
@@ -46,7 +49,8 @@ def get_interview_question(
 @router.post("/questions", response_model=InterviewQuestionResponse, status_code=status.HTTP_201_CREATED)
 def create_interview_question(
     question: InterviewQuestionCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """创建面试问题"""
     db_question = InterviewQuestion(**question.dict())
@@ -61,7 +65,8 @@ def create_interview_question(
 def update_interview_question(
     question_id: int,
     question: InterviewQuestionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """更新面试问题"""
     db_question = db.query(InterviewQuestion).filter(InterviewQuestion.id == question_id).first()
@@ -84,7 +89,8 @@ def update_interview_question(
 @router.delete("/questions/{question_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_interview_question(
     question_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """删除面试问题"""
     db_question = db.query(InterviewQuestion).filter(InterviewQuestion.id == question_id).first()
@@ -105,7 +111,8 @@ def delete_interview_question(
 def get_evaluation_standards(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取评估标准列表"""
     standards = db.query(EvaluationStandard).offset(skip).limit(limit).all()
@@ -115,7 +122,8 @@ def get_evaluation_standards(
 @router.get("/standards/{standard_id}", response_model=EvaluationStandardResponse)
 def get_evaluation_standard(
     standard_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取单个评估标准"""
     standard = db.query(EvaluationStandard).filter(EvaluationStandard.id == standard_id).first()
@@ -130,7 +138,8 @@ def get_evaluation_standard(
 @router.post("/standards", response_model=EvaluationStandardResponse, status_code=status.HTTP_201_CREATED)
 def create_evaluation_standard(
     standard: EvaluationStandardCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """创建评估标准"""
     db_standard = EvaluationStandard(**standard.dict())
@@ -145,7 +154,8 @@ def create_evaluation_standard(
 def update_evaluation_standard(
     standard_id: int,
     standard: EvaluationStandardUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """更新评估标准"""
     db_standard = db.query(EvaluationStandard).filter(EvaluationStandard.id == standard_id).first()
@@ -168,7 +178,8 @@ def update_evaluation_standard(
 @router.delete("/standards/{standard_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_evaluation_standard(
     standard_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """删除评估标准"""
     db_standard = db.query(EvaluationStandard).filter(EvaluationStandard.id == standard_id).first()
@@ -189,7 +200,8 @@ def delete_evaluation_standard(
 def get_interview_audio_transcripts(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取面试音频转写列表"""
     transcripts = db.query(InterviewAudioTranscript).offset(skip).limit(limit).all()
@@ -199,7 +211,8 @@ def get_interview_audio_transcripts(
 @router.get("/transcripts/{transcript_id}", response_model=InterviewAudioTranscriptResponse)
 def get_interview_audio_transcript(
     transcript_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取单个面试音频转写"""
     transcript = db.query(InterviewAudioTranscript).filter(InterviewAudioTranscript.id == transcript_id).first()
@@ -214,7 +227,8 @@ def get_interview_audio_transcript(
 @router.post("/transcripts", response_model=InterviewAudioTranscriptResponse, status_code=status.HTTP_201_CREATED)
 def create_interview_audio_transcript(
     transcript: InterviewAudioTranscriptCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """创建面试音频转写"""
     db_transcript = InterviewAudioTranscript(**transcript.dict())
@@ -229,7 +243,8 @@ def create_interview_audio_transcript(
 def update_interview_audio_transcript(
     transcript_id: int,
     transcript: InterviewAudioTranscriptUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """更新面试音频转写"""
     db_transcript = db.query(InterviewAudioTranscript).filter(InterviewAudioTranscript.id == transcript_id).first()
@@ -252,7 +267,8 @@ def update_interview_audio_transcript(
 @router.delete("/transcripts/{transcript_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_interview_audio_transcript(
     transcript_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """删除面试音频转写"""
     db_transcript = db.query(InterviewAudioTranscript).filter(InterviewAudioTranscript.id == transcript_id).first()

@@ -46,3 +46,12 @@ class UserLogin(BaseModel):
     username: str = None
     password: str = Field(..., min_length=8, description="密码，长度至少8位")
 
+
+class TokenResponse(BaseModel):
+    """Token响应模型"""
+    access_token: str
+    token_type: str = "Bearer"
+    user_id: int
+    username: str
+    email: str
+

@@ -16,6 +16,7 @@ from assistant.entity.VO import (
 from assistant.api.interview_reserve_utils import create_interview_session as create_session
 from assistant.api.interview_reserve_utils import update_interview_session as update_session
 from assistant.api.interview_reserve_utils import delete_interview_session as delete_session
+from assistant.user_management.auth_middleware import get_current_user_id
 
 router = APIRouter(prefix="/api/reserve", tags=["面试预约"])
 
@@ -24,7 +25,8 @@ router = APIRouter(prefix="/api/reserve", tags=["面试预约"])
 def create_interview_session(
     user_id: int,
     session: InterviewSessionCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """创建面试会话"""
     return create_session(db, user_id, session)
@@ -34,7 +36,8 @@ def create_interview_session(
 @router.get("/sessions/user/{user_id}", response_model=List[InterviewSessionResponse])
 def get_interview_sessions_by_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -59,9 +62,9 @@ def update_interview_session(
     user_id: int,
     session_id: int,
     session: InterviewSessionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
-    """更新面试会话"""
     return update_session(db, user_id, session_id, session)
 
 
@@ -69,7 +72,8 @@ def update_interview_session(
 def delete_interview_session(
     user_id: int,
     session_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """删除面试会话"""
     delete_session(db, user_id, session_id)

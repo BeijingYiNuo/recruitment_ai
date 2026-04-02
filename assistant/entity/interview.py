@@ -14,7 +14,7 @@ class InterviewSession(Base):
     id = Column(Integer, primary_key=True, autoincrement=True, comment="面试会话ID")
     candidate_name = Column(String(20), nullable=False, comment="面试人姓名")
     recruiter_id = Column(Integer, nullable=False, comment="招聘官ID")
-    resume_id = Column(Integer, nullable=False, comment="简历ID")
+    resume_id = Column(Integer, nullable=True, comment="简历ID")
     session_type = Column(Enum(SessionType), nullable=False, default=SessionType.ONLINE, comment="面试类型")
     status = Column(Enum(SessionStatus), nullable=False, default=SessionStatus.SCHEDULED, comment="面试状态")
     scheduled_start_at = Column(DateTime, comment="面试预定开始时间")

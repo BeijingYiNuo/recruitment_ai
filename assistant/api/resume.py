@@ -17,6 +17,7 @@ from assistant.entity.VO import (
     ResumeResponse, ResumeEducationResponse,
     ResumeWorkExperienceResponse, ResumeSkillResponse, ResumeProjectResponse
 )
+from assistant.user_management.auth_middleware import get_current_user_id
 
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
@@ -26,7 +27,8 @@ router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 def get_resumes(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历列表"""
     resumes = db.query(Resume).offset(skip).limit(limit).all()
@@ -37,7 +39,8 @@ async def import_resume(
     user_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """导入简历"""
     # 检查用户是否存在
@@ -107,7 +110,8 @@ async def import_resume(
 @router.get("/{user_id}", response_model=ResumeResponse)
 def get_resume_by_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """根据用户ID获取简历"""
     # 检查用户是否存在
@@ -132,7 +136,8 @@ def get_resume_by_user(
 async def delete_resume_by_user(
     user_id: int,
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """根据用户ID删除简历"""
     # 检查用户是否存在
@@ -189,7 +194,8 @@ def delete_resume_file(file_path):
 @router.get("/{resume_id}/educations", response_model=List[ResumeEducationResponse])
 def get_resume_educations(
     resume_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的教育经历"""
     # 检查简历是否存在
@@ -207,7 +213,8 @@ def get_resume_educations(
 @router.get("/{resume_id}/work-experiences", response_model=List[ResumeWorkExperienceResponse])
 def get_resume_work_experiences(
     resume_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的工作经历"""
     # 检查简历是否存在
@@ -225,7 +232,8 @@ def get_resume_work_experiences(
 @router.get("/{resume_id}/skills", response_model=List[ResumeSkillResponse])
 def get_resume_skills(
     resume_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的技能"""
     # 检查简历是否存在
@@ -243,7 +251,8 @@ def get_resume_skills(
 @router.get("/{resume_id}/projects", response_model=List[ResumeProjectResponse])
 def get_resume_projects(
     resume_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的项目经历"""
     # 检查简历是否存在

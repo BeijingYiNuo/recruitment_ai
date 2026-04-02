@@ -9,7 +9,7 @@ class InterviewSessionResponse(BaseModel):
     id: int
     candidate_name: str
     recruiter_id: int
-    resume_id: int
+    resume_id: Optional[int] = None
     session_type: SessionType
     status: SessionStatus
     scheduled_start_at: datetime
