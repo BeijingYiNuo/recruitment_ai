@@ -4,6 +4,7 @@ from typing import List
 from assistant.config.database import get_db
 from assistant.entity import InterviewSession
 from assistant.enums import SessionStatus
+from assistant.entity import User
 from assistant.entity.DTO import (
     InterviewSessionCreate, InterviewSessionUpdate,
     InterviewSessionQuestionCreate, InterviewSessionStandardCreate,

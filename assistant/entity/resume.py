@@ -11,7 +11,7 @@ class Resume(Base):
     id = Column(Integer, primary_key=True, autoincrement=True, comment="简历ID")
     user_id = Column(Integer, nullable=False, comment="候选人ID")
     file_path = Column(String(255), nullable=False, comment="简历文件路径")
-    file_type = Column(String(50), nullable=False, comment="文件类型")
+    file_type = Column(String(100), nullable=False, comment="文件类型")
     status = Column(Enum(ResumeStatus), nullable=False, default=ResumeStatus.UPLOADED, comment="状态")
     content = Column(Text, comment="简历原始文本内容")
     created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")

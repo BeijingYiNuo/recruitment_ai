@@ -62,10 +62,21 @@ async def import_resume(
     filename = f"{user_id}_{timestamp}{file_extension}"
     file_path = os.path.join(resume_dir, filename)
     
+    # 验证文件类型
+    allowed_extensions = [".doc", ".docx", ".pdf"]
+    if file_extension.lower() not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="只支持Word和PDF文件"
+        )
+    
     # 保存文件
     content = await file.read()
     with open(file_path, "wb") as f:
         f.write(content)
+    
+    # 只存储文件扩展名作为文件类型
+    file_type = file_extension.lower().lstrip(".")
     
     # 检查用户是否已有简历记录
     existing_resume = db.query(Resume).filter(Resume.user_id == user_id).first()
@@ -73,7 +84,7 @@ async def import_resume(
     if existing_resume:
         # 更新原有简历记录
         existing_resume.file_path = file_path
-        existing_resume.file_type = file.content_type
+        existing_resume.file_type = file_type
         existing_resume.status = ResumeStatus.UPLOADED
         existing_resume.content = None
         existing_resume.extracted_at = datetime.now()
@@ -85,7 +96,7 @@ async def import_resume(
         db_resume = Resume(
             user_id=user_id,
             file_path=file_path,
-            file_type=file.content_type,
+            file_type=file_type,
             status=ResumeStatus.UPLOADED,
             content=None,
             extracted_at=datetime.now()

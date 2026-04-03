@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from assistant.api.user import router as user_router
 from assistant.api.resume import router as resume_router
 from assistant.api.interview import router as interview_router
-from assistant.api.interview_helper import router as interview_helper_router
+
 from assistant.api.interview_reserve import router as interview_reserve_router
 from assistant.user_management.auth_middleware import get_current_user_id
 
@@ -41,10 +41,6 @@ api_router.include_router(
 )
 api_router.include_router(
     interview_router,
-    dependencies=[Depends(get_current_user_id)]
-)
-api_router.include_router(
-    interview_helper_router,
     dependencies=[Depends(get_current_user_id)]
 )
 

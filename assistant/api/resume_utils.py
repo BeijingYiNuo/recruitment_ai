@@ -128,9 +128,9 @@ def store_resume_details(db, resume_id, parsed_data):
         
         db_education = ResumeEducation(
             resume_id=resume_id,
-            school_name=edu.get("school_name", ""),
-            degree=edu.get("degree", ""),
-            major=edu.get("major", ""),
+            school_name=edu.get("school_name") or "",
+            degree=edu.get("degree") or "",
+            major=edu.get("major") or "",
             start_date=start_date,
             end_date=end_date,
             is_985=edu.get("is_985", 0),
@@ -153,11 +153,11 @@ def store_resume_details(db, resume_id, parsed_data):
         
         db_work = ResumeWorkExperience(
             resume_id=resume_id,
-            company_name=work.get("company_name", ""),
-            position=work.get("position", ""),
+            company_name=work.get("company_name") or "",
+            position=work.get("position") or "",
             start_date=start_date,
             end_date=end_date,
-            description=work.get("description", "")
+            description=work.get("description") or ""
         )
         db.add(db_work)
     
@@ -165,8 +165,8 @@ def store_resume_details(db, resume_id, parsed_data):
     for skill in parsed_data.get("skills", []):
         db_skill = ResumeSkill(
             resume_id=resume_id,
-            skill_name=skill.get("skill_name", ""),
-            proficiency_level=skill.get("proficiency_level", "")
+            skill_name=skill.get("skill_name") or "",
+            proficiency_level=skill.get("proficiency_level") or ""
         )
         db.add(db_skill)
     
@@ -185,11 +185,11 @@ def store_resume_details(db, resume_id, parsed_data):
         
         db_project = ResumeProject(
             resume_id=resume_id,
-            project_name=project.get("project_name", ""),
-            description=project.get("description", ""),
+            project_name=project.get("project_name") or "",
+            description=project.get("description") or "",
             start_date=start_date,
             end_date=end_date,
-            role=project.get("role", "")
+            role=project.get("role") or ""
         )
         db.add(db_project)
     
