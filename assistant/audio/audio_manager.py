@@ -24,19 +24,19 @@ class AudioManager:
             })
         return devices
     
-    def create_stream(self, user_id: str, device_id: Optional[int] = None) -> str:
+    def create_stream(self, session_id: str, device_id: Optional[int] = None) -> str:
         """
-        为用户创建音频流
+        为会话ID创建音频流
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             device_id: 设备ID，None表示使用默认设备
             
         Returns:
             str: 流ID
         """
         stream_id = str(uuid.uuid4())
-        self.streams[user_id] = {
+        self.streams[session_id] = {
             'stream_id': stream_id,
             'device_id': device_id,
             'stream': None,
@@ -44,17 +44,17 @@ class AudioManager:
         }
         return stream_id
     
-    def start_stream(self, user_id: str) -> None:
+    def start_stream(self, session_id: str) -> None:
         """
-        启动用户音频流
+        启动会话ID音频流
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
         """
-        if user_id not in self.streams:
-            raise ValueError(f"Stream for user {user_id} not found")
+        if session_id not in self.streams:
+            raise ValueError(f"Stream for session {session_id} not found")
         
-        stream_info = self.streams[user_id]
+        stream_info = self.streams[session_id]
         if stream_info['status'] == 'running':
             return
         
@@ -83,15 +83,15 @@ class AudioManager:
         stream_info['stream'] = stream
         stream_info['status'] = 'running'
     
-    def stop_stream(self, user_id: str) -> None:
+    def stop_stream(self, session_id: str) -> None:
         """
-        停止用户音频流
+        停止会话ID音频流
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
         """
-        if user_id in self.streams:
-            stream_info = self.streams[user_id]
+        if session_id in self.streams:
+            stream_info = self.streams[session_id]
             if stream_info['stream']:
                 try:
                     stream_info['stream'].stop()
@@ -108,10 +108,10 @@ class AudioManager:
             List[Dict]: 活跃流列表
         """
         active_streams = []
-        for user_id, stream_info in self.streams.items():
+        for session_id, stream_info in self.streams.items():
             if stream_info['status'] == 'running':
                 active_streams.append({
-                    'user_id': user_id,
+                    'session_id': session_id,
                     'stream_id': stream_info['stream_id'],
                     'device_id': stream_info['device_id']
                 })

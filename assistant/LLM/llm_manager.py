@@ -18,54 +18,54 @@ class LLMManager:
         self.prompt_manager = PromptManager()
 
     
-    def get_llm_queue(self, user_id: str) -> Optional[asyncio.Queue]:
+    def get_llm_queue(self, session_id: str) -> Optional[asyncio.Queue]:
         """
-        获取用户的LLM队列
+        获取会话ID的LLM队列
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             
         Returns:
             Optional[asyncio.Queue]: LLM队列
         """
-        if user_id in self.processors:
-            return self.processors[user_id].get('llm_queue')
+        if session_id in self.processors:
+            return self.processors[session_id].get('llm_queue')
         return None
     
-    def get_streaming_llm_queue(self, user_id: str) -> Optional[asyncio.Queue]:
+    def get_streaming_llm_queue(self, session_id: str) -> Optional[asyncio.Queue]:
         """
         获取用户的流式LLM队列
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             
         Returns:
             Optional[asyncio.Queue]: 流式LLM队列
         """
-        if user_id in self.processors:
-            return self.processors[user_id].get('streaming_llm_queue')
+        if session_id in self.processors:
+            return self.processors[session_id].get('streaming_llm_queue')
         return None
     
-    async def start_llm_processing(self, user_id: str, text_q: asyncio.Queue, 
+    async def start_llm_processing(self, session_id: str, text_q: asyncio.Queue, 
                                   llm_queue: asyncio.Queue, streaming_llm_queue: asyncio.Queue, state: ASRState):
         """
         启动用户的LLM处理
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             text_q: 文本队列
             llm_queue: LLM队列
             streaming_llm_queue: 流式LLM队列
         """
         # 停止之前的LLM处理
-        if user_id in self.processors:
-            await self.stop_llm_processing(user_id)
+        if session_id in self.processors:
+            await self.stop_llm_processing(session_id)
         
         # 创建停止事件
         stop_event = asyncio.Event()
         
         # 保存处理器信息
-        self.processors[user_id] = {
+        self.processors[session_id] = {
             'stop_event': stop_event,
             'text_q': text_q,
             'llm_queue': llm_queue,
@@ -75,21 +75,21 @@ class LLMManager:
         }
         
         # 启动LLM处理任务
-        task = asyncio.create_task(self._llm_processor(user_id, text_q, llm_queue, streaming_llm_queue, stop_event, state))
-        self.processors[user_id]['task'] = task
-        self.processors[user_id]['status'] = 'running'
+        task = asyncio.create_task(self._llm_processor(session_id, text_q, llm_queue, streaming_llm_queue, stop_event, state))
+        self.processors[session_id]['task'] = task
+        self.processors[session_id]['status'] = 'running'
     
-    async def stop_llm_processing(self, user_id: str):
+    async def stop_llm_processing(self, session_id: str):
         """
         停止用户的LLM处理
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
         """
-        if user_id not in self.processors:
+        if session_id not in self.processors:
             return
         
-        processor_info = self.processors[user_id]
+        processor_info = self.processors[session_id]
         if processor_info['stop_event']:
             processor_info['stop_event'].set()
         
@@ -100,7 +100,7 @@ class LLMManager:
             except Exception:
                 pass
         
-        del self.processors[user_id]
+        del self.processors[session_id]
     
     def get_active_processors(self) -> list:
         """
@@ -110,9 +110,9 @@ class LLMManager:
             list: 活跃处理器列表
         """
         active_processors = []
-        for user_id, processor_info in self.processors.items():
+        for session_id, processor_info in self.processors.items():
             if processor_info.get('status') == 'running':
-                active_processors.append(user_id)
+                active_processors.append(session_id)
         return active_processors
     
     async def _judge_segment(self, block: str, client: AsyncOpenAI) -> str:
@@ -143,14 +143,14 @@ class LLMManager:
         
         return resp.choices[0].message.content.strip().upper()
     
-    async def _llm_processor(self, user_id: str, text_q: asyncio.Queue, 
+    async def _llm_processor(self, session_id: str, text_q: asyncio.Queue, 
                              llm_queue: asyncio.Queue, streaming_llm_queue: asyncio.Queue, 
                              stop_event: asyncio.Event, state: ASRState):
         """
         LLM处理器
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             text_q: 文本队列
             llm_queue: LLM队列
             streaming_llm_queue: 流式LLM队列
@@ -161,7 +161,7 @@ class LLMManager:
             client = self._get_or_create_client()
             
             # 初始化知识库触发器
-            knowledge_trigger = self.knowledge_manager.get_knowledge_trigger(user_id, client)
+            knowledge_trigger = self.knowledge_manager.get_knowledge_trigger(session_id, client)
             
             buffer = []
             last_judge_time = time.time()
@@ -175,18 +175,18 @@ class LLMManager:
                     # 检查是否有静默（超过silence_time秒没有新数据）
                     if (state.is_silence):
                         if buffer:
-                            logger.info(f"用户 {user_id} 检测到静默，分析buffer内容")
+                            logger.info(f"会话 {session_id} 检测到静默，分析buffer内容")
                             # 构建分析文本
                             block_text = "\n".join([item.get("text", item) if isinstance(item, dict) else item for item in buffer])
                             buffer.clear()
-                            logger.info(f"Processing block for user {user_id} (silence): {block_text}")
+                            logger.info(f"Processing block for session {session_id} (silence): {block_text}")
                             result = await self._analyze(block_text, client, knowledge_trigger, 
-                                                       streaming_llm_queue, stop_event, user_id, "silence", state)
+                                                       streaming_llm_queue, stop_event, session_id, "silence", state)
                             if llm_queue:
                                 try:
                                     await llm_queue.put(result)
                                 except asyncio.QueueFull:
-                                    logger.info(f"LLM queue full for user {user_id}")
+                                    logger.info(f"LLM queue full for session {session_id}")
 
                     current_time = time.time()
                     # 等待获取队列中的数据，带超时以频繁检查静默状态
@@ -222,16 +222,16 @@ class LLMManager:
                                 buffer.clear()
                                 continue_ignore_count = 0
                                 
-                                logger.info(f"LONG CONTINUE FORCE ANALYZE for user {user_id}: {block_text}")
+                                logger.info(f"LONG CONTINUE FORCE ANALYZE for session {session_id}: {block_text}")
                                 
                                 # 分析文本
                                 result = await self._analyze(block_text, client, knowledge_trigger, 
-                                                           streaming_llm_queue, stop_event, user_id, "timeout", state)
+                                                           streaming_llm_queue, stop_event, session_id, "timeout", state)
                                 if llm_queue:
                                     try:
                                         await llm_queue.put(result)
                                     except asyncio.QueueFull:
-                                        logger.info(f"LLM queue full for user {user_id}")
+                                        logger.info(f"LLM queue full for session {session_id}")
                             continue
                         
                         if decision == "SPLIT":
@@ -239,29 +239,29 @@ class LLMManager:
                             buffer.clear()
                             continue_ignore_count = 0
                             
-                            logger.info(f"SPLIT SEG BLOCK for user {user_id}: {block_text}")
+                            logger.info(f"SPLIT SEG BLOCK for session {session_id}: {block_text}")
                             
                             # 分析文本
                             result = await self._analyze(block_text, client, knowledge_trigger, 
-                                                       streaming_llm_queue, stop_event, user_id, "semantic", state)
+                                                       streaming_llm_queue, stop_event, session_id, "semantic", state)
                             if llm_queue:
                                 try:
                                     await llm_queue.put(result)
                                 except asyncio.QueueFull:
-                                    logger.info(f"LLM queue full for user {user_id}")
+                                    logger.info(f"LLM queue full for session {session_id}")
                 except asyncio.TimeoutError:
                     continue
                 except Exception as e:
-                    logger.error(f"Error in LLM processor for user {user_id}: {e}")
+                    logger.error(f"Error in LLM processor for session {session_id}: {e}")
                     await asyncio.sleep(0.1)
         except asyncio.CancelledError:
-            logger.debug(f"LLM processor cancelled for user {user_id}")
+            logger.debug(f"LLM processor cancelled for session {session_id}")
         except Exception as e:
-            logger.error(f"Unexpected error in LLM processor for user {user_id}: {e}")
+            logger.error(f"Unexpected error in LLM processor for session {session_id}: {e}")
         finally:
-            logger.info(f"LLM processor exited for user {user_id}")
-            if user_id in self.processors:
-                self.processors[user_id]['status'] = 'stopped'
+            logger.info(f"LLM processor exited for session {session_id}")
+            if session_id in self.processors:
+                self.processors[session_id]['status'] = 'stopped'
 
     
     def _get_or_create_client(self) -> AsyncOpenAI:
@@ -280,7 +280,7 @@ class LLMManager:
         return self.client_cache[cache_key]
     
     async def _analyze(self, block: str, client: AsyncOpenAI, knowledge_trigger: KnowledgeTrigger, 
-                      streaming_llm_queue: asyncio.Queue, stop_event: asyncio.Event, user_id: str = None, trigger_type: str = "semantic", state=None) -> dict:
+                      streaming_llm_queue: asyncio.Queue, stop_event: asyncio.Event, session_id: str = None, trigger_type: str = "semantic", state=None) -> dict:
         """
         分析文本
         
@@ -290,7 +290,7 @@ class LLMManager:
             knowledge_trigger: 知识库触发器
             streaming_llm_queue: 流式LLM队列
             stop_event: 停止事件
-            user_id: 用户ID
+            session_id: 会话ID
             trigger_type: 触发类型
             state: 状态对象
             

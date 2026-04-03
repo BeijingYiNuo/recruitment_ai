@@ -8,6 +8,7 @@ class ResumeResponse(BaseModel):
     """简历响应模型"""
     id: int
     user_id: int
+    candidate_name: Optional[str] = None
     file_path: str
     file_type: str
     status: ResumeStatus

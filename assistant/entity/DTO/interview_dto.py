@@ -8,7 +8,6 @@ from assistant.enums import SessionType, Recommendation, ReportStatus, SendMetho
 class InterviewSessionCreate(BaseModel):
     """面试会话创建模型"""
     candidate_name: str
-    recruiter_id: int
     resume_id: Optional[int] = None
     session_type: SessionType
     scheduled_start_at: str
@@ -34,17 +33,13 @@ class InterviewSessionCreate(BaseModel):
 class InterviewSessionUpdate(BaseModel):
     """面试会话更新模型"""
     candidate_name: Optional[str] = None
-    recruiter_id: Optional[int] = None
     resume_id: Optional[int] = None
     session_type: Optional[SessionType] = None
-    status: Optional[str] = None
     scheduled_start_at: Optional[str] = None
     scheduled_end_at: Optional[str] = None
-    started_at: Optional[str] = None 
-    ended_at: Optional[str] = None
     notes: Optional[str] = None
     
-    @field_validator('scheduled_start_at', 'scheduled_end_at', 'started_at', 'ended_at')
+    @field_validator('scheduled_start_at', 'scheduled_end_at')
     @classmethod
     def validate_datetime_format(cls, v):
         """验证日期时间格式：YYYY-MM-DD HH:MM 或 YYYY-MM-DD HH:MM:SS"""

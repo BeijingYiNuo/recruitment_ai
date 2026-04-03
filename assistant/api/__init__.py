@@ -39,8 +39,8 @@ api_router.include_router(
     interview_reserve_router,
     dependencies=[Depends(get_current_user_id)]
 )
-api_router.include_router(
-    interview_router,
-    dependencies=[Depends(get_current_user_id)]
-)
+
+# 单独包含interview路由器，不添加顶层认证依赖
+# 因为其中包含WebSocket路由，需要单独处理认证
+api_router.include_router(interview_router)
 

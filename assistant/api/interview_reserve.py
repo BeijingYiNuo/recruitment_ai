@@ -24,30 +24,28 @@ router = APIRouter(prefix="/api/reserve", tags=["面试预约"])
 # 面试会话预约相关接口
 @router.post("/sessions", response_model=InterviewSessionResponse, status_code=status.HTTP_201_CREATED)
 def create_interview_session(
-    user_id: int,
     session: InterviewSessionCreate,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """创建面试会话"""
-    return create_session(db, user_id, session)
+    return create_session(db, current_user_id, session)
 
 
 
-@router.get("/sessions/user/{user_id}", response_model=List[InterviewSessionResponse])
+@router.get("/sessions", response_model=List[InterviewSessionResponse])
 def get_interview_sessions_by_user(
-    user_id: int,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
     """根据用户ID获取所有面试会话"""
-    sessions = db.query(InterviewSession).filter(InterviewSession.recruiter_id == user_id).all()
+    sessions = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id).all()
     if not sessions:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -55,28 +53,47 @@ def get_interview_sessions_by_user(
         )
     return sessions
 
+@router.get("/sessions/{session_id}", response_model=InterviewSessionResponse)
+def get_interview_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    user = db.query(User).filter(User.id == current_user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    """根据用户ID获取所有面试会话"""
+    session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == current_user_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该面试会话不存在"
+        )
+    return session
+
 
 
 
 @router.put("/sessions/{session_id}", response_model=InterviewSessionResponse)
 def update_interview_session(
-    user_id: int,
     session_id: int,
     session: InterviewSessionUpdate,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    return update_session(db, user_id, session_id, session)
+    return update_session(db, current_user_id, session_id, session)
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_interview_session(
-    user_id: int,
     session_id: int,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """删除面试会话"""
-    delete_session(db, user_id, session_id)
+    delete_session(db, current_user_id, session_id)
     return None
 

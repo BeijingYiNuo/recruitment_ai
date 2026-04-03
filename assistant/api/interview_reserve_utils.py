@@ -217,7 +217,7 @@ def delete_interview_session(db: Session, user_id: int, session_id: int) -> None
         )
     
     # 2. 检查面试会话是否存在
-    db_session = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+    db_session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == user_id).first()
     if not db_session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

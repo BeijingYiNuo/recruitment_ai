@@ -12,6 +12,7 @@ from assistant.config.config_manager import ConfigManager
 from assistant.utils.logger import logger
 from assistant.LLM.llm_manager import LLMManager
 from assistant.ASR.state_manager import ASRState
+import time
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -299,7 +300,7 @@ class AsrWsClient:
             data_size,
         )
     
-    async def execute_mic(self, user_id: str, use_llm: bool = True, stop_event: asyncio.Event = None,
+    async def execute_mic(self, session_id: str, use_llm: bool = True, stop_event: asyncio.Event = None,
                          audio_q: asyncio.Queue = None, asr_queue: asyncio.Queue = None,
                          text_q: asyncio.Queue = None, llm_queue: asyncio.Queue = None,
                          streaming_llm_queue: asyncio.Queue = None, state=None):
@@ -307,7 +308,7 @@ class AsrWsClient:
         实时麦克风流式ASR
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             use_llm: 是否将ASR结果传递给大模型
             stop_event: 停止事件
             audio_q: 音频队列
@@ -351,10 +352,10 @@ class AsrWsClient:
         )
 
         stream.start()
-        logger.info(f"🎙 Microphone streaming started for user {user_id}")
+        logger.info(f"🎙 Microphone streaming started for session {session_id}")
         
         # 初始化最后一次检测到声音的时间
-        import time
+       
         last_sound_time = time.time()
         
         # ========= 主线程 添加ASR接收协程 =========
@@ -383,7 +384,7 @@ class AsrWsClient:
                                 start_time = utt.get("start_time")
                                 end_time = utt.get("end_time")
                                 definite = utt.get("definite")   
-                                # logger.info(f"*****用户 {user_id} 正在说话*****")
+                                # logger.info(f"*****会话 {session_id} 正在说话*****")
                                 if text:
                                     # 更新最后一次检测到声音的时间
                                     last_sound_time = current_time
@@ -409,7 +410,7 @@ class AsrWsClient:
                                             await text_q.put(text_data)
                                             
                                         except asyncio.QueueFull:
-                                            logger.info(f"Queue full for user {user_id}")
+                                            logger.info(f"Queue full for session {session_id}")
                                             pass
 
                             if resp.is_last_package:
@@ -426,7 +427,7 @@ class AsrWsClient:
                         if current_time - last_sound_time > 3:
                             if state:
                                 state.is_silence = True
-                            logger.info(f"用户 {user_id} 无声音（检测周期3s）state.is_silence:{state.is_silence}")
+                            logger.info(f"会话 {session_id} 无声音（检测周期3s）state.is_silence:{state.is_silence}")
                             # 检测到静默时设置is_silence为True   
                         else:
                             # 静默时间小于3秒，设置is_silence为False
@@ -467,7 +468,7 @@ class AsrWsClient:
                     )
                     # 为send_bytes添加超时，避免WebSocket缓冲区填满时阻塞
                     await asyncio.wait_for(self.conn.send_bytes(req), timeout=0.5)
-                    logger.debug(f"Sent mic segment seq={self.seq} for user {user_id}")
+                    logger.debug(f"Sent mic segment seq={self.seq} for session {session_id}")
                     self.seq += 1
                     # 短暂休眠，让出控制权给其他任务
                     await asyncio.sleep(0.01)
@@ -482,7 +483,7 @@ class AsrWsClient:
         except Exception as e:
             logger.error(f"Unexpected error in execute_mic: {e}")
         finally:
-            logger.info(f"Stopping microphone stream for user {user_id}...")
+            logger.info(f"Stopping microphone stream for session {session_id}...")
             if stop_event and stop_event.is_set():
                 try:
                 # 发送 EOF
@@ -520,18 +521,19 @@ class ASRManager:
         # 初始化配置管理器
         self.config_manager = ConfigManager()
     
-    async def start_asr(self, user_id: str, req: Any, use_llm: bool = True) -> None:
+    async def start_asr(self, session_id: str, req: Any, use_llm: bool = True, websocket=None) -> None:
         """
-        为用户启动ASR服务
+        为会话ID启动ASR服务
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             req: ASR请求参数
             use_llm: 是否使用LLM
+            websocket: WebSocket连接对象
         """
         # 停止之前的ASR服务
-        if user_id in self.clients:
-            await self.stop_asr(user_id)
+        if session_id in self.clients:
+            await self.stop_asr(session_id)
         
         # 创建停止事件和队列
         stop_event = asyncio.Event()
@@ -545,7 +547,7 @@ class ASRManager:
         state = ASRState()  # 创建状态对象,生命周期覆盖面试全过程
         
         # 保存客户端信息
-        self.clients[user_id] = {
+        self.clients[session_id] = {
             'stop_event': stop_event,
             'audio_q': audio_q,
             'asr_queue': asr_queue,
@@ -554,25 +556,26 @@ class ASRManager:
             'streaming_llm_queue': streaming_llm_queue,
             'state': state,
             'task': None,
-            'status': 'starting'
+            'status': 'starting',
+            'websocket': websocket
         }
         
         # 启动ASR任务
-        task = asyncio.create_task(self._asr_runner(user_id, req, stop_event, use_llm))
-        self.clients[user_id]['task'] = task
-        self.clients[user_id]['status'] = 'running'
+        task = asyncio.create_task(self._asr_runner(session_id, req, stop_event, use_llm))
+        self.clients[session_id]['task'] = task
+        self.clients[session_id]['status'] = 'running'
     
-    async def stop_asr(self, user_id: str) -> None:
+    async def stop_asr(self, session_id: str) -> None:
         """
         为用户停止ASR服务
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
         """
-        if user_id not in self.clients:
+        if session_id not in self.clients:
             return
         
-        client_info = self.clients[user_id]
+        client_info = self.clients[session_id]
         if client_info['stop_event']:
             client_info['stop_event'].set()
         
@@ -583,20 +586,32 @@ class ASRManager:
             except Exception:
                 pass
         
-        del self.clients[user_id]
+        # 断开WebSocket连接
+        if 'websocket' in client_info and client_info['websocket']:
+            try:
+                await client_info['websocket'].close(code=1000, reason="ASR stopped")
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"WebSocket connection closed for session {session_id}")
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error closing WebSocket: {e}")
+        
+        del self.clients[session_id]
     
-    def get_asr_queue(self, user_id: str) -> Optional[asyncio.Queue]:
+    def get_asr_queue(self, session_id: str) -> Optional[asyncio.Queue]:
         """
         获取用户的ASR队列
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             
         Returns:
             Optional[asyncio.Queue]: ASR队列
         """
-        if user_id in self.clients:
-            return self.clients[user_id].get('asr_queue')
+        if session_id in self.clients:
+            return self.clients[session_id].get('asr_queue')
         return None
     
     def get_active_clients(self) -> list:
@@ -607,17 +622,17 @@ class ASRManager:
             list: 活跃客户端列表
         """
         active_clients = []
-        for user_id, client_info in self.clients.items():
+        for session_id, client_info in self.clients.items():
             if client_info.get('status') == 'running':
-                active_clients.append(user_id)
+                active_clients.append(session_id)
         return active_clients
     
-    async def _asr_runner(self, user_id: str, req: Any, stop_event: asyncio.Event, use_llm: bool = True):
+    async def _asr_runner(self, session_id: str, req: Any, stop_event: asyncio.Event, use_llm: bool = True):
         """
         ASR运行器
         
         Args:
-            user_id: 用户ID
+            session_id: 会话ID
             req: ASR请求参数
             stop_event: 停止事件
             use_llm: 是否使用LLM
@@ -625,40 +640,40 @@ class ASRManager:
         try:
             async with AsrWsClient(req.url, req.seg_duration, self.config_manager.get_asr_config()['app_key'], self.config_manager.get_asr_config()['access_key']) as client:
                 if req.mic:
-                    logger.info(f"ASR mic mode started for user {user_id}")
+                    logger.info(f"ASR mic mode started for session {session_id}")
                     # 启动LLM处理
                     await self.llm_manager.start_llm_processing(
-                        user_id,
-                        self.clients[user_id]['text_q'],
-                        self.clients[user_id]['llm_queue'],
-                        self.clients[user_id]['streaming_llm_queue'],
-                        self.clients[user_id]['state']
+                        session_id,
+                        self.clients[session_id]['text_q'],
+                        self.clients[session_id]['llm_queue'],
+                        self.clients[session_id]['streaming_llm_queue'],
+                        self.clients[session_id]['state']
                     )
                     # 执行麦克风ASR
                     await client.execute_mic(
-                        user_id=user_id,
+                        session_id=session_id,
                         use_llm=use_llm,
                         stop_event=stop_event,
-                        audio_q=self.clients[user_id]['audio_q'],
-                        asr_queue=self.clients[user_id]['asr_queue'],
-                        text_q=self.clients[user_id]['text_q'],
-                        llm_queue=self.clients[user_id]['llm_queue'],
-                        streaming_llm_queue=self.clients[user_id]['streaming_llm_queue'],
-                        state=self.clients[user_id]['state']
+                        audio_q=self.clients[session_id]['audio_q'],
+                        asr_queue=self.clients[session_id]['asr_queue'],
+                        text_q=self.clients[session_id]['text_q'],
+                        llm_queue=self.clients[session_id]['llm_queue'],
+                        streaming_llm_queue=self.clients[session_id]['streaming_llm_queue'],
+                        state=self.clients[session_id]['state']
                     )
                 else:
                     #录音文件模式
-                    logger.info(f"ASR file mode started for user {user_id}")
+                    logger.info(f"ASR file mode started for session {session_id}")
                     
         except asyncio.CancelledError:
-            logger.info(f"⛔ ASR task cancelled for user {user_id}")
+            logger.info(f"⛔ ASR task cancelled for session {session_id}")
         except Exception as e:
-            logger.error(f"❌ ASR processing failed for user {user_id}: {e}")
+            logger.error(f"❌ ASR processing failed for session {session_id}: {e}")
         finally:
-            logger.info(f"✅ ASR task exited for user {user_id}")
+            logger.info(f"✅ ASR task exited for session {session_id}")
             # 停止LLM处理
-            await self.llm_manager.stop_llm_processing(user_id)
-            if user_id in self.clients:
-                self.clients[user_id]['status'] = 'stopped'
+            await self.llm_manager.stop_llm_processing(session_id)
+            if session_id in self.clients:
+                self.clients[session_id]['status'] = 'stopped'
 
 

@@ -30,13 +30,14 @@ def get_resumes(
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取简历列表"""
-    resumes = db.query(Resume).offset(skip).limit(limit).all()
+    """获取当前用户的所有简历"""
+    resumes = db.query(Resume).filter(Resume.user_id == current_user_id).offset(skip).limit(limit).all()
     return resumes
 
 @router.post("/import", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def import_resume(
     user_id: int,
+    candidate_name: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -79,7 +80,7 @@ async def import_resume(
     file_type = file_extension.lower().lstrip(".")
     
     # 检查用户是否已有简历记录
-    existing_resume = db.query(Resume).filter(Resume.user_id == user_id).first()
+    existing_resume = db.query(Resume).filter(Resume.candidate_name == candidate_name).first()
     
     if existing_resume:
         # 更新原有简历记录
@@ -97,6 +98,7 @@ async def import_resume(
             user_id=user_id,
             file_path=file_path,
             file_type=file_type,
+            candidate_name=candidate_name,
             status=ResumeStatus.UPLOADED,
             content=None,
             extracted_at=datetime.now()
@@ -118,53 +120,53 @@ async def import_resume(
     }
     
 
-@router.get("/{user_id}", response_model=ResumeResponse)
+@router.get("/{resume_id}", response_model=ResumeResponse)
 def get_resume_by_user(
-    user_id: int,
+    resume_id: int,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """根据用户ID获取简历"""
+    """根据简历ID获取简历"""
     # 检查用户是否存在
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
     
-    # 根据用户ID查询简历
-    resume = db.query(Resume).filter(Resume.user_id == user_id).first()
+    # 根据简历ID查询简历
+    resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail="简历不存在或不属于当前用户所有"
         )
     return resume
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_resume_by_user(
-    user_id: int,
+    resume_id: int,
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """根据用户ID删除简历"""
     # 检查用户是否存在
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
     
-    # 根据用户ID查找简历
-    db_resume = db.query(Resume).filter(Resume.user_id == user_id).first()
+    # 根据简历ID查找简历
+    db_resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not db_resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail="简历不存在或不属于当前用户所有"
         )
     
     # 保存文件路径用于后台删除
@@ -210,11 +212,11 @@ def get_resume_educations(
 ):
     """获取简历的教育经历"""
     # 检查简历是否存在
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail="简历不存在或不属于当前用户所有"
         )
     
     educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all()
@@ -229,11 +231,11 @@ def get_resume_work_experiences(
 ):
     """获取简历的工作经历"""
     # 检查简历是否存在
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail="简历不存在或不属于当前用户所有"
         )
     
     work_experiences = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all()
@@ -248,11 +250,11 @@ def get_resume_skills(
 ):
     """获取简历的技能"""
     # 检查简历是否存在
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail="简历不存在或不属于当前用户所有"
         )
     
     skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all()
@@ -267,11 +269,11 @@ def get_resume_projects(
 ):
     """获取简历的项目经历"""
     # 检查简历是否存在
-    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail="简历不存在或不属于当前用户所有"
         )
     
     projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all()
