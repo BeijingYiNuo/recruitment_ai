@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 from assistant.config.database import get_db
@@ -18,6 +19,7 @@ from assistant.entity.VO import (
     ResumeWorkExperienceResponse, ResumeSkillResponse, ResumeProjectResponse
 )
 from assistant.user_management.auth_middleware import get_current_user_id
+from assistant.utils.logger import logger
 
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
@@ -143,6 +145,42 @@ def get_resume_by_user(
             detail="简历不存在或不属于当前用户所有"
         )
     return resume
+
+@router.get("/download/{resume_id}")
+async def download_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """下载简历文件"""
+    # 检查简历是否存在且属于当前用户
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id, 
+        Resume.user_id == current_user_id
+    ).first()
+    
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户所有"
+        )
+    
+    # 检查文件是否存在
+    if not os.path.exists(resume.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文件不存在"
+        )
+    
+    # 记录下载日志
+    logger.info(f"User {current_user_id} downloaded resume {resume_id}")
+    
+    # 返回文件
+    return FileResponse(
+        path=resume.file_path,
+        filename=os.path.basename(resume.file_path),
+        media_type='application/octet-stream'
+    )
 
 
 @router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
