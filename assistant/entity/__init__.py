@@ -11,6 +11,7 @@ from assistant.entity.interview_helper import (
     InterviewQuestion,
     EvaluationStandard, InterviewAudioTranscript
 )
+from assistant.entity.knowledge import UserKnowledge, KnowledgeRole, ChunkingStrategy
 from assistant.enums import (
     UserRole, UserStatus, ResumeStatus,
     SessionType, SessionStatus, Recommendation,
@@ -31,5 +32,7 @@ __all__ = [
     "InterviewReminder", "ReminderStatus", "SendMethod",
     # Interview Helper
     "InterviewQuestion", "QuestionType",
-    "EvaluationStandard", "InterviewAudioTranscript"
+    "EvaluationStandard", "InterviewAudioTranscript",
+    # Knowledge
+    "UserKnowledge", "KnowledgeRole", "ChunkingStrategy"
 ]

@@ -7,16 +7,17 @@ from volcengine.base.Request import Request
 from volcengine.Credentials import Credentials
 
 from assistant.utils.logger import logger
-
+from assistant.config.config_manager import ConfigManager
 class KnowledgeManager:
     def __init__(self):
-        self.collection_name = "ai_recruitment"
-        self.host = "api-knowledgebase.mlp.cn-beijing.volces.com"
-        self.region = "cn-beijing"
-        self.project_name = "default"
-        self.ak = "AKLTM2EwNDczYWE4OTk5NDYwNDhhNGZlNDIyOTMyYzkxZDM"
-        self.sk = "TnpjNE5Ea3dNVFkyTVdaaE5EZzRaVGs1WlRBd05UQTNOekE0WmpZeU5qTQ=="
-        self.account_id = "kb-b66fc9b9a7d4c04e"
+        self.config_manager = ConfigManager()
+        self.collection_name = self.config_manager.config['knowledge']['collection_name']
+        self.host = self.config_manager.config['knowledge']['host']
+        self.region = self.config_manager.config['knowledge']['region']
+        self.project_name = self.config_manager.config['knowledge']['project_name']
+        self.ak = self.config_manager.config['knowledge']['ak']     #用于表示拥护知识库的访问权限
+        self.sk = self.config_manager.config['knowledge']['sk']    #用于验证用户的密钥
+        self.account_id = self.config_manager.config['knowledge']['account_id']
         self.knowledge_sources = []
     
     def initialize_knowledge_sources(self) -> None:
@@ -26,26 +27,149 @@ class KnowledgeManager:
         # 这里可以添加初始化逻辑
         self.knowledge_sources = ["default"]
         logger.info("Knowledge sources initialized")
-    
-    def search_knowledge(self, user_id: str, query: str, top_k: int = 3) -> List[str]:
+    def create_knowledge(self, user_id: str, name: str, chunking_strategy: str = 'custom_balance'):
         """
-        搜索知识库
+        创建知识库
         
         Args:
             user_id: 用户ID
-            query: 查询内容
-            top_k: 返回结果数量
+            name: 知识库名称
+            description: 知识库描述
+            chunking_strategy: 切片策略
             
         Returns:
-            List[str]: 搜索结果
+            dict: 创建结果
         """
         try:
-            results = self._search_knowledge(query, top_k)
-            logger.info(f"Knowledge search for user {user_id}: {len(results)} results")
-            return results
+            method = "POST"
+            path = "/api/knowledge/collection/create"
+            request_params = {
+                "name": name,
+                "version": 2,
+                "preprocessing": {
+                    "chunking_strategy": chunking_strategy,
+                    "multi_modal": ["image_ocr"]
+                }
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Create knowledge response: {json_data}")
+            
+            return json_data
         except Exception as e:
-            logger.error(f"Error searching knowledge for user {user_id}: {e}")
-            return []
+            logger.error(f"user {user_id} Error creating knowledge: {e}")
+            raise e
+    def info_knowledge(self, user_id: str, name: str) -> dict:
+        """
+        获取知识库信息
+        
+        Args:
+            user_id: 用户 ID
+            name: 知识库名称
+            
+        Returns:
+            dict: 知识库信息
+        """
+        try:
+            method = "POST"
+            path = "/api/knowledge/collection/info"
+            request_params = {
+                "name": name,
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Info knowledge response: {json_data}")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error info knowledge: {e}")
+            raise e
+    
+    def update_knowledge(self, user_id: str, name: str, description: str) -> dict:
+        """
+        更新知识库
+        
+        Args:
+            user_id: 用户 ID
+            name: 知识库名称
+            description: 知识库描述
+            
+        Returns:
+            dict: 更新结果
+        """
+        try:
+            method = "POST"
+            path = "/api/knowledge/collection/update"
+            request_params = {
+                "name": name,
+                "description": description,
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Update knowledge response: {json_data}")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error updating knowledge: {e}")
+            raise e
+    
+    def delete_knowledge(self, user_id: str, name: str) -> dict:
+        """
+        删除知识库
+        
+        Args:
+            user_id: 用户 ID
+            name: 知识库名称
+            
+        Returns:
+            dict: 删除结果
+        """
+        try:
+            method = "POST"
+            path = "/api/knowledge/collection/delete"
+            request_params = {
+                "name": name,
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Delete knowledge response: {json_data}")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error deleting knowledge: {e}")
+            raise e
     
     def add_knowledge_source(self, source: str) -> None:
         """
@@ -54,9 +178,6 @@ class KnowledgeManager:
         Args:
             source: 知识库源
         """
-        if source not in self.knowledge_sources:
-            self.knowledge_sources.append(source)
-            logger.info(f"Added knowledge source: {source}")
     
     def remove_knowledge_source(self, source: str) -> None:
         """
@@ -65,9 +186,7 @@ class KnowledgeManager:
         Args:
             source: 知识库源
         """
-        if source in self.knowledge_sources:
-            self.knowledge_sources.remove(source)
-            logger.info(f"Removed knowledge source: {source}")
+        
     
     def get_knowledge_sources(self) -> List[str]:
         """
@@ -76,7 +195,7 @@ class KnowledgeManager:
         Returns:
             List[str]: 知识库源列表
         """
-        return self.knowledge_sources
+       
     
     def get_knowledge_trigger(self, user_id: str, client: Optional[object] = None) -> 'KnowledgeTrigger':
         """

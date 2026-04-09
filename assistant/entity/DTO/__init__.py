@@ -15,6 +15,7 @@ from assistant.entity.DTO.interview_helper_dto import (
     EvaluationStandardCreate, EvaluationStandardUpdate,
     InterviewAudioTranscriptCreate, InterviewAudioTranscriptUpdate
 )
+from assistant.entity.DTO.knowledge_dto import CreateKnowledgeBaseRequest
 
 __all__ = [
     # User
@@ -31,5 +32,7 @@ __all__ = [
     # Interview Helper
     "InterviewQuestionCreate", "InterviewQuestionUpdate",
     "EvaluationStandardCreate", "EvaluationStandardUpdate",
-    "InterviewAudioTranscriptCreate", "InterviewAudioTranscriptUpdate"
+    "InterviewAudioTranscriptCreate", "InterviewAudioTranscriptUpdate",
+    # Knowledge
+    "CreateKnowledgeBaseRequest"
 ]

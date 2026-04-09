@@ -22,8 +22,17 @@ class ConfigManager:
                 'region': 'cn-beijing',
                 'project_name': 'default',
                 'ak': 'AKLTM2EwNDczYWE4OTk5NDYwNDhhNGZlNDIyOTMyYzkxZDM',
-                'sk': 'TnpjNE5Ea3dNVFkyTVdaaE5EZzRaVGs1WlRBd05UQTNOekE0WmpZeU5qTQ==',
+                'sk':'TnpjNE5Ea3dNVFkyTVdaaE5EZzRaVGs1WlRBd05UQTNOekE0WmpZeU5qTQ==',
                 'account_id': 'kb-b66fc9b9a7d4c04e'
+            },
+            'knowledge_default': {
+                'role': 'USER',
+                'project': 'default',
+                'version': 2,
+                'chunking_strategy': 'custom_balance',
+                'chunk_length': 500,
+                'merge_small_chunks': True,
+                'enabled': False
             }
         }
     
@@ -65,6 +74,15 @@ class ConfigManager:
             Dict[str, Any]: 知识库配置
         """
         return self.config.get('knowledge', {})
+    
+    def get_knowledge_default_config(self) -> Dict[str, Any]:
+        """
+        获取知识库默认配置
+        
+        Returns:
+            Dict[str, Any]: 知识库默认配置
+        """
+        return self.config.get('knowledge_default', {})
     
     def update_config(self, section: str, key: str, value: Any) -> None:
         """
