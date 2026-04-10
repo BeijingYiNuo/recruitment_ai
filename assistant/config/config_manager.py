@@ -33,6 +33,13 @@ class ConfigManager:
                 'chunk_length': 500,
                 'merge_small_chunks': True,
                 'enabled': False
+            },
+            'tos':{
+                'access_key':'AKLTM2EwNDczYWE4OTk5NDYwNDhhNGZlNDIyOTMyYzkxZDM',
+                'secret_key':'TnpjNE5Ea3dNVFkyTVdaaE5EZzRaVGs1WlRBd05UQTNOekE0WmpZeU5qTQ==',
+                'region':'cn-beijing',
+                'endpoint':'tos-cn-beijing.volces.com',
+                'bucket_name':'ai-recruitment-beijing'
             }
         }
     
