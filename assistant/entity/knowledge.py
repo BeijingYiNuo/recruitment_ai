@@ -33,3 +33,18 @@ class UserKnowledge(Base):
     enabled = Column(Boolean, nullable=False, default=False, comment="是否开启文档AI摘要功能")
     created_at = Column(DateTime, nullable=False, comment="创建时间")
     updated_at = Column(DateTime, nullable=False, comment="更新时间")
+    
+class UserDocument(Base):
+    """用户知识库文档模型"""
+    __tablename__ = "user_document"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
+    user_id = Column(BigInteger, nullable=False, comment="所属用户ID")
+    knowledge_id = Column(BigInteger, nullable=False, comment="所属知识库ID")
+    file_id = Column(BigInteger, nullable=False, comment="文件id")
+    knowledge_name = Column(String(256), nullable=False, comment="所属知识库名称")
+    doc_name = Column(String(256), nullable=False, comment="文档名称")
+    doc_type = Column(String(256), nullable=False, comment="文档类型")
+    description = Column(Text, nullable=False, comment="文档描述")
+    created_at = Column(DateTime, nullable=False, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, comment="更新时间")

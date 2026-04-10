@@ -170,33 +170,98 @@ class KnowledgeManager:
         except Exception as e:
             logger.error(f"user {user_id} Error deleting knowledge: {e}")
             raise e
-    
-    def add_knowledge_source(self, source: str) -> None:
+    def add_document(self, user_id: str, doc_name: str, uri: str, collection_name: str):
         """
-        添加知识库源
+        准备请求
         
         Args:
-            source: 知识库源
-        """
-    
-    def remove_knowledge_source(self, source: str) -> None:
-        """
-        移除知识库源
-        
-        Args:
-            source: 知识库源
-        """
-        
-    
-    def get_knowledge_sources(self) -> List[str]:
-        """
-        获取知识库源列表
-        
+            method: 请求方法
+            path: 请求路径
+            params: 请求参数
+            data: 请求数据
+            doseq: 是否序列化列表
+            
         Returns:
-            List[str]: 知识库源列表
+            Request: 请求对象
         """
-       
-    
+        try:    
+            method = "POST"
+            path = "/api/knowledge/doc/v2/add"
+            tos_uri = f"tos://ai-recruitment-beijing/{uri}"
+            logger.info(f"user {user_id} tos uri={tos_uri}")
+            request_params = {
+                "doc_id": doc_name,
+                "uri": tos_uri,
+                "collection_name": collection_name
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Add document response: {json_data}")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error adding document: {e}")
+            raise e
+
+    def list_document(self, user_id, collection_name:str):
+        try:
+            method = "POST"
+            path = "/api/knowledge/doc/list"
+            request_params = {
+                "collection_name": collection_name
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Add document response: {json_data}")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error adding document: {e}")
+            raise e
+
+    def delete_document(self, user_id, doc_name:str,uri:str,collection_name:str):
+        try:    
+            method = "POST"
+            path = "/api/knowledge/doc/delete"
+            tos_uri = f"tos://ai-recruitment-beijing/{uri}"
+            logger.info(f"user {user_id} tos uri={tos_uri}")
+            request_params = {
+                "doc_id": doc_name,
+                "uri": tos_uri,
+                "collection_name": collection_name
+            }
+            
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} Add document response: {json_data}")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error adding document: {e}")
+            raise e
     def get_knowledge_trigger(self, user_id: str, client: Optional[object] = None) -> 'KnowledgeTrigger':
         """
         获取知识库触发器

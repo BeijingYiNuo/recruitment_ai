@@ -3,6 +3,7 @@ from assistant.api.user import router as user_router
 from assistant.api.resume import router as resume_router
 from assistant.api.interview import router as interview_router
 from assistant.api.interview_knowledge import router as interview_knowledge_router
+from assistant.api.file import router as file_router
 
 from assistant.api.interview_reserve import router as interview_reserve_router
 from assistant.user_management.auth_middleware import get_current_user_id
@@ -46,7 +47,12 @@ api_router.include_router(
     dependencies=[Depends(get_current_user_id)]
 )
 
-# 单独包含interview路由器，不添加顶层认证依赖
-# 因为其中包含WebSocket路由，需要单独处理认证
+api_router.include_router(
+    file_router,
+    dependencies=[Depends(get_current_user_id)]
+)
+
+# 单独包含 interview 路由器，不添加顶层认证依赖
+# 因为其中包含 WebSocket 路由，需要单独处理认证
 api_router.include_router(interview_router)
 

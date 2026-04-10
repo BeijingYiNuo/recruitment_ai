@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Body, Path
 from sqlalchemy.orm import Session
 from datetime import datetime
 from assistant.config.database import get_db
@@ -6,10 +6,12 @@ from assistant.config.config_manager import ConfigManager
 from assistant.entity import User, UserKnowledge, KnowledgeRole, ChunkingStrategy
 from assistant.entity.DTO import CreateKnowledgeBaseRequest
 from assistant.entity.VO import KnowledgeBaseResponse
+from assistant.entity.VO.document_vo import UserDocumentVO
+from assistant.entity.tos_file import TosFile
+from assistant.entity.knowledge import UserDocument
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.utils.logger import logger
 from assistant.knowledge.knowledge_manager import KnowledgeManager
-
 # 初始化配置管理器
 config_manager = ConfigManager()
 # 初始化知识库管理器
@@ -36,6 +38,13 @@ async def create_knowledge_base(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
+    existing_user = db.query(UserKnowledge).filter(UserKnowledge.user_id == current_user_id).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该用户已存在知识库"
+        )
+    
     # 检查知识库名称是否已存在
     existing_name = db.query(UserKnowledge).filter(UserKnowledge.name == request.name).first()
     if existing_name:
@@ -269,6 +278,55 @@ async def delete_knowledge(
         "name": name
     }
 
+@router.get("/collection/list", response_model=list[KnowledgeBaseResponse])
+async def get_all_knowledge(
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    获取用户所有知识库列表
+    
+    返回当前用户创建的所有知识库基本信息
+    """
+    db_user = db.query(User).filter(User.id == current_user_id).first()
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 查询用户的所有知识库
+    knowledge_bases = db.query(UserKnowledge).filter(
+        UserKnowledge.user_id == current_user_id
+    ).order_by(UserKnowledge.created_at.desc()).all()
+    
+    # 转换为响应格式
+    response_list = []
+    for knowledge_base in knowledge_bases:
+        response = KnowledgeBaseResponse(
+            id=knowledge_base.id,
+            name=knowledge_base.name,
+            description=knowledge_base.description,
+            user_id=knowledge_base.user_id,
+            role=knowledge_base.role.value,
+            project=knowledge_base.project,
+            version=knowledge_base.version,
+            chunking_strategy=knowledge_base.chunking_strategy.value,
+            chunking_identifier=knowledge_base.chunking_identifier,
+            chunk_length=knowledge_base.chunk_length,
+            merge_small_chunks=knowledge_base.merge_small_chunks,
+            enabled=knowledge_base.enabled,
+            created_at=knowledge_base.created_at.isoformat(),
+            updated_at=knowledge_base.updated_at.isoformat()
+        )
+        response_list.append(response)
+    
+    logger.info(f"User {current_user_id} retrieved {len(response_list)} knowledge bases")
+    return response_list
+    
+
+
+
 
 @router.get("/collection/info", response_model=KnowledgeBaseResponse)
 async def get_knowledge_info(
@@ -352,3 +410,227 @@ async def get_knowledge_info(
             detail="获取知识库信息失败"
         )
 
+@router.post("/document/add")
+async def add_document(
+    file_id: int,
+    knowledge_id: int,
+    doc_name: str,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    添加文档到知识库
+    
+    - **file_id**: 文件 ID，从/api/file/list 获取 对应响应的id字段
+    - **knowledge_id**: 知识库 ID, 从/api/collection/list 获取 对应响应的id字段
+    - **doc_name**: 文档名称，不能为空，用于唯一标识文档在知识库中的位置
+    """
+    db_user = db.query(User).filter(User.id == current_user_id).first()
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    db_file = db.query(TosFile).filter(TosFile.id == file_id).first()
+    if not db_file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文件不存在"
+        )
+    db_knowledge = db.query(UserKnowledge).filter(
+        UserKnowledge.id == knowledge_id,
+        UserKnowledge.user_id == current_user_id
+    ).first()
+    if not db_knowledge:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="知识库不存在或无权访问"
+        )
+    # 检查文档名称是否已存在
+    if doc_name:
+        existing_doc = db.query(UserDocument).filter(
+            UserDocument.doc_name == doc_name,
+            UserDocument.knowledge_id == knowledge_id
+        ).first()
+        if existing_doc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="文档名称已存在"
+            )
+    try:
+        import os.path
+        # 1. 调用知识库 API
+        api_response = knowledge_manager.add_document(
+            user_id=str(current_user_id),
+            doc_name=doc_name,  # 使用 doc_id 作为 API 的 doc_id
+            uri=db_file.file_uri,
+            collection_name=db_knowledge.name
+        )    
+        # 检查 API 响应是否成功
+        if api_response.get('code') != 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"添加文档到知识库 API 调用失败：{api_response.get('message', 'Unknown error')}"
+            )
+        
+        # 2. API 调用成功，保存到数据库
+        user_document = UserDocument(
+            user_id=current_user_id,
+            knowledge_id=knowledge_id,
+            file_id=file_id,  # 添加 file_id 字段
+            knowledge_name=db_knowledge.name,
+            doc_name=doc_name,
+            doc_type=os.path.splitext(doc_name)[1][1:] if doc_name else "",  # 提取文件扩展名
+            description="",  # 添加 description 字段
+            created_at=datetime.now(),  # 添加 created_at 字段
+            updated_at=datetime.now()  # 添加 updated_at 字段
+        )
+        db.add(user_document)
+        db.commit()
+        db.refresh(user_document)
+        
+        logger.info(f"User {current_user_id} added document to database: {user_document.id}")
+        
+        return {
+            "message": "添加文档成功",
+            "data": {
+                "document_id": user_document.id,
+                "doc_name": doc_name,
+                "knowledge_id": knowledge_id,
+                "knowledge_name": db_knowledge.name
+            }
+        }
+    except HTTPException:
+        # 已经是 HTTP 异常，直接抛出
+        raise
+    except Exception as e:
+        # 发生其他异常，回滚数据库操作
+        db.rollback()
+        logger.error(f"User {current_user_id} Error adding document: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="添加文档到知识库失败"
+        )
+
+@router.get("/document/list")
+async def list_document(
+    collection_name: str,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    获取知识库所有文档
+    
+    - **collection_name**: 知识库名称，不能为空 从/api/collection/list 获取 对应响应的name字段
+    """
+    db_knowledge = db.query(UserKnowledge).filter(
+        UserKnowledge.name == collection_name,
+        UserKnowledge.user_id == current_user_id
+    ).first()
+    if not db_knowledge:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="知识库不存在或无权访问"
+        )
+    try:
+        import os.path
+        # 1. 调用知识库 API
+        api_response = knowledge_manager.list_document(
+            user_id=str(current_user_id),
+            collection_name=collection_name
+        )    
+        # 检查 API 响应是否成功
+        if api_response.get('code') != 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"获取知识库文档列表 API 调用失败：{api_response.get('message', 'Unknown error')}"
+            )
+        
+        return api_response.get('data', [])
+    except HTTPException:
+        # 已经是 HTTP 异常，直接抛出
+        raise
+    except Exception as e:
+        # 发生其他异常，回滚数据库操作
+        logger.error(f"User {current_user_id} Error listing document list: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取知识库文档列表失败"
+        )
+
+@router.delete("/document/delete")
+async def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    删除文档
+    
+    - **document_id**: 文档 ID, 从/api/document/list 获取 对应响应的id字段
+    """
+    db_document = db.query(UserDocument).filter(
+        UserDocument.id == document_id,
+        UserDocument.user_id == current_user_id
+    ).first()
+    if not db_document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文档不存在"
+        )
+    db_file = db.query(TosFile).filter(
+        TosFile.id == db_document.file_id
+    ).first()
+    if not db_file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文件不存在"
+        )
+    db_knowledge = db.query(UserKnowledge).filter(
+        UserKnowledge.id == db_document.knowledge_id,
+    ).first()
+    if not db_knowledge:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="知识库不存在或无权访问"
+        )
+    try:
+        import os.path
+        # 1. 调用知识库 API
+        api_response = knowledge_manager.delete_document(
+            user_id=str(current_user_id),
+            doc_name=db_document.doc_name,  # 使用 doc_id 作为 API 的 doc_id
+            uri=db_file.file_uri,
+            collection_name=db_knowledge.name
+        )    
+        # 检查 API 响应是否成功
+        if api_response.get('code') != 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"删除文档 API 调用失败：{api_response.get('message', 'Unknown error')}"
+            )
+        db.delete(db_document)
+        db.commit()
+        
+        logger.info(f"User {current_user_id} deleted document to database: {db_document.id}")
+        
+        return {
+            "message": "删除文档成功",
+            "data": {
+                "document_id": db_document.id,
+                "doc_name": db_document.doc_name,
+                "knowledge_id": db_document.knowledge_id,
+                "knowledge_name": db_knowledge.name
+            }
+        }
+    except HTTPException:
+        # 已经是 HTTP 异常，直接抛出
+        raise
+    except Exception as e:
+        # 发生其他异常，回滚数据库操作
+        db.rollback()
+        logger.error(f"User {current_user_id} Error deleting document: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="删除文档失败"
+        )

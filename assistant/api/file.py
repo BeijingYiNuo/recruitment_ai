@@ -81,6 +81,8 @@ async def upload_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"文件上传失败：{str(e)}"
         )
+
+
 @router.get("/list")
 async def list_files(
     db: Session = Depends(get_db),
@@ -96,7 +98,58 @@ async def list_files(
     }   
 
 
-@router.delete(f"/delete")
+@router.get("/download")
+async def download_file(
+    file_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    下载文件
+    
+    - **file_id**: 文件 ID
+    """
+    try:
+        # 验证文件是否属于当前用户
+        db_file = db.query(TosFile).filter(
+            TosFile.id == file_id,
+            TosFile.user_id == current_user_id
+        ).first()
+        
+        if not db_file:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="文件不存在或无权访问"
+            )
+        
+        # 从 TOS 下载文件
+        file_content = file_manager.download_file(db_file.file_uri)
+        
+        # 生成文件名（URL 编码）
+        import os
+        filename = os.path.basename(db_file.file_uri)
+        encoded_filename = urllib.parse.quote(filename)
+        
+        # 返回文件流
+        return StreamingResponse(
+            iter([file_content]),
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to download file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"文件下载失败：{str(e)}"
+        )
+
+
+@router.delete("/delete")
 async def delete_file(
     file_id: int,
     db: Session = Depends(get_db),
@@ -104,13 +157,12 @@ async def delete_file(
 ):
     """
     删除 TOS 中的文件
-    - **tos_key**: {user_id}/{file_type}/{timestamp}_{filename}
+    - **file_id**: 文件 ID
     
     返回删除结果
     """
     try:
-        
-        # 验证 tos_key 是否属于当前用户
+        # 验证文件是否属于当前用户
         db_file = db.query(TosFile).filter(
             TosFile.user_id == current_user_id,
             TosFile.id == file_id
@@ -147,5 +199,3 @@ async def delete_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"文件删除失败：{str(e)}"
         )
-
-
