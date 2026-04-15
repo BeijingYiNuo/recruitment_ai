@@ -5,7 +5,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 import asyncio
 import json
-
+import wave
+from fastapi import WebSocketDisconnect
 from assistant.config.database import get_db
 from assistant.entity import (
     InterviewSession, SessionType, SessionStatus,
@@ -29,14 +30,14 @@ from assistant.entity.VO import (
 
 from assistant.user_management.auth_middleware import get_current_user_id, get_current_user_id_from_websocket
 from assistant.audio.audio_manager import AudioManager
-from assistant.ASR.asr_manager import ASRManager
+from assistant.ASR.task_manager import TaskManager
 from assistant.LLM.llm_manager import LLMManager
 from assistant.utils.logger import logger
-
+import numpy as np
 # 初始化各个管理器
 audio_manager = AudioManager()
 llm_manager = LLMManager()
-asr_manager = ASRManager(llm_manager=llm_manager)
+task_manager = TaskManager(llm_manager=llm_manager)
 
 router = APIRouter(prefix="/api", tags=["面试辅助"])
 
@@ -62,7 +63,8 @@ async def start_asr(session_id: str, req: StartAsrRequest ,db: Session = Depends
         )
     
     try:
-        await asr_manager.start_asr(session_id, req, use_llm=req.use_llm)
+
+        await task_manager.start_interview(session_id,req)
         return {
             "status": "started",
             "mode": "mic" if req.mic else "file"
@@ -76,8 +78,13 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
     """
     为指定会话停止ASR服务
     """
-    sessions = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id, InterviewSession.id == session_id).all()
-    if not sessions:
+    # 验证会话存在且用户有权限
+    session = db.query(InterviewSession).filter(
+        InterviewSession.id == session_id,
+        InterviewSession.recruiter_id == current_user_id
+    ).first()
+    
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="会话不存在或用户没有权限访问该会话。"
@@ -85,9 +92,11 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
     
     try:
         # 停止ASR服务（会自动断开WebSocket连接）
-        await asr_manager.stop_asr(session_id)
+        await task_manager.stop_asr(session_id)
         
-        return {"status": "stopped"}
+        return {
+            "status": "stopped"
+        }
     except Exception as e:
         logger.error(f"Error stopping ASR: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to stop ASR: {str(e)}")
@@ -118,86 +127,177 @@ async def websocket_asr_stream(websocket: WebSocket, session_id: str, db: Sessio
     await websocket.accept()
     
     # 检查ASRManager中是否已经存在该session_id的客户端信息
-    if session_id in asr_manager.clients:
+    if session_id in task_manager.clients:
         # 更新现有客户端的WebSocket连接
-        asr_manager.clients[session_id]['websocket'] = websocket
-        logger.info(f"WebSocket connection updated for session {session_id}")
+        task_manager.set_websocket(session_id, websocket)
     else:
         # 如果不存在，返回错误
         await websocket.close(code=1008, reason="ASR service not started for this session")
         logger.error(f"WebSocket connection failed: ASR service not started for session {session_id}")
         return
     
+    def validate_audio_data(data: bytes) -> bool:
+        """
+        验证音频数据格式是否符合要求
+        
+        Args:
+            data: 音频数据
+            
+        Returns:
+            bool: 是否符合要求
+        """
+        SAMPLE_RATE = 16000          # 采样率：16000Hz
+        FRAME_DURATION_MS = 30       # 每帧时长：30ms（WebRTC VAD/ASR标准）
+        CHANNELS = 1                 # 通道数：单声道
+        BIT_DEPTH = 16               # 位深：16bit
+        BYTES_PER_SAMPLE = BIT_DEPTH // 8  # 每个采样点2字节
+
+        # 计算每帧的理论字节数：16000 * 30 / 1000 * 2 = 960字节
+        EXPECTED_FRAME_BYTES = int(SAMPLE_RATE * FRAME_DURATION_MS / 1000 * BYTES_PER_SAMPLE)
+        # 计算每帧的理论采样点数：16000 * 30 / 1000 = 480个
+        EXPECTED_SAMPLE_COUNT = int(SAMPLE_RATE * FRAME_DURATION_MS / 1000)
+        # 16bit int的合法范围：-32768 ~ 32767
+        INT16_MIN = -32768
+        INT16_MAX = 32767
+        # 检查数据长度
+        # 每帧30毫秒，16000Hz采样率，16位深度int16，单声道
+        # 480个采样点 × 2字节/采样点 = 960字节
+        expected_length = 480 * 2  # 960 bytes
+        
+        # ========== 1. 基础长度校验（最核心，99%的问题先卡在这里）==========
+        if not isinstance(data, bytes):
+            logger.error(f"音频数据类型错误，期望bytes，实际为{type(data)}")
+            return False
+        
+        data_len = len(data)
+        if data_len != EXPECTED_FRAME_BYTES:
+            logger.error(f"音频包长度错误！期望{EXPECTED_FRAME_BYTES}字节，实际{data_len}字节")
+            return False
+
+        # ========== 2. 采样点数量校验 ==========
+        # 960字节 = 480个int16采样点，必须整除
+        if data_len % BYTES_PER_SAMPLE != 0:
+            logger.error(f"音频包长度不是2的整数倍，无法解析为int16")
+            return False
+        
+        sample_count = data_len // BYTES_PER_SAMPLE
+        if sample_count != EXPECTED_SAMPLE_COUNT:
+            logger.error(f"采样点数量错误！期望{EXPECTED_SAMPLE_COUNT}个，实际{sample_count}个")
+            return False
+
+        # ========== 3. 解析为int16数组，校验数值范围（验证16bit格式）==========
+        try:
+            # 小端序int16解析（JS/浏览器默认小端序，完全匹配前端格式）
+            pcm_int16 = np.frombuffer(data, dtype=np.int16)
+        except Exception as e:
+            logger.error(f"音频数据解析为int16失败: {str(e)}")
+            return False
+
+        # 校验数值范围是否在16bit合法区间内（-32768 ~ 32767）
+        if np.any(pcm_int16 < INT16_MIN) or np.any(pcm_int16 > INT16_MAX):
+            logger.error(f"音频数据数值溢出，超出16bit int范围")
+            return False
+
+        # ========== 4. 可选：静音帧校验（防止全0异常包，可选开启）==========
+        # 静音帧应为全0或接近0，这里做一个宽松校验，避免误判底噪
+        # if np.all(pcm_int16 == 0):
+        #     logger.debug("收到静音帧（全0），格式合法")
+        # 可根据需求开启，不影响核心校验
+
+        # ========== 5. 所有校验通过 ==========
+        # logger.info(f"音频数据格式校验通过，长度{data_len}字节，{sample_count}个采样点")
+        return True
+
+    audio_q = task_manager.get_audio_queue(session_id)
+    output_q = task_manager.get_output_queue(session_id)
+    wf = wave.open("dump.wav", "wb")
+    wf.setnchannels(1)
+    wf.setsampwidth(2)
+    wf.setframerate(16000)
+    
+    async def receive_audio():
+        """
+        从前端接收语音块并发送给audio_q
+        """
+        try:
+            while True:
+                # 接收前端发送的语音块
+                data = await websocket.receive_bytes()
+                
+                # 验证音频数据格式
+                if not validate_audio_data(data):
+                    logger.error(f"Invalid audio data format for session {session_id}")
+                    await websocket.close(code=1008, reason="Invalid audio data format")
+                    return
+                wf.writeframes(data)
+                # 将语音块放入audio_q
+                
+                if audio_q:
+                    try:
+                        await audio_q.put(data)
+                    except Exception as e:
+                        logger.error(f"Error putting audio data into queue: {e}")
+        except WebSocketDisconnect:
+            logger.info(f"WebSocket disconnected during audio reception for session {session_id}")
+        except RuntimeError as e:
+            # 处理WebSocket连接错误
+            if "WebSocket is not connected" in str(e) or "Cannot call \"send\" once a close message has been sent" in str(e):
+                logger.info(f"WebSocket connection error during audio reception: {e}")
+            else:
+                logger.error(f"Runtime error in audio reception: {e}")
+        except Exception as e:
+            logger.error(f"Error in audio reception: {e}")
+    
+    async def send_output():
+        """
+        从output_q中获取数据并通过websocket发送给前端
+        """
+        try:
+            while True:
+                if output_q and not output_q.empty():
+                    try:
+                        output_data = await output_q.get()
+                        # logger.info(f"**Received output data**: {output_data}")
+                        if output_data['type'] == 'asr':
+                            await websocket.send_json({
+                                'type': 'asr',
+                                'data': output_data['data']
+                            })
+                        elif output_data['type'] == 'streaming':
+                            await websocket.send_json({
+                                'type': 'streaming',
+                                'data': output_data['data']
+                            })
+                    except Exception as e:
+                        logger.error(f"Error getting output data: {e}")
+                # 短暂休眠，避免CPU占用过高
+                await asyncio.sleep(0.01)
+        except WebSocketDisconnect:
+            logger.info(f"WebSocket disconnected during output sending for session {session_id}")
+        except RuntimeError as e:
+            # 处理WebSocket连接错误
+            if "WebSocket is not connected" in str(e) or "Cannot call \"send\" once a close message has been sent" in str(e):
+                logger.info(f"WebSocket connection error during output sending: {e}")
+            else:
+                logger.error(f"Runtime error in output sending: {e}")
+        except Exception as e:
+            logger.error(f"Error in output sending: {e}")
+    
     try:
-        while True:
-            # 检查ASR队列
-            asr_queue = asr_manager.get_asr_queue(session_id)
-            if asr_queue and not asr_queue.empty():
-                try:
-                    asr_data = await asr_queue.get()
-                    await websocket.send_json({
-                        'type': 'asr',
-                        'data': asr_data
-                    })
-                except Exception as e:
-                    logger.error(f"Error getting ASR data: {e}")
-            
-            # 检查LLM队列
-            llm_queue = llm_manager.get_llm_queue(session_id)
-            streaming_llm_queue = llm_manager.get_streaming_llm_queue(session_id)
-            
-            if streaming_llm_queue and not streaming_llm_queue.empty():
-                try:
-                    streaming_llm_data = await streaming_llm_queue.get()
-                    await websocket.send_json({
-                        'type': 'streaming_llm',
-                        'data': streaming_llm_data
-                    })
-                except Exception as e:
-                    logger.error(f"Error getting streaming LLM data: {e}")
-            
-            if llm_queue and not llm_queue.empty():
-                try:
-                    llm_data = await llm_queue.get()
-                    # 添加测试数据，确保前端能显示内容
-                    follow_up_questions = llm_data.get('follow_up_questions', []) 
-                    evaluation = llm_data.get('evaluation', '') 
-                    block_text = llm_data.get('block','')
-                    
-                    follow_up_text = "\n".join([f"{i+1}. {q}" for i, q in enumerate(follow_up_questions)])
-                    evaluation_text = evaluation
-                    logger.info(f"--------follow_up_questions--------- :{follow_up_questions}")
-                    logger.info(f"--------evaluation--------- :{evaluation_text}")
-                    formatted_data = {
-                        'type': 'llm',
-                        'data': {
-                            'follow_up_questions': follow_up_questions,
-                            'evaluation': evaluation_text,
-                            'block_text': block_text,
-                            'formatted': {
-                                'follow_up': follow_up_text,
-                                'evaluation': evaluation_text,
-                                'block_text': block_text
-                            }
-                        }
-                    }
-                    await websocket.send_json(formatted_data)
-                except Exception as e:
-                    logger.error(f"Error getting LLM data: {e}")
-            
-            # 短暂休眠，避免CPU占用过高
-            await asyncio.sleep(0.1)
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for session {session_id}")
-        # 保持客户端信息，但将websocket设为None
-        if session_id in asr_manager.clients:
-            asr_manager.clients[session_id]['websocket'] = None
+        # 创建两个并发任务
+        receive_task = asyncio.create_task(receive_audio())
+        send_task = asyncio.create_task(send_output())
+        
+        # 等待任一任务完成
+        await asyncio.gather(receive_task, send_task, return_exceptions=True)
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"Error in WebSocket handler: {e}")
+    finally:
+        # 确保wave文件被关闭
+        wf.close()
         # 保持客户端信息，但将websocket设为None
-        if session_id in asr_manager.clients:
-            asr_manager.clients[session_id]['websocket'] = None
-        await websocket.close(code=1011, reason=f"Internal server error: {str(e)}")
+        if session_id in task_manager.clients:
+            task_manager.clients[session_id]['websocket'] = None
 
 
 
