@@ -115,7 +115,7 @@ async def download_file(
             TosFile.id == file_id,
             TosFile.user_id == current_user_id
         ).first()
-        
+         
         if not db_file:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

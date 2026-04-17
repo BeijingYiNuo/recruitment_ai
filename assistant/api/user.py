@@ -32,7 +32,7 @@ def get_users(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """获取用户列表"""
-    users = db.query(User).offset(skip).limit(limit).all()
+    users = db.query(User).filter(User.id == current_user_id).offset(skip).limit(limit).all()
     return users
 
 

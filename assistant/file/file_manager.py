@@ -37,7 +37,7 @@ class TosFileManager:
         ext = filename.split('.')[-1].lower()
         return ext
     
-    def _get_tos_key(self, user_id: int, file_type: str, filename: str) -> str:
+    def get_tos_key(self, user_id: int, file_type: str, filename: str) -> str:
         """
         生成 TOS 存储路径（key）
         
@@ -82,7 +82,7 @@ class TosFileManager:
                 raise ValueError(f"Invalid file_type: {file_type}. Must be one of {valid_categories}")
             
             # 生成 TOS key
-            tos_key = self._get_tos_key(user_id, file_type, filename)
+            tos_key = self.get_tos_key(user_id, file_type, filename)
             
             # 上传到 TOS
             self.client.put_object(

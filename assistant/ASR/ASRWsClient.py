@@ -117,7 +117,6 @@ class RequestBuilder:
                 "enable_accelerate_text": True,
                 "accelerate_score": 5,
                 "enable_punc": True,
-                "enable_ddc": True,
                 "show_utterances": True,
                 "enable_nonstream": False,
                 "end_window_size": 200,
@@ -389,10 +388,10 @@ class AsrWsClient:
             # 超时检查静默状态
             if state:
                 current_time = time.time()
-                if current_time - state.last_voice_time > 3:
+                if current_time - state.last_voice_time > 1:
                     async with state.lock:
                         state.is_silence = True
-                    logger.info(f"会话 {session_id} 无声音（检测周期3s）state.is_silence:{state.is_silence}")
+                    logger.info(f"会话 {session_id} 无声音（检测周期1s）state.is_silence:{state.is_silence}")
                 else:
                     async with state.lock:
                         state.is_silence = False

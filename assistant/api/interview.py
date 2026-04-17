@@ -51,20 +51,25 @@ class StartAsrRequest(BaseModel):
 
 # 语音识别相关接口
 @router.post("/asr/start/{session_id}")
-async def start_asr(session_id: str, req: StartAsrRequest ,db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id)):
+async def start_asr(session_id: str, req: StartAsrRequest ,db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id),record_voice: bool = True):
     """
     为指定会话启动ASR服务
     """
-    sessions = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id, InterviewSession.id == session_id).all()
-    if not sessions:
+    session = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id, InterviewSession.id == session_id).first()
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="会话不存在或用户没有权限访问该会话。"
         )
+    if session.status != SessionStatus.SCHEDULED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="会话状态错误，不能启动ASR服务。"
+        )
     
     try:
 
-        await task_manager.start_interview(session_id,req)
+        await task_manager.start_interview(session_id,req,record_voice,current_user_id,db)
         return {
             "status": "started",
             "mode": "mic" if req.mic else "file"
@@ -93,9 +98,12 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
     try:
         # 停止ASR服务（会自动断开WebSocket连接）
         await task_manager.stop_asr(session_id)
-        
+        session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == current_user_id).first()
+        session.status = SessionStatus.COMPLETED
+        db.commit()
+        db.refresh(session)
         return {
-            "status": "stopped"
+            "status": "completed"
         }
     except Exception as e:
         logger.error(f"Error stopping ASR: {e}")

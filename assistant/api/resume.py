@@ -1,3 +1,4 @@
+import urllib
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -5,11 +6,16 @@ from typing import List
 from assistant.config.database import get_db
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
 from fastapi import UploadFile, File
+from fastapi.responses import JSONResponse, StreamingResponse
+import urllib.parse
 import os
+import tempfile
 from datetime import datetime
 from typing import Dict, Any
 from fastapi import BackgroundTasks
-from assistant.api.resume_utils import process_resume_background
+from assistant.api.resume_utils import process_resume_background, store_resume_details, extract_text
+from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
+from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
     ResumeCreate, ResumeUpdate, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate
@@ -21,6 +27,7 @@ from assistant.entity.VO import (
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.utils.logger import logger
 
+file_manager = TosFileManager()
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
 
@@ -45,49 +52,50 @@ async def import_resume(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """导入简历"""
-    # 检查用户是否存在
+    """导入简历：先返回结果，后台异步大模型分析"""
+    # 1. 检查用户是否存在（原有逻辑不变）
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
-    
-    # 确保存储目录存在
-    resume_dir = "/Users/xuhaoran/Documents/trae_projects/interview-assistant/data/resumes"
-    if not os.path.exists(resume_dir):
-        os.makedirs(resume_dir)
-    
-    # 生成文件名
-    file_extension = os.path.splitext(file.filename)[1]
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    filename = f"{user_id}_{timestamp}{file_extension}"
-    file_path = os.path.join(resume_dir, filename)
-    
-    # 验证文件类型
-    allowed_extensions = [".doc", ".docx", ".pdf"]
-    if file_extension.lower() not in allowed_extensions:
+    # 2. 读取文件 + 校验（原有逻辑不变）
+    content = await file.read()
+    if not content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="只支持Word和PDF文件"
+            detail="文件内容为空"
         )
-    
-    # 保存文件
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
-    # 只存储文件扩展名作为文件类型
-    file_type = file_extension.lower().lstrip(".")
+    max_size = 10 * 1024 * 1024  # 10MB
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文件大小超过限制（{max_size // 1024 // 1024}MB）"
+        )
+    try:
+        resume_text = extract_text(file_path=file.filename, file_bytes = content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"文件内容提取失败: {str(e)}"
+        )
+    # 上传文件到 TOS
+    result = file_manager.upload_file(
+        db=db,
+        user_id=current_user_id,
+        file_content=content,
+        filename=file.filename,
+        file_type="resume"
+    )
     
     # 检查用户是否已有简历记录
     existing_resume = db.query(Resume).filter(Resume.candidate_name == candidate_name).first()
     
     if existing_resume:
         # 更新原有简历记录
-        existing_resume.file_path = file_path
-        existing_resume.file_type = file_type
+        existing_resume.file_path = result['tos_key']
+        existing_resume.file_type = result['file_type']
         existing_resume.status = ResumeStatus.UPLOADED
         existing_resume.content = None
         existing_resume.extracted_at = datetime.now()
@@ -98,8 +106,8 @@ async def import_resume(
         # 创建新简历记录
         db_resume = Resume(
             user_id=user_id,
-            file_path=file_path,
-            file_type=file_type,
+            file_path=result['tos_key'],
+            file_type=result['file_type'],
             candidate_name=candidate_name,
             status=ResumeStatus.UPLOADED,
             content=None,
@@ -110,7 +118,7 @@ async def import_resume(
         db.refresh(db_resume)
     
     # 后台处理简历分析
-    background_tasks.add_task(process_resume_background, db, db_resume.id, file_path, file.content_type)
+    background_tasks.add_task(process_resume_background, db, db_resume.id, resume_text, current_user_id)
     
     # 立即返回初步响应
     return {
@@ -165,22 +173,20 @@ async def download_resume(
             detail="简历不存在或不属于当前用户所有"
         )
     
-    # 检查文件是否存在
-    if not os.path.exists(resume.file_path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="文件不存在"
-        )
     
     # 记录下载日志
     logger.info(f"User {current_user_id} downloaded resume {resume_id}")
-    
+    file_content = file_manager.download_file(resume.file_path)
+    filename = os.path.basename(resume.file_path)
+    encoded_filename = urllib.parse.quote(filename)
     # 返回文件
-    return FileResponse(
-        path=resume.file_path,
-        filename=os.path.basename(resume.file_path),
-        media_type='application/octet-stream'
-    )
+    return StreamingResponse(
+            iter([file_content]),
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+            }
+        )
 
 
 @router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -225,19 +231,17 @@ async def delete_resume_by_user(
     db.commit()
     
     # 后台删除文件，避免阻塞
-    background_tasks.add_task(delete_resume_file, file_path)
+    background_tasks.add_task(delete_resume_file, file_path, db)
     
     return None
 
 
-def delete_resume_file(file_path):
+def delete_resume_file(file_path: str, db: Session = Depends(get_db)):
     """后台删除简历文件"""
     try:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"文件 {file_path} 已删除")
+        file_manager.delete_file(file_path, db)
     except Exception as e:
-        print(f"删除文件失败: {e}")
+        logger.error(f"删除文件失败: {e}")
         # 可以添加错误处理和日志记录
 
 

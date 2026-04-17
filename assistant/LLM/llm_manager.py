@@ -10,7 +10,9 @@ from assistant.ASR.state_manager import ASRState
 from assistant.prompt.prompt_manager import PromptManager
 from assistant.config.config_manager import ConfigManager
 import re
-
+ADVICE_TAG = "<<<ADVICE>>>"
+EVAL_TAG = "<<<EVALUATION>>>"
+END_TAG = "<<<END>>>"
 class LLMManager:
     def __init__(self):
         self.knowledge_manager = KnowledgeManager()
@@ -62,12 +64,11 @@ class LLMManager:
 
 
 
-    async def parse_llm_stream(self, stream, streaming_q, stop_event,index: int):
+    
+
+    async def parse_llm_stream(self, stream, streaming_q, stop_event, index: int):
         buffer = ""
-        sentence_buffer = ""
-        SENTENCE_END = re.compile(r'[。！？?！]\s*$')
         current_type = None
-        advice_index = 0
 
         async for chunk in stream:
             if stop_event.is_set():
@@ -84,58 +85,46 @@ class LLMManager:
 
             buffer += content
 
-            # 🎯 1. 类型识别
-            if current_type is None and "建议" in buffer:
-                current_type = "advice"
-                buffer = ""
-                continue
+            while True:
+                # 🎯 1. 识别 ADVICE
+                if ADVICE_TAG in buffer:
+                    current_type = "advice"
+                    buffer = buffer.split(ADVICE_TAG, 1)[1]
+                    continue
 
-            if current_type == "advice" and "面试者评价" in buffer:
-                current_type = "evaluation"
-                buffer = ""
-                sentence_buffer = ""
-                continue
+                # 🎯 2. 识别 EVALUATION
+                if EVAL_TAG in buffer:
+                    current_type = "evaluation"
+                    buffer = buffer.split(EVAL_TAG, 1)[1]
+                    continue
 
-            # =========================
-            # 🎯 2. advice（流式 + 句子级）
-            # =========================
-            if current_type == "advice":
-                sentence_buffer += content
+                # 🎯 3. 识别 END
+                if END_TAG in buffer:
+                    # 输出剩余内容
+                    if buffer.strip():
+                        await streaming_q.put({
+                            "response_type": current_type,
+                            "index": index,
+                            "content": buffer.strip()
+                        })
+                    buffer = ""
+                    current_type = None
+                    break
 
-                # 👉 流式输出（每个chunk）c
-                await streaming_q.put({
-                    "response_type": "advice",
-                    "index": index,  # 当前句 index
-                    "content": content
-                })
+                # 🎯 4. 防止 tag 被截断（关键！！！）
+                if any(tag.startswith(buffer) for tag in [ADVICE_TAG, EVAL_TAG, END_TAG]):
+                    break
 
-                # 👉 判断句子结束
-                if SENTENCE_END.search(sentence_buffer):
-
+                # 🎯 5. 正常输出（流式）
+                if current_type and buffer:
                     await streaming_q.put({
-                        "response_type": "advice",
+                        "response_type": current_type,
                         "index": index,
-                        "content": sentence_buffer.strip()
+                        "content": buffer
                     })
+                    buffer = ""
+                    break
 
-                    sentence_buffer = ""
-
-            # =========================
-            # 🎯 3. evaluation（保持流式）
-            # =========================
-            elif current_type == "evaluation":
-                await streaming_q.put({
-                    "response_type": "evaluation",
-                    "index": index,
-                    "content": content
-                })
-
-        # 🎯 收尾
-        if sentence_buffer.strip():
-            await streaming_q.put({
-                "response_type": "advice",
-                "index": index,
-                "content": sentence_buffer.strip()
-            })
+                break
 
         await streaming_q.put({"response_type": "done"})

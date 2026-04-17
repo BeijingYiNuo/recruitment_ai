@@ -1,3 +1,4 @@
+from assistant.utils.logger import logger
 import pdfplumber
 from docx import Document
 import os
@@ -6,7 +7,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from assistant.LLM.llm_resume_analysis import sync_analyze_resume_with_llm
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject
-
+import io
 
 def extract_text_from_pdf(pdf_path):
     """
@@ -50,30 +51,43 @@ def extract_text_from_docx(docx_path):
     return text
 
 
-def extract_text(file_path):
+def extract_text(file_path: str, file_bytes: bytes):
     """
     根据文件类型提取文本
     
     Args:
         file_path: 文件路径
+        file_bytes: 文件内容
     
     Returns:
         提取的文本内容
     """
     file_extension = os.path.splitext(file_path)[1].lower()
-    if file_extension == ".pdf":
-        return extract_text_from_pdf(file_path)
-    elif file_extension in [".docx", ".doc"]:
-        return extract_text_from_docx(file_path)
-    else:
-        # 默认为文本文件
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception as e:
-            print(f"解析文件失败: {e}")
-            return ""
+    try:
+        # 2. 按文件类型提取文本
+        if file_extension == ".pdf":
+            return extract_text_from_pdf_stream(file_bytes)
+        elif file_extension in [".docx", ".doc"]:
+            return extract_text_from_docx_stream(file_bytes)
+        else:
+            # 文本文件：直接解码
+            return file_bytes.decode("utf-8", errors="replace")
+    except Exception as e:
+        logger.error(f"简历文本提取失败: {e}")
+        return ""
 
+def extract_text_from_pdf_stream(pdf_bytes: bytes) -> str:
+    """从PDF二进制流提取文本（PyPDF2实现）"""
+    from PyPDF2 import PdfReader
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    return "".join([page.extract_text() or "" for page in reader.pages])
+
+
+def extract_text_from_docx_stream(docx_bytes: bytes) -> str:
+    """从Word二进制流提取文本"""
+    from docx import Document
+    doc = Document(io.BytesIO(docx_bytes))
+    return "\n".join([para.text for para in doc.paragraphs])
 
 def parse_resume(file_path):
     """
@@ -243,7 +257,7 @@ def process_resume(db, user_id, file_path, file_type):
         return None, None
 
 
-async def process_resume_background(db, resume_id, file_path, file_type):
+async def process_resume_background(db, resume_id, resume_text: str, user_id: int):
     """
     后台处理简历分析
     
@@ -256,24 +270,28 @@ async def process_resume_background(db, resume_id, file_path, file_type):
     try:
         from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
         
-        # 提取文本
-        content = extract_text(file_path)
-        
-        # 解析简历（直接使用异步函数）
-        parsed_data = await analyze_resume_with_llm(content)
-        
-        # 更新简历记录
-        db_resume = db.query(Resume).filter(Resume.id == resume_id).first()
-        if db_resume:
-            db_resume.content = content
-            db_resume.status = ResumeStatus.ANALYZED
-            db_resume.extracted_at = datetime.now()
-            db.commit()
-            
-            # 存储详情
+        # 1. 解析简历（直接使用异步函数）
+        parsed_data = await analyze_resume_with_llm(resume_text)
+
+        # 2. 查询简历记录
+        resume = db.query(Resume).filter(Resume.id == resume_id).first()
+        if not resume:
+            print(f"后台任务错误：简历{resume_id}不存在")
+            return
+        # 3. 存储解析结果
+        if parsed_data:
             store_resume_details(db, resume_id, parsed_data)
+            resume.status = ResumeStatus.ANALYZED
+            resume.extracted_at = datetime.now()
+            db.commit()
+        else:
+            resume.status = ResumeStatus.FAILED_ANALYSIS
+            db.commit()
+       
     except Exception as e:
-        print(f"后台处理简历失败: {e}")
-        import traceback
-        traceback.print_exc()
-        # 可以添加错误处理和日志记录
+        logger.error(f"简历{resume_id}后台分析失败: {str(e)}")
+        resume = db.query(Resume).filter(Resume.id == resume_id).first()
+        if resume:
+            resume.status = ResumeStatus.FAILED_ANALYSIS
+            db.commit()
+        db.rollback()
