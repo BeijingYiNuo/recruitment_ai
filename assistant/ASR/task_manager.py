@@ -6,8 +6,10 @@ from assistant.utils.logger import logger
 from assistant.LLM.llm_manager import LLMManager
 from assistant.ASR.state_manager import ASRState
 from assistant.ASR.ASRWsClient import AsrWsClient
-import time
-
+from assistant.file.file_manager import TosFileManager
+from sqlalchemy.orm import Session
+import wave
+import io
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -21,6 +23,7 @@ class TaskManager:
             self.llm_manager = LLMManager()
         # 初始化配置管理器
         self.config_manager = ConfigManager()
+        self.file_manager = TosFileManager()
 
     async def build_asr_client(self) -> AsrWsClient:
         """
@@ -86,13 +89,16 @@ class TaskManager:
             'websocket': websocket,
             'req': req
         }
-    async def start_interview(self, session_id: str, req: Any):
+    async def start_interview(self, session_id: str, req: Any, record_voice: bool = False,current_user_id: int = None,db: Session = None):
         """
         为指定会话启动面试服务
         
         Args:
             session_id: 会话ID
             req: ASR请求参数
+            record_voice: 是否记录语音
+            current_user_id: 当前用户ID
+            db: 数据库会话（可选）
         """
         try:
             # 初始化面试任务
@@ -106,7 +112,7 @@ class TaskManager:
             self.clients[session_id]['status'] = 'running'
             
             # 启动各个子任务（使用create_task而不是gather）
-            asr_sender_task = asyncio.create_task(self.asr_sender(session_id))
+            asr_sender_task = asyncio.create_task(self.asr_sender(session_id, record_voice,current_user_id,db))
             asr_receive_task = asyncio.create_task(self.asr_receive(session_id))
             segment_task = asyncio.create_task(self.task_segment_worker(session_id))
             analysis_task = asyncio.create_task(self.task_analysis_worker(session_id))
@@ -123,7 +129,7 @@ class TaskManager:
                 await self.stop_asr(session_id)
             raise
     
-    async def asr_sender(self, session_id: str):
+    async def asr_sender(self, session_id: str, record_voice: bool = False,current_user_id: int = None,db: Session = None):
         """
         给ASR服务端发送音频数据
         
@@ -134,14 +140,23 @@ class TaskManager:
         audio_q = self.clients[session_id]['audio_q']
         stop_event = self.clients[session_id]['stop_event']
         first_packet = True
-        SAMPLE_RATE = 16000
+        SAMPLE_RATE = 16000 
+        wav_buffer = None
+        wf = None
+        if record_voice:
+            wav_buffer = io.BytesIO()
+            wf = wave.open(wav_buffer, "wb")
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(SAMPLE_RATE)
 
         # 在一个循环中不断发送音频数据
         while not stop_event.is_set():
             try:
                 # 为audio_q.get()添加超时，避免长时间阻塞
                 audio_data = await asyncio.wait_for(audio_q.get(), timeout=0.1)
-                
+                if record_voice and wf:
+                    wf.writeframes(audio_data)
                 # 检查音频格式
                 if not isinstance(audio_data, bytes):
                     logger.warning(f"Invalid audio data format: {type(audio_data)}")
@@ -183,6 +198,21 @@ class TaskManager:
                 # 发生异常时短暂休眠，避免CPU占用过高
                 await asyncio.sleep(0.1)
                 continue
+        if record_voice and wf:
+            try:
+                wf.close()
+                self.file_manager.upload_file(
+                    db=db,
+                    user_id=current_user_id,
+                    file_content=wav_buffer.getvalue(),
+                    filename=f"{current_user_id}_{session_id}.wav",
+                    file_type='voice'
+                )
+                logger.info(f"Uploaded audio file for session {session_id}")
+            except Exception as e:
+                logger.error(f"Error in asr_sender upload: {e}")
+
+
 
     async def asr_receive(self, session_id: str):
         """
@@ -221,7 +251,7 @@ class TaskManager:
                 else:
                     logger.error(f"Error in ASR receiver: {e}")
                 # 发生异常时短暂休眠，避免CPU占用过高
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.1) 
                 continue
 
     async def task_segment_worker(self, session_id: str):
@@ -245,7 +275,7 @@ class TaskManager:
             try:
                 # 为text_q.get()添加超时，避免长时间阻塞
                 text = await asyncio.wait_for(text_q.get(), timeout=0.5)
-                logger.info(f"Received text from text_q: {text.get('text')}")
+                # logger.info(f"Received text from text_q: {text.get('text')}")
                 if text is not None:
                     current_block.append(text.get('text'))
             except asyncio.TimeoutError:
@@ -258,14 +288,14 @@ class TaskManager:
                 prev_silence = True
                 block_text = ' '.join(current_block)
                 await block_q.put(block_text)
-                logger.info(f"[silence ]Generated block: {block_text}")
+                # logger.info(f"[silence ]Generated block: {block_text}")
                 current_block.clear() 
                         
             #长度触发
             if len(current_block) >= max_block_length:
                 block_text = ' '.join(current_block)
                 await block_q.put(block_text)
-                logger.info(f"[length ]Generated block: {block_text}")
+                # logger.info(f"[length ]Generated block: {block_text}")
                 current_block.clear() 
             prev_silence = is_silence
     

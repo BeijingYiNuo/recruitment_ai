@@ -118,7 +118,9 @@ class RequestBuilder:
                 "accelerate_score": 5,
                 "enable_punc": True,
                 "show_utterances": True,
-                "enable_nonstream": False,
+                "enable_nonstream": True,
+                "enable_speaker_info": True,
+                "ssd_version" : "200",
                 "end_window_size": 200,
                 "force_to_speech_time": 1000,
                 "result_type": "single"
@@ -342,6 +344,7 @@ class AsrWsClient:
                 if not msg:
                     return None
                 result = msg.get("result")
+                # logger.info(f"********result********: {result}")
                 if not result:
                     return None
                 utterances = result.get("utterances", []) or []
@@ -351,7 +354,9 @@ class AsrWsClient:
                     text = utt.get("text")
                     start_time = utt.get("start_time")
                     end_time = utt.get("end_time")
-                    definite = utt.get("definite")   
+                    definite = utt.get("definite")  
+                    speaker_id = utt.get("additions", {}).get("speaker_id", None) 
+                    logger.info(f"text:{text} definite:{definite} speaker_id:{speaker_id}")
                     try:
                         if text:
                             last_text = text  # 保存最后一个有效的文本
@@ -360,24 +365,33 @@ class AsrWsClient:
                                 async with state.lock:
                                     state.is_silence = False
                                     state.last_voice_time = current_time
-                            await asr_queue.put(text)
+                            asr_data = {
+                                "text": text,
+                                "definite": definite,
+                                "speaker_id": speaker_id
+                            }
                             if definite:
-                                # logger.info(f"text:{text} definite:{definite}")
                                 text_data = {
                                     "text": text,
                                     "start_time": start_time,
                                     "end_time": end_time,
-                                    "last_sound_time": current_time
+                                    "last_sound_time": current_time,
+                                    "speaker_id": speaker_id
                                 }
-                                await text_q.put(text_data)            
+                                asr_data = {
+                                    "text": text,
+                                    "definite": definite,
+                                    "speaker_id": speaker_id
+                                }
+                                await asr_queue.put(asr_data)
+                                await text_q.put(text_data)   
+                            else:
+                                await asr_queue.put(asr_data)
                     except asyncio.QueueFull:
                         logger.info(f"Queue full for session {session_id}")
                         pass
                 # 返回最后一个有效的文本，而不是在第一个循环就返回
                 return last_text
-
-                if resp.is_last_package:
-                    return None
             elif msg_b.type == aiohttp.WSMsgType.ERROR:
                 logger.error(f"WebSocket error: {msg_b.data}")
                 return None
