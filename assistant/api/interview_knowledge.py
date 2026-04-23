@@ -634,3 +634,4 @@ async def delete_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除文档失败"
         )
+

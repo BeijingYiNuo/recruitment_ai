@@ -87,7 +87,8 @@ class TaskManager:
             'state': state,
             'status': 'starting',
             'websocket': websocket,
-            'req': req
+            'req': req,
+            'asr_data_list': []
         }
     async def start_interview(self, session_id: str, req: Any, record_voice: bool = False,current_user_id: int = None,db: Session = None):
         """
@@ -103,6 +104,10 @@ class TaskManager:
         try:
             # 初始化面试任务
             await self.init_interview_task(session_id, req)
+            
+            # 存储 db 和 current_user_id 到客户端信息中
+            self.clients[session_id]['db'] = db
+            self.clients[session_id]['current_user_id'] = current_user_id
             
             # 建立ASR客户端连接
             asr_client = self.clients[session_id]['asr_client']
@@ -226,12 +231,13 @@ class TaskManager:
         text_q = self.clients[session_id]['text_q']
         stop_event = self.clients[session_id]['stop_event']
         state = self.clients[session_id]['state']
+        
 
         # 在一个循环中不断接收ASR结果
         while not stop_event.is_set():
             try:
                 # 接收ASR结果
-                result = await asr_client.receive_asr_response(
+                await asr_client.receive_asr_response(
                     asr_queue=asr_q,
                     text_q=text_q,
                     state=state,
@@ -266,7 +272,7 @@ class TaskManager:
         block_q = self.clients[session_id]['block_q']
         stop_event = self.clients[session_id]['stop_event']
         state = self.clients[session_id]['state']
-        
+        asr_data_list = self.clients[session_id]['asr_data_list']
         # 文本聚集策略参数
         max_block_length = 5  # 最大block长度
         current_block = []
@@ -275,6 +281,10 @@ class TaskManager:
             try:
                 # 为text_q.get()添加超时，避免长时间阻塞
                 text = await asyncio.wait_for(text_q.get(), timeout=0.5)
+                if text:
+                    asr_data_list.append(text)
+                    logger.info(f"asr_data_list text from text_q: {text}")
+
                 # logger.info(f"Received text from text_q: {text.get('text')}")
                 if text is not None:
                     current_block.append(text.get('text'))
@@ -440,7 +450,8 @@ class TaskManager:
 
         client_info = self.clients[session_id]
         state = client_info.get("state")
-
+        asr_data_list = client_info.get("asr_data_list")
+        
         # 1️⃣ 标记状态
         if state:
             state.connected = False
@@ -462,6 +473,8 @@ class TaskManager:
         for task in tasks:
             task.cancel()
 
+        
+
         # 5️⃣ 等待任务结束
         await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -472,8 +485,24 @@ class TaskManager:
                 await asr_client.session.close()
             except Exception:
                 pass
+        
+        # 7️⃣ 处理 asr_data_list 并写入 Markdown 文件
+        asr_data_list = client_info.get('asr_data_list', [])
+        if asr_data_list:
+            current_user_id = client_info.get('current_user_id') or (getattr(client_info.get('req'), 'user_id', None) if client_info.get('req') else None)
+            if current_user_id:
+                try:
+                    from assistant.file.file_manager import TosFileManager
+                    file_manager = TosFileManager()
+                    file_manager.save_asr_data_to_markdown(
+                        asr_data_list=asr_data_list,
+                        session_id=session_id,
+                        current_user_id=current_user_id,
+                        db=client_info.get('db')
+                    )
+                except Exception as e:
+                    logger.error(f"Error saving ASR data to markdown: {e}")
 
-        # 7️⃣ 删除
+        # 8️⃣ 删除
         del self.clients[session_id]
-    
 

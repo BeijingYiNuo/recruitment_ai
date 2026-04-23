@@ -1,6 +1,7 @@
 import os
 import hashlib
-from typing import Optional, Dict, Any
+import time
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 import tos
@@ -10,10 +11,21 @@ from assistant.entity.tos_file import TosFile
 
 
 class TosFileManager:
-    """基于 TOS SDK 的文件管理器"""
+    """基于 TOS SDK 的文件管理器（单例模式）"""
+    
+    _instance = None
+    _lock = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(TosFileManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self):
-        """初始化 TOS 文件管理器"""
+        if self._initialized:
+            return
+        
         self.config_manager = ConfigManager()
         tos_config = self.config_manager.config['tos']
         
@@ -26,6 +38,7 @@ class TosFileManager:
         )
         
         self.bucket_name = tos_config['bucket_name']
+        self._initialized = True
         logger.info(f"TOS FileManager initialized with bucket: {self.bucket_name}")
     
     def _calculate_file_hash(self, file_content: bytes) -> str:
@@ -248,3 +261,83 @@ class TosFileManager:
         except Exception as e:
             logger.error(f"Failed to generate pre-signed URL: {e}")
             raise
+
+    def format_time_fast(self, ms: int | None) -> str:
+        if ms is None:
+            return "00:00"
+        m = ms // 60000
+        s = (ms % 60000) // 1000
+        return f"{m:02d}:{s:02d}"
+    
+    def save_asr_data_to_markdown(
+        self,
+        asr_data_list: List[Dict[str, Any]],
+        session_id: str,
+        current_user_id: int,
+        db: Optional[Session] = None
+    ) -> bool:
+        """
+        保存 ASR 数据到 Markdown 文件并上传到 TOS
+        
+        Args:
+            asr_data_list: ASR 数据列表
+            session_id: 会话ID
+            current_user_id: 当前用户ID
+            db: 数据库会话（可选）
+            
+        Returns:
+            bool: 保存是否成功
+        """
+        try:
+            if not asr_data_list:
+                logger.info(f"No ASR data to save for session {session_id}")
+                return False
+            
+            timestamp = time.strftime('%Y%m%d_%H%M%S')
+            md_file_path = f"/tmp/interview_{current_user_id}_{session_id}_{timestamp}.md"
+            
+            # 生成 Markdown 文件
+            with open(md_file_path, 'w', encoding='utf-8') as md_file:
+                md_file.write(f"# 面试记录 - {timestamp}\n\n")
+                md_file.write("## 语音识别内容\n\n")
+                for asr_data in asr_data_list:
+                    text = asr_data.get('text', '')
+                    speaker_id = asr_data.get('speaker_id', '未知')
+                    start_time = asr_data.get('start_time')
+                    start_time_str = self.format_time_fast(start_time)
+                    md_file.write(f"**说话人 {speaker_id}**: {start_time_str}\n")
+                    md_file.write(f"{text}\n\n")
+            
+            logger.info(f"Markdown file created: {md_file_path}")
+            
+            # 上传到 TOS
+            if db:
+                try:
+                    with open(md_file_path, 'rb') as f:
+                        file_content = f.read()
+                    
+                    self.upload_file(
+                        db=db,
+                        user_id=current_user_id,
+                        file_content=file_content,
+                        filename=f"interview_{current_user_id}_{session_id}_{timestamp}.md",
+                        file_type='dialogue'
+                    )
+                    
+                    # 删除临时文件
+                    os.remove(md_file_path)
+                    logger.info(f"Markdown file uploaded to TOS and temporary file removed")
+                    return True
+                except Exception as e:
+                    logger.error(f"Error uploading markdown file: {e}")
+                    # 删除临时文件
+                    if os.path.exists(md_file_path):
+                        os.remove(md_file_path)
+                    return False
+            else:
+                logger.warning("No database session provided, skipping TOS upload")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to save ASR data to markdown: {e}")
+            return False

@@ -98,6 +98,7 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
     try:
         # 停止ASR服务（会自动断开WebSocket连接）
         await task_manager.stop_asr(session_id)
+        
         session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == current_user_id).first()
         session.status = SessionStatus.COMPLETED
         db.commit()
