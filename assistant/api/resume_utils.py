@@ -6,9 +6,9 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Optional
 from assistant.LLM.llm_resume_analysis import sync_analyze_resume_with_llm
-from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject
+from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
 import io
-
+from assistant.enums import UserRole, UserStatus
 def extract_text_from_pdf(pdf_path):
     """
     使用 pdfplumber 从 PDF 文件中提取文本
@@ -118,7 +118,7 @@ def parse_resume(file_path):
     return parsed_data
 
 
-def store_resume_details(db, resume_id, parsed_data):
+def store_resume_details(db, resume_id, parsed_data,current_user_id: int):
     """
     存储简历详情到相关表
     
@@ -127,6 +127,25 @@ def store_resume_details(db, resume_id, parsed_data):
         resume_id: 简历 ID
         parsed_data: 解析后的结构化数据
     """
+
+    person_info = parsed_data.get("person_info", {})
+    if person_info:
+        # Validate and truncate fields to ensure they fit in database columns
+        username = (person_info.get("name") or "")[:50]
+        email = (person_info.get("email") or "")[:100]
+        # Remove non-digit characters and truncate to 15 digits (reasonable phone number length)
+        phone = ''.join(filter(str.isdigit, person_info.get("phone") or ""))[:15]
+        
+        db_user = User(
+            username=username,
+            recruiter_id=current_user_id,
+            email=email,
+            phone=phone,
+            role=UserRole.CANDIDATE,
+            status=UserStatus.ACTIVATE,
+        )
+        db.add(db_user)
+    
     # 存储教育经历
     for edu in parsed_data.get("educations", []):
         # 处理日期字段，确保不为 None
@@ -142,9 +161,9 @@ def store_resume_details(db, resume_id, parsed_data):
         
         db_education = ResumeEducation(
             resume_id=resume_id,
-            school_name=edu.get("school_name") or "",
-            degree=edu.get("degree") or "",
-            major=edu.get("major") or "",
+            school_name=(edu.get("school_name") or "")[:100],
+            degree=(edu.get("degree") or "")[:50],
+            major=(edu.get("major") or "")[:100],
             start_date=start_date,
             end_date=end_date,
             is_985=edu.get("is_985", 0),
@@ -167,8 +186,8 @@ def store_resume_details(db, resume_id, parsed_data):
         
         db_work = ResumeWorkExperience(
             resume_id=resume_id,
-            company_name=work.get("company_name") or "",
-            position=work.get("position") or "",
+            company_name=(work.get("company_name") or "")[:100],
+            position=(work.get("position") or "")[:100],
             start_date=start_date,
             end_date=end_date,
             description=work.get("description") or ""
@@ -179,8 +198,8 @@ def store_resume_details(db, resume_id, parsed_data):
     for skill in parsed_data.get("skills", []):
         db_skill = ResumeSkill(
             resume_id=resume_id,
-            skill_name=skill.get("skill_name") or "",
-            proficiency_level=skill.get("proficiency_level") or ""
+            skill_name=(skill.get("skill_name") or "")[:100],
+            proficiency_level=(skill.get("proficiency_level") or "")[:20]
         )
         db.add(db_skill)
     
@@ -199,15 +218,19 @@ def store_resume_details(db, resume_id, parsed_data):
         
         db_project = ResumeProject(
             resume_id=resume_id,
-            project_name=project.get("project_name") or "",
+            project_name=(project.get("project_name") or "")[:100],
             description=project.get("description") or "",
             start_date=start_date,
             end_date=end_date,
-            role=project.get("role") or ""
+            role=(project.get("role") or "")[:100]
         )
         db.add(db_project)
     
     db.commit()
+    if username:
+        return username
+    else:
+        return "未知"
 
 
 def process_resume(db, user_id, file_path, file_type):
@@ -233,23 +256,6 @@ def process_resume(db, user_id, file_path, file_type):
             print("解析失败")
             return None, None
         
-        # 创建简历记录
-        # db_resume = Resume(
-        #     user_id=user_id,
-        #     file_path=file_path,
-        #     file_type=file_type,
-        #     status=ResumeStatus.ANALYZED,
-        #     content=content,
-        #     extracted_at=datetime.now()
-        # )
-        # db.add(db_resume)
-        # db.commit()
-        # db.refresh(db_resume)
-        
-        # 存储详情
-        # store_resume_details(db, db_resume.id, parsed_data)
-        # print(f"存储成功，简历 ID: {db_resume.id}")
-        
         return None, parsed_data
     except Exception as e:
         print(f"处理简历失败: {e}")
@@ -257,7 +263,7 @@ def process_resume(db, user_id, file_path, file_type):
         return None, None
 
 
-async def process_resume_background(db, resume_id, resume_text: str, user_id: int):
+async def process_resume_background(db, resume_id, resume_text: str, current_user_id: int):
     """
     后台处理简历分析
     
@@ -280,14 +286,15 @@ async def process_resume_background(db, resume_id, resume_text: str, user_id: in
             return
         # 3. 存储解析结果
         if parsed_data:
-            store_resume_details(db, resume_id, parsed_data)
+            candidate_name = store_resume_details(db, resume_id, parsed_data,current_user_id)
             resume.status = ResumeStatus.ANALYZED
             resume.extracted_at = datetime.now()
+            resume.candidate_name = candidate_name
             db.commit()
         else:
             resume.status = ResumeStatus.FAILED_ANALYSIS
             db.commit()
-       
+    
     except Exception as e:
         logger.error(f"简历{resume_id}后台分析失败: {str(e)}")
         resume = db.query(Resume).filter(Resume.id == resume_id).first()

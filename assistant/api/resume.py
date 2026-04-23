@@ -196,7 +196,7 @@ async def delete_resume_by_user(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """根据用户ID删除简历"""
+    """根据简历ID删除简历"""
     # 检查用户是否存在
     user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
@@ -225,6 +225,8 @@ async def delete_resume_by_user(
     db.query(ResumeSkill).filter(ResumeSkill.resume_id == db_resume.id).delete()
     # 删除项目经历
     db.query(ResumeProject).filter(ResumeProject.resume_id == db_resume.id).delete()
+    # 删除用户记录
+    db.query(User).filter(User.username == db_resume.candidate_name).delete()
     
     # 删除主表记录
     db.delete(db_resume)

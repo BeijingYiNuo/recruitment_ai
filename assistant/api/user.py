@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
 import re
+from assistant.entity import Resume
 from passlib.context import CryptContext
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -14,7 +15,8 @@ from assistant.entity.VO import UserResponse
 from assistant.utils.logger import logger
 from assistant.user_management.auth_utils import create_access_token
 from assistant.user_management.auth_middleware import get_current_user_id
-
+from assistant.api.resume import delete_resume_by_user
+from fastapi import BackgroundTasks
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -32,7 +34,7 @@ def get_users(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """获取用户列表"""
-    users = db.query(User).filter(User.id == current_user_id).offset(skip).limit(limit).all()
+    users = db.query(User).filter(User.id == current_user_id or User.recruiter_id==current_user_id).offset(skip).limit(limit).all()
     return users
 
 
@@ -281,7 +283,7 @@ def update_user(
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(
+async def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
@@ -293,6 +295,11 @@ def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
+    
+    
+    db_resumes = db.query(Resume).filter(Resume.candidate_name == db_user.username).all()
+    for resume in db_resumes:
+        await delete_resume_by_user(resume.id, db, BackgroundTasks(), current_user_id)
     
     db.delete(db_user)
     db.commit()

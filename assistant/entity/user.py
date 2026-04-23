@@ -10,10 +10,11 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True, comment="用户ID")
     username = Column(String(50), nullable=False, comment="用户名")
-    email = Column(String(100), unique=True, nullable=False, comment="邮箱")
+    recruiter_id = Column(Integer, nullable=False, comment="招聘官ID")
+    email = Column(String(100), unique=False, nullable=False, comment="邮箱")
     phone = Column(String(20), comment="手机号")
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.CANDIDATE, comment="角色")
+    role = Column(Enum(UserRole), nullable=True, default=UserRole.RECRUITER, comment="角色")
     status = Column(Enum(UserStatus), nullable=False, default=UserStatus.ACTIVATE, comment="状态")
     created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
