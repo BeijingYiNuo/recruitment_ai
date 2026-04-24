@@ -135,16 +135,24 @@ def store_resume_details(db, resume_id, parsed_data,current_user_id: int):
         email = (person_info.get("email") or "")[:100]
         # Remove non-digit characters and truncate to 15 digits (reasonable phone number length)
         phone = ''.join(filter(str.isdigit, person_info.get("phone") or ""))[:15]
-        
-        db_user = User(
-            username=username,
-            recruiter_id=current_user_id,
-            email=email,
-            phone=phone,
-            role=UserRole.CANDIDATE,
-            status=UserStatus.ACTIVATE,
-        )
-        db.add(db_user)
+
+        db_user = db.query(User).filter(User.username == username).first()
+        if db_user:
+            db_user.email = email
+            db_user.recruiter_id = current_user_id
+            db_user.phone = phone
+            db.commit()
+            logger.info(f"[用户 {username} 已更新]，跳过存储")
+        else:
+            db_user = User(
+                username=username,
+                recruiter_id=current_user_id,
+                email=email,
+                phone=phone,
+                role=UserRole.CANDIDATE,
+                status=UserStatus.ACTIVATE,
+            )
+            db.add(db_user)
     
     # 存储教育经历
     for edu in parsed_data.get("educations", []):
