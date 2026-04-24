@@ -4,8 +4,8 @@ from datetime import datetime
 from assistant.entity import InterviewSession, User
 from assistant.enums import SessionStatus
 from assistant.entity.DTO import InterviewSessionCreate, InterviewSessionUpdate
-
-
+from assistant.utils.logger import logger
+import time
 def validate_user_exists(db: Session, user_id: int) -> bool:
     """
     验证用户是否存在
@@ -119,9 +119,11 @@ def create_interview_session(db: Session, user_id: int, session_data: InterviewS
     
     # 5. 如果没有出现问题则写入数据库
     # 创建面试会话
+    logger.info(f"[{time.strftime('%H:%M:%S')}] 创建面试会话成功")
     db_session = InterviewSession(
         candidate_name=session_data.candidate_name,
         recruiter_id=recruiter_id,
+        knowledge_id=session_data.knowledge_id,
         resume_id=session_data.resume_id,
         session_type=session_data.session_type,
         status=SessionStatus.SCHEDULED,

@@ -9,6 +9,7 @@ class InterviewSessionCreate(BaseModel):
     """面试会话创建模型"""
     candidate_name: str
     resume_id: Optional[int] = None
+    knowledge_id: Optional[int] = None
     session_type: SessionType
     scheduled_start_at: str
     scheduled_end_at: str

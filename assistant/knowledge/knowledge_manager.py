@@ -1,5 +1,5 @@
 import json
-import requests
+import aiohttp
 from typing import List, Tuple, Optional
 
 from volcengine.auth.SignerV4 import SignerV4
@@ -234,6 +234,36 @@ class KnowledgeManager:
         except Exception as e:
             logger.error(f"user {user_id} Error adding document: {e}")
             raise e
+    async def search_knowledge(self, search_text:str,collection_name:str):
+        try:
+            method = "POST"
+            path = "/api/knowledge/collection/search_knowledge"
+            request_params = {
+                "name": collection_name,
+                "query": search_text,
+            }
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.request(
+                    method=info_req.method,
+                    url="https://{}{}".format(self.host, info_req.path),
+                    headers=info_req.headers,
+                    data=info_req.body,
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as rsp:
+                    json_data = await rsp.json()
+                    data = json_data.get('data') or {}
+                    result_list = data.get("result_list",[])
+                    if not result_list:
+                        logger.info(f"user Search knowledge response no result")
+                        return ''
+                    content = result_list[0].get('content', '') if result_list else ''
+                    logger.info(f"user Search knowledge response success")
+                    return content
+        except Exception as e:
+            logger.error(f"user Error search knowledge: {e}")
+            raise
 
     def delete_document(self, user_id, doc_name:str,uri:str,collection_name:str):
         try:    

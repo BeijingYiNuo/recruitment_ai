@@ -10,6 +10,7 @@ from assistant.file.file_manager import TosFileManager
 from sqlalchemy.orm import Session
 import wave
 import io
+from assistant.entity import InterviewSession, UserKnowledge
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -104,6 +105,14 @@ class TaskManager:
         try:
             # 初始化面试任务
             await self.init_interview_task(session_id, req)
+            knowledge_id = db.query(InterviewSession).filter(InterviewSession.id == session_id).first().knowledge_id
+            if knowledge_id:
+                collection_name = db.query(UserKnowledge).filter(UserKnowledge.id == knowledge_id).first().name
+                if collection_name:
+                    self.clients[session_id]['collection_name'] = collection_name
+                    logger.info(f"[启动知识库检索: {collection_name}")
+                else:
+                    logger.info(f"[未启动知识库检索]")
             
             # 存储 db 和 current_user_id 到客户端信息中
             self.clients[session_id]['db'] = db
@@ -321,6 +330,8 @@ class TaskManager:
         result_q = self.clients[session_id]['result_q']
         stop_event = self.clients[session_id]['stop_event']
         state = self.clients[session_id]['state']
+        collection_name = self.clients[session_id]['collection_name'] or None
+
         index = 0
         while not stop_event.is_set():
             try:
@@ -330,7 +341,7 @@ class TaskManager:
                 if block_text:
                     # 调用LLM分析
                     index += 1
-                    llm_result = await self.llm_manager.analyze(block_text, streaming_q, stop_event,index)
+                    llm_result = await self.llm_manager.analyze(block_text, streaming_q, stop_event,index,collection_name)
                     
                     if llm_result:
                         # 放入streaming_q（流式输出）

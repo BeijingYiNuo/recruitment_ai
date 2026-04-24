@@ -23,7 +23,7 @@ class LLMManager:
             base_url=self.config_manager.get_llm_config()['url'],
         )
 
-    async def analyze(self, block: str, streaming_llm_q: asyncio.Queue, stop_event: asyncio.Event,index: int) -> dict:
+    async def analyze(self, block: str, streaming_llm_q: asyncio.Queue, stop_event: asyncio.Event,index: int,collection_name: str = None) -> dict:
         """
         分析文本
         
@@ -36,13 +36,34 @@ class LLMManager:
             dict: 分析结果
         """
         
-        # 构建系统提示词
-        ANALYSIS_PROMPT = self.prompt_manager.get_prompt_template('analysis')
-        system_prompt = ANALYSIS_PROMPT
-
+        # 检索知识库信息
+        knowledge_base_info = ""
+        if collection_name:
+            try:
+                logger.info(f"[{time.strftime('%H:%M:%S')}] 开始检索知识库...")
+                # 直接使用 await 调用异步的 search_knowledge 方法
+                knowledge_base_info = await self.knowledge_manager.search_knowledge(
+                    search_text=block,
+                    collection_name=collection_name
+                )
+                logger.info(f"[{time.strftime('%H:%M:%S')}] 知识库检索结果: {knowledge_base_info}")
+            except Exception as e:
+                logger.error(f"[{time.strftime('%H:%M:%S')}] 知识库检索失败: {str(e)}")
+                knowledge_base_info = ""
+        
+        # 使用 PromptManager 生成提示词，动态注入知识库信息
+        system_prompt = self.prompt_manager.generate_prompt(
+            user_id="",
+            template_name="analysis",
+            knowledge_base_info=knowledge_base_info
+        )
+        # ANALYSIS_PROMPT = self.prompt_manager.get_prompt_template('analysis')
+        # system_prompt = ANALYSIS_PROMPT
+        
         messages = [
             {"role": "system", "content": system_prompt}
         ]
+        
         messages.append(
             {"role":"user", "content": f"当前面试对话单元：\n{block}"}
         )

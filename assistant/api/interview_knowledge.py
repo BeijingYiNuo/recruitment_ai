@@ -431,6 +431,25 @@ async def list_point(
     )
     return api_response
 
+@router.get("/collection/search")
+async def search_collection(
+    search_text: str,
+    collection_name: str,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    搜索知识库
+    
+    - **search_text**: 搜索文本，不能为空
+    - **collection_name**: 知识库名称，不能为空
+    """
+    api_response = knowledge_manager.search_knowledge(
+        user_id=str(current_user_id),
+        search_text=search_text,
+        collection_name=collection_name
+    )
+    return api_response
 
 @router.post("/document/add")
 async def add_document(
