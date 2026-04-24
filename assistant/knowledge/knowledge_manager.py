@@ -262,6 +262,31 @@ class KnowledgeManager:
         except Exception as e:
             logger.error(f"user {user_id} Error adding document: {e}")
             raise e
+
+    def list_point(self, user_id: str, collection_name:str, doc_id:List[str]):
+        try:
+            method = "POST"
+            path = "/api/knowledge/point/list"
+            request_params = {
+                "collection_name": collection_name,
+                "doc_ids": doc_id
+            }
+            info_req = self._prepare_request(method=method, path=path, data=request_params)
+            rsp = requests.request(
+                method=info_req.method,
+                url="https://{}{}".format(self.host, info_req.path),
+                headers=info_req.headers,
+                data=info_req.body
+            )
+            
+            json_data = rsp.json()
+            logger.info(f"user {user_id} List point response success")
+            
+            return json_data
+        except Exception as e:
+            logger.error(f"user {user_id} Error list point: {e}")
+            raise e
+
     def get_knowledge_trigger(self, user_id: str, client: Optional[object] = None) -> 'KnowledgeTrigger':
         """
         获取知识库触发器

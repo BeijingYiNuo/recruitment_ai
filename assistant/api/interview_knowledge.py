@@ -409,6 +409,28 @@ async def get_knowledge_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取知识库信息失败"
         )
+@router.post("/document/list_point")
+async def list_point(
+    collection_name: str,
+    doc_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    获取文档所有切片
+
+    - **collection_name**: 知识库名称，不能为空
+    - **doc_id**: 文档 ID，从/api/document/list 获取 对应响应的id字段
+    """
+    if isinstance(doc_id, str):
+        doc_id = [doc_id]
+    api_response = knowledge_manager.list_point(
+        user_id=str(current_user_id),
+        collection_name=collection_name,
+        doc_id=doc_id
+    )
+    return api_response
+
 
 @router.post("/document/add")
 async def add_document(
