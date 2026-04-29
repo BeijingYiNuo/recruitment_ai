@@ -13,7 +13,7 @@ from assistant.entity.interview_helper import (
 )
 from assistant.entity.knowledge import UserKnowledge, KnowledgeRole, ChunkingStrategy
 from assistant.enums import (
-    UserRole, UserStatus, ResumeStatus,
+    UserRole, ResumeStatus,
     SessionType, SessionStatus, Recommendation,
     ReminderStatus, SendMethod, ReportStatus,
     QuestionType
@@ -21,7 +21,7 @@ from assistant.enums import (
 
 __all__ = [
     # User
-    "User", "UserRole", "UserStatus",
+    "User", "UserRole",
     # Resume
     "Resume", "ResumeStatus", "ResumeEducation", "ResumeWorkExperience", "ResumeSkill", "ResumeProject",
     # Interview

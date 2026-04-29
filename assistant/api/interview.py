@@ -101,8 +101,11 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
         
         session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == current_user_id).first()
         session.status = SessionStatus.COMPLETED
+        user = db.query(User).filter(User.name == session.candidate_name).first()
+        user.status = "COMPLETED"
         db.commit()
         db.refresh(session)
+        db.refresh(user)
         return {
             "status": "completed"
         }

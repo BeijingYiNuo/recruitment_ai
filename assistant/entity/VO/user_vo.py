@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
-from assistant.enums import UserRole, UserStatus
+from assistant.enums import UserRole
 
 
 class UserResponse(BaseModel):
@@ -11,7 +11,7 @@ class UserResponse(BaseModel):
     email: str
     phone: Optional[str] = None
     role: UserRole
-    status: UserStatus
+    status: str
     created_at: datetime
     last_login_at: Optional[datetime] = None
 

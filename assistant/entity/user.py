@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Enum, func
 from sqlalchemy.orm import relationship
 from assistant.config.database import Base
-from assistant.enums import UserRole, UserStatus
+from assistant.enums import UserRole
 
 
 class User(Base):
@@ -15,7 +15,7 @@ class User(Base):
     phone = Column(String(20), comment="手机号")
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
     role = Column(Enum(UserRole), nullable=True, default=UserRole.RECRUITER, comment="角色")
-    status = Column(Enum(UserStatus), nullable=False, default=UserStatus.ACTIVATE, comment="状态")
+    status = Column(String(20), nullable=False, default="CREATED", comment="状态")
     created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     last_login_at = Column(DateTime, comment="最后登录时间")

@@ -1,5 +1,5 @@
 import enum
-from .user_enum import UserRole, UserStatus
+from .user_enum import UserRole
 from .resume_enum import ResumeStatus
 from .interview_enum import (
     SessionType, SessionStatus, Recommendation,
@@ -9,7 +9,7 @@ from .interview_enum import (
 
 __all__ = [
     # User
-    "UserRole", "UserStatus",
+    "UserRole",
     # Resume
     "ResumeStatus",
     # Interview

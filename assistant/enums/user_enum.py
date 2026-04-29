@@ -6,10 +6,3 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     RECRUITER = "recruiter"
     CANDIDATE = "candidate"
-
-
-class UserStatus(str, enum.Enum):
-    """用户状态枚举"""
-    ACTIVATE = "activate"
-    INACTIVATE = "inactivate"
-    DELETED = "deleted"

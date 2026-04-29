@@ -8,7 +8,6 @@ from typing import Dict, Any, Optional
 from assistant.LLM.llm_resume_analysis import sync_analyze_resume_with_llm
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
 import io
-from assistant.enums import UserRole, UserStatus
 def extract_text_from_pdf(pdf_path):
     """
     使用 pdfplumber 从 PDF 文件中提取文本
@@ -150,7 +149,7 @@ def store_resume_details(db, resume_id, parsed_data,current_user_id: int):
                 email=email,
                 phone=phone,
                 role=UserRole.CANDIDATE,
-                status=UserStatus.ACTIVATE,
+                status="CREATED",
             )
             db.add(db_user)
     

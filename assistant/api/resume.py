@@ -194,24 +194,34 @@ async def delete_resume_by_user(
     resume_id: int,
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    current_user_id: int = Depends(get_current_user_id)
+    current_user_id: int = Depends(get_current_user_id),
+    skip_background: bool = False
 ):
     """根据简历ID删除简历"""
-    # 检查用户是否存在
-    user = db.query(User).filter(User.id == current_user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
-    
     # 根据简历ID查找简历
-    db_resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
+    db_resume = db.query(Resume).filter(Resume.id == resume_id).first()
     if not db_resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在或不属于当前用户所有"
+            detail="简历不存在"
         )
+    
+    # 验证权限：如果提供了current_user_id，则验证该用户是否有权限删除
+    # 如果current_user_id为0或None，则跳过权限检查（用于内部调用）
+    if current_user_id and current_user_id > 0:
+        # 检查current_user_id对应的用户是否存在
+        recruiter = db.query(User).filter(User.id == current_user_id).first()
+        if not recruiter:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+        # 验证简历是否属于当前用户的招聘对象
+        if db_resume.user_id != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="简历不存在或不属于当前用户所有"
+            )
     
     # 保存文件路径用于后台删除
     file_path = db_resume.file_path
@@ -232,8 +242,11 @@ async def delete_resume_by_user(
     db.delete(db_resume)
     db.commit()
     
-    # 后台删除文件，避免阻塞
-    background_tasks.add_task(delete_resume_file, file_path, db)
+    # 后台删除文件，避免阻塞 (当skip_background为True时直接删除)
+    if skip_background:
+        delete_resume_file(file_path, db)
+    else:
+        background_tasks.add_task(delete_resume_file, file_path, db)
     
     return None
 

@@ -9,7 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from assistant.config.database import get_db
-from assistant.entity import User, UserStatus
+from assistant.entity import User
 from assistant.entity.DTO import UserCreate, UserUpdate, UserLogin, TokenResponse
 from assistant.entity.VO import UserResponse
 from assistant.utils.logger import logger
@@ -94,7 +94,7 @@ def create_user(
         phone=user.phone,
         password_hash=hashed_password,
         role=user.role,
-        status=UserStatus.ACTIVATE,
+        status="CREATED",
         last_login_at=None
     )
     
@@ -139,12 +139,6 @@ def login_user(
             detail="用户名或密码错误"
         )
     
-    # 检查用户状态
-    if db_user.status != UserStatus.ACTIVATE:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="账号已被禁用"
-        )
     
     # 验证密码
     if not pwd_context.verify(user.password, db_user.password_hash):
@@ -296,12 +290,15 @@ async def delete_user(
             detail="用户不存在"
         )
     
-    
+    from assistant.api.resume import delete_resume_by_user, delete_resume_file
     db_resumes = db.query(Resume).filter(Resume.candidate_name == db_user.username).all()
     for resume in db_resumes:
-        await delete_resume_by_user(resume.id, db, BackgroundTasks(), current_user_id)
+        await delete_resume_by_user(resume.id, db, current_user_id=0, skip_background=True)
     
-    db.delete(db_user)
-    db.commit()
+    # Check if user still exists before deleting (it might have been deleted by delete_resume_by_user)
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if db_user:
+        db.delete(db_user)
+        db.commit()
     
     return None
