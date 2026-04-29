@@ -1,5 +1,5 @@
 import urllib
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -13,7 +13,7 @@ import tempfile
 from datetime import datetime
 from typing import Dict, Any
 from fastapi import BackgroundTasks
-from assistant.api.resume_utils import process_resume_background, store_resume_details, extract_text
+from assistant.api.resume_utils import process_resume_background_with_images, store_resume_details, extract_text
 from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
@@ -26,6 +26,13 @@ from assistant.entity.VO import (
 )
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.utils.logger import logger
+from passlib.context import CryptContext
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# 限流配置
+limiter = Limiter(key_func=get_remote_address)
 
 file_manager = TosFileManager()
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
@@ -43,8 +50,11 @@ def get_resumes(
     resumes = db.query(Resume).filter(Resume.user_id == current_user_id).offset(skip).limit(limit).all()
     return resumes
 
+
 @router.post("/import", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def import_resume(
+    request: Request,
     user_id: int,
     candidate_name: str,
     file: UploadFile = File(...),
@@ -52,35 +62,31 @@ async def import_resume(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """导入简历：先返回结果，后台异步大模型分析"""
-    # 1. 检查用户是否存在（原有逻辑不变）
+    """导入简历：PDF 转图片后用视觉 LLM 识别，后台异步分析"""
+    # 1. 检查用户是否存在
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
-    # 2. 读取文件 + 校验（原有逻辑不变）
+    
+    # 2. 读取文件 + 校验
     content = await file.read()
     if not content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="文件内容为空"
         )
+    
     max_size = 10 * 1024 * 1024  # 10MB
     if len(content) > max_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"文件大小超过限制（{max_size // 1024 // 1024}MB）"
         )
-    try:
-        resume_text = extract_text(file_path=file.filename, file_bytes = content)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"文件内容提取失败: {str(e)}"
-        )
-    # 上传文件到 TOS
+    
+    # 3. 上传文件到 TOS（保存原始文件）
     result = file_manager.upload_file(
         db=db,
         user_id=current_user_id,
@@ -89,7 +95,7 @@ async def import_resume(
         file_type="resume"
     )
     
-    # 检查用户是否已有简历记录
+    # 4. 检查用户是否已有简历记录
     existing_resume = db.query(Resume).filter(Resume.candidate_name == candidate_name).first()
     
     if existing_resume:
@@ -117,10 +123,18 @@ async def import_resume(
         db.commit()
         db.refresh(db_resume)
     
-    # 后台处理简历分析
-    background_tasks.add_task(process_resume_background, db, db_resume.id, resume_text, current_user_id)
+    # 5. 后台处理简历分析（PDF 转图片 + 视觉 LLM 识别）
+    # 传入文件二进制内容和文件名，后台自行判断是否需要图片识别
+    background_tasks.add_task(
+        process_resume_background_with_images,
+        db,
+        db_resume.id,
+        content,  # 文件二进制内容
+        file.filename,  # 文件名（用于判断文件类型）
+        current_user_id
+    )
     
-    # 立即返回初步响应
+    # 立即返回响应
     return {
         "id": db_resume.id,
         "user_id": db_resume.user_id,
@@ -128,7 +142,7 @@ async def import_resume(
         "file_type": db_resume.file_type,
         "status": db_resume.status,
     }
-    
+
 
 @router.get("/{resume_id}", response_model=ResumeResponse)
 def get_resume_by_user(
@@ -154,6 +168,7 @@ def get_resume_by_user(
         )
     return resume
 
+
 @router.get("/download/{resume_id}")
 async def download_resume(
     resume_id: int,
@@ -173,12 +188,14 @@ async def download_resume(
             detail="简历不存在或不属于当前用户所有"
         )
     
-    
     # 记录下载日志
     logger.info(f"User {current_user_id} downloaded resume {resume_id}")
+    
+    # 下载文件
     file_content = file_manager.download_file(resume.file_path)
     filename = os.path.basename(resume.file_path)
     encoded_filename = urllib.parse.quote(filename)
+    
     # 返回文件
     return StreamingResponse(
             iter([file_content]),
@@ -206,17 +223,14 @@ async def delete_resume_by_user(
             detail="简历不存在"
         )
     
-    # 验证权限：如果提供了current_user_id，则验证该用户是否有权限删除
-    # 如果current_user_id为0或None，则跳过权限检查（用于内部调用）
+    # 验证权限
     if current_user_id and current_user_id > 0:
-        # 检查current_user_id对应的用户是否存在
         recruiter = db.query(User).filter(User.id == current_user_id).first()
         if not recruiter:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
             )
-        # 验证简历是否属于当前用户的招聘对象
         if db_resume.user_id != current_user_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -227,22 +241,17 @@ async def delete_resume_by_user(
     file_path = db_resume.file_path
     
     # 删除关联表数据
-    # 删除教育经历
     db.query(ResumeEducation).filter(ResumeEducation.resume_id == db_resume.id).delete()
-    # 删除工作经历
     db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == db_resume.id).delete()
-    # 删除技能
     db.query(ResumeSkill).filter(ResumeSkill.resume_id == db_resume.id).delete()
-    # 删除项目经历
     db.query(ResumeProject).filter(ResumeProject.resume_id == db_resume.id).delete()
-    # 删除用户记录
     db.query(User).filter(User.username == db_resume.candidate_name).delete()
     
     # 删除主表记录
     db.delete(db_resume)
     db.commit()
     
-    # 后台删除文件，避免阻塞 (当skip_background为True时直接删除)
+    # 后台删除文件
     if skip_background:
         delete_resume_file(file_path, db)
     else:
@@ -251,13 +260,12 @@ async def delete_resume_by_user(
     return None
 
 
-def delete_resume_file(file_path: str, db: Session = Depends(get_db)):
+def delete_resume_file(file_path: str, db: Session = None):
     """后台删除简历文件"""
     try:
         file_manager.delete_file(file_path, db)
     except Exception as e:
         logger.error(f"删除文件失败: {e}")
-        # 可以添加错误处理和日志记录
 
 
 # 教育经历相关接口
@@ -268,7 +276,6 @@ def get_resume_educations(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的教育经历"""
-    # 检查简历是否存在
     resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
@@ -279,6 +286,7 @@ def get_resume_educations(
     educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all()
     return educations
 
+
 # 工作经历相关接口
 @router.get("/{resume_id}/work-experiences", response_model=List[ResumeWorkExperienceResponse])
 def get_resume_work_experiences(
@@ -287,7 +295,6 @@ def get_resume_work_experiences(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的工作经历"""
-    # 检查简历是否存在
     resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
@@ -298,6 +305,7 @@ def get_resume_work_experiences(
     work_experiences = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all()
     return work_experiences
 
+
 # 技能相关接口
 @router.get("/{resume_id}/skills", response_model=List[ResumeSkillResponse])
 def get_resume_skills(
@@ -306,7 +314,6 @@ def get_resume_skills(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的技能"""
-    # 检查简历是否存在
     resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(
@@ -317,6 +324,7 @@ def get_resume_skills(
     skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all()
     return skills
 
+
 # 项目经历相关接口
 @router.get("/{resume_id}/projects", response_model=List[ResumeProjectResponse])
 def get_resume_projects(
@@ -325,7 +333,6 @@ def get_resume_projects(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """获取简历的项目经历"""
-    # 检查简历是否存在
     resume = db.query(Resume).filter(Resume.id == resume_id, Resume.user_id == current_user_id).first()
     if not resume:
         raise HTTPException(

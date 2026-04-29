@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import asyncio
 import json
 import wave
+from assistant.entity.user import User
 from fastapi import WebSocketDisconnect
 from assistant.config.database import get_db
 from assistant.entity import (
@@ -101,7 +102,7 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
         
         session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == current_user_id).first()
         session.status = SessionStatus.COMPLETED
-        user = db.query(User).filter(User.name == session.candidate_name).first()
+        user = db.query(User).filter(User.username == session.candidate_name).first()
         user.status = "COMPLETED"
         db.commit()
         db.refresh(session)
