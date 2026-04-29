@@ -73,7 +73,8 @@ class TosFileManager:
         user_id: int,
         file_content: bytes,
         filename: str,
-        file_type: str
+        file_type: str,
+        session_id: int = 0
     ) -> Dict[str, Any]:
         """
         上传文件到 TOS
@@ -110,6 +111,7 @@ class TosFileManager:
             # 保存到数据库 - file_uri 存储 tos_key 的值
             db_file = TosFile(
                 user_id=user_id,
+                session_id=session_id,
                 file_name=filename,
                 file_type=file_type,  # 使用传入的 file_type 参数（resume/voice/dialogue）
                 file_size=len(file_content),
@@ -320,6 +322,7 @@ class TosFileManager:
                         db=db,
                         user_id=current_user_id,
                         file_content=file_content,
+                        session_id=session_id,
                         filename=f"interview_{current_user_id}_{session_id}_{timestamp}.md",
                         file_type='dialogue'
                     )

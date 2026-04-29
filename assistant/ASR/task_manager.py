@@ -218,6 +218,7 @@ class TaskManager:
                 self.file_manager.upload_file(
                     db=db,
                     user_id=current_user_id,
+                    session_id=session_id,
                     file_content=wav_buffer.getvalue(),
                     filename=f"{current_user_id}_{session_id}.wav",
                     file_type='voice'

@@ -9,6 +9,7 @@ class TosFile(Base):
     
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="主键 ID")
     user_id = Column(BigInteger, nullable=False, comment="所属用户 ID")
+    session_id = Column(BigInteger, nullable=False, comment="所属会话 ID")
     file_name = Column(String(256), nullable=False, comment="原始文件名")
     file_type = Column(String(64), nullable=False, comment="文件类型（resume/voice/dialogue）")
     file_size = Column(BigInteger, nullable=False, comment="文件大小（字节）")
