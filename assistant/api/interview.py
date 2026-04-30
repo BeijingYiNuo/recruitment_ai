@@ -30,13 +30,11 @@ from assistant.entity.VO import (
 )
 
 from assistant.user_management.auth_middleware import get_current_user_id, get_current_user_id_from_websocket
-from assistant.audio.audio_manager import AudioManager
 from assistant.ASR.task_manager import TaskManager
 from assistant.LLM.llm_manager import LLMManager
 from assistant.utils.logger import logger
 import numpy as np
 # 初始化各个管理器
-audio_manager = AudioManager()
 llm_manager = LLMManager()
 task_manager = TaskManager(llm_manager=llm_manager)
 

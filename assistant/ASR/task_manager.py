@@ -1,5 +1,4 @@
 import asyncio
-import sounddevice as sd
 from typing import Dict, Any, Optional
 from assistant.config.config_manager import ConfigManager
 from assistant.utils.logger import logger
