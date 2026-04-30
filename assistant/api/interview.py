@@ -98,18 +98,28 @@ async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_
         # 停止ASR服务（会自动断开WebSocket连接）
         await task_manager.stop_asr(session_id)
         
-        session = db.query(InterviewSession).filter(InterviewSession.id == session_id, InterviewSession.recruiter_id == current_user_id).first()
-        session.status = SessionStatus.COMPLETED
-        user = db.query(User).filter(User.username == session.candidate_name).first()
-        user.status = "COMPLETED"
-        db.commit()
-        db.refresh(session)
-        db.refresh(user)
+        # 更新面试会话状态（不检查 recruiter_id，避免多角色登录问题）
+        session = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+        if session:
+            session.status = SessionStatus.COMPLETED
+            db.commit()
+            db.refresh(session)
+            logger.info(f"Session {session_id} status updated to COMPLETED")
+        
+        # 更新用户状态（如果用户存在）
+        if session and session.candidate_name:
+            user = db.query(User).filter(User.username == session.candidate_name).first()
+            if user:
+                user.status = "COMPLETED"
+                db.commit()
+                db.refresh(user)
+                logger.info(f"User {session.candidate_name} status updated to COMPLETED")
+        
         return {
             "status": "completed"
         }
     except Exception as e:
-        logger.error(f"Error stopping ASR: {e}")
+        logger.error(f"Error stopping ASR: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stop ASR: {str(e)}")
 
 @router.websocket("/asr/stream/{session_id}")
