@@ -1,12 +1,48 @@
-fastapi
-uvicorn
-python-multipart
-numpy
-sounddevice
-aiohttp
-openai
-volcengine
-mysql-connector-python
-bcrypt
-python-jose[cryptography]
-python-dotenv
+# ============================================================
+# 完整依赖列表 - 基于代码静态分析生成
+# ============================================================
+
+# ===== 核心 Web 框架 =====
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+httpx>=0.25.0
+requests>=2.31.0
+
+# ===== 数据库 =====
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+mysql-connector-python>=8.2.0
+
+# ===== 认证安全 =====
+bcrypt>=4.0.0
+python-jose[cryptography]>=3.3.0    # 导入名: jose
+python-dotenv>=1.0.0                # 导入名: dotenv
+passlib>=1.7.4
+
+# ===== 限流 =====
+slowapi>=0.1.9
+
+# ===== PDF/文档处理 =====
+PyMuPDF>=1.23.0                     # 导入名: fitz - PDF 转图片
+pdfplumber>=0.10.0                  # PDF 文本提取
+python-docx>=1.1.0                  # 导入名: docx - Word 文档解析
+PyPDF2>=3.0.0                       # PDF 文本提取备用
+
+# ===== AI/LLM 相关 =====
+openai>=1.0.0                       # LLM 调用
+aiohttp>=3.9.0                      # 异步 HTTP
+
+# ===== 音频/ASR 相关 =====
+numpy>=1.24.0
+sounddevice>=0.4.6
+soundfile>=0.12.0                   # 音频文件读写
+librosa>=0.10.0                     # 音频处理
+
+# ===== 火山引擎 =====
+volcengine>=1.0.0
+volcengine-python-sdk>=1.0.0        # 导入名: tos - 对象存储
+
+# ===== 系统工具 =====
+websockets>=12.0
