@@ -13,7 +13,13 @@ import tempfile
 from datetime import datetime
 from typing import Dict, Any
 from fastapi import BackgroundTasks
-from assistant.api.resume_utils import process_resume_background_with_images, store_resume_details, extract_text
+from assistant.api.resume_utils import (
+    process_resume_background_with_images, 
+    store_resume_details, 
+    extract_text,
+    delete_resume_file,
+    delete_resume_data
+)
 from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
@@ -26,15 +32,14 @@ from assistant.entity.VO import (
 )
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.utils.logger import logger
-from passlib.context import CryptContext
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # 限流配置
 limiter = Limiter(key_func=get_remote_address)
-
 file_manager = TosFileManager()
+
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
 
@@ -215,57 +220,14 @@ async def delete_resume_by_user(
     skip_background: bool = False
 ):
     """根据简历ID删除简历"""
-    # 根据简历ID查找简历
-    db_resume = db.query(Resume).filter(Resume.id == resume_id).first()
-    if not db_resume:
+    try:
+        delete_resume_data(resume_id, db, current_user_id, skip_background)
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在"
+            detail=str(e)
         )
-    
-    # 验证权限
-    if current_user_id and current_user_id > 0:
-        recruiter = db.query(User).filter(User.id == current_user_id).first()
-        if not recruiter:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户不存在"
-            )
-        if db_resume.user_id != current_user_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="简历不存在或不属于当前用户所有"
-            )
-    
-    # 保存文件路径用于后台删除
-    file_path = db_resume.file_path
-    
-    # 删除关联表数据
-    db.query(ResumeEducation).filter(ResumeEducation.resume_id == db_resume.id).delete()
-    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == db_resume.id).delete()
-    db.query(ResumeSkill).filter(ResumeSkill.resume_id == db_resume.id).delete()
-    db.query(ResumeProject).filter(ResumeProject.resume_id == db_resume.id).delete()
-    db.query(User).filter(User.username == db_resume.candidate_name).delete()
-    
-    # 删除主表记录
-    db.delete(db_resume)
-    db.commit()
-    
-    # 后台删除文件
-    if skip_background:
-        delete_resume_file(file_path, db)
-    else:
-        background_tasks.add_task(delete_resume_file, file_path, db)
-    
     return None
-
-
-def delete_resume_file(file_path: str, db: Session = None):
-    """后台删除简历文件"""
-    try:
-        file_manager.delete_file(file_path, db)
-    except Exception as e:
-        logger.error(f"删除文件失败: {e}")
 
 
 # 教育经历相关接口

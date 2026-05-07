@@ -7,6 +7,8 @@ import io
 import base64
 from pathlib import Path
 from datetime import datetime
+from sqlalchemy.orm import Session
+from fastapi import BackgroundTasks
 from assistant.enums.user_enum import UserRole
 from assistant.LLM.llm_resume_analysis import sync_analyze_resume_with_llm, analyze_resume_with_llm
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
@@ -34,6 +36,11 @@ except Exception as e:
     logger.warning(f"LLM 客户端初始化失败: {e}")
     llm_client = None
     VISION_MODEL = None
+
+# 延迟导入 TosFileManager，避免循环依赖
+def get_file_manager():
+    from assistant.file.file_manager import TosFileManager
+    return TosFileManager()
 
 
 def extract_text_from_pdf(pdf_path):
@@ -117,7 +124,7 @@ def extract_text_from_docx_stream(docx_bytes: bytes) -> str:
     return "\n".join([para.text for para in doc.paragraphs])
 
 
-# ========== 新增：PDF 转图片 + 图片识别相关函数 ==========
+# ========== PDF 转图片 + 图片识别相关函数 ==========
 
 def pdf_to_images(pdf_bytes: bytes, output_dir: str = None, dpi: int = 300) -> tuple:
     """
@@ -258,6 +265,64 @@ def cleanup_temp_images(image_paths: list, output_dir: str = None):
     logger.info("临时图片清理完成")
 
 
+def delete_resume_file(file_path: str, db: Session = None):
+    """后台删除简历文件"""
+    try:
+        file_manager = get_file_manager()
+        file_manager.delete_file(file_path, db)
+    except Exception as e:
+        logger.error(f"删除文件失败: {e}")
+
+
+def delete_resume_data(
+    resume_id: int,
+    db: Session,
+    current_user_id: int = 0,
+    skip_background: bool = False
+):
+    """
+    删除简历数据（数据库层面，不含 API 路由）
+    
+    Args:
+        resume_id: 简历 ID
+        db: 数据库会话
+        current_user_id: 当前用户 ID（0 表示跳过权限检查）
+        skip_background: 是否跳过后台文件删除
+    """
+    # 根据简历ID查找简历
+    db_resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    if not db_resume:
+        raise ValueError("简历不存在")
+    
+    # 验证权限（如果提供了 current_user_id）
+    if current_user_id and current_user_id > 0:
+        recruiter = db.query(User).filter(User.id == current_user_id).first()
+        if not recruiter:
+            raise ValueError("用户不存在")
+        if db_resume.user_id != current_user_id:
+            raise ValueError("简历不存在或不属于当前用户所有")
+    
+    # 保存文件路径用于后台删除
+    file_path = db_resume.file_path
+    
+    # 删除关联表数据
+    db.query(ResumeEducation).filter(ResumeEducation.resume_id == db_resume.id).delete()
+    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == db_resume.id).delete()
+    db.query(ResumeSkill).filter(ResumeSkill.resume_id == db_resume.id).delete()
+    db.query(ResumeProject).filter(ResumeProject.resume_id == db_resume.id).delete()
+    db.query(User).filter(User.username == db_resume.candidate_name).delete()
+    
+    # 删除主表记录
+    db.delete(db_resume)
+    db.commit()
+    
+    # 后台删除文件
+    if not skip_background:
+        delete_resume_file(file_path, db)
+    
+    return True
+
+
 def parse_resume(file_path):
     """
     解析简历文件
@@ -289,7 +354,7 @@ def parse_resume(file_path):
 
 def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
     """
-    存储简历详情到相关表（修复重复插入问题：同时检查 username 和 email）
+    存储简历详情到相关表
     
     Args:
         db: 数据库会话
@@ -306,6 +371,7 @@ def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
         # Remove non-digit characters and truncate to 15 digits (reasonable phone number length)
         phone = ''.join(filter(str.isdigit, person_info.get("phone") or ""))[:15]
 
+        # 同时检查 username 和 email，只要有一个匹配就算已存在
         db_user = db.query(User).filter(
             (User.username == username) | (User.email == email)
         ).first()
@@ -328,7 +394,7 @@ def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
                 status="CREATED",
             )
             db.add(db_user)
-            db.commit()  
+            db.commit()  # 立即提交，避免后续外键依赖问题
             logger.info(f"[新用户创建成功] username: {username}, email: {email}")
     
     # 存储教育经历
@@ -496,7 +562,7 @@ async def process_resume_background(db, resume_id, resume_text: str, current_use
             logger.error(f"简历 {resume_id} 分析失败")
     
     except Exception as e:
-        logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True) 
+        logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True)  # 打印完整堆栈
         resume = db.query(Resume).filter(Resume.id == resume_id).first()
         if resume:
             resume.status = ResumeStatus.FAILED_ANALYSIS
@@ -563,7 +629,7 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
             logger.error(f"简历 {resume_id} 分析失败")
     
     except Exception as e:
-        logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True) 
+        logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True)  # 打印完整堆栈
         
         # 出错时也要确保清理临时图片
         if image_paths:

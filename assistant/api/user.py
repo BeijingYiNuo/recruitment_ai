@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
 import re
-from assistant.entity import Resume
+from assistant.entity import Resume, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject
 from passlib.context import CryptContext
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -17,6 +17,8 @@ from assistant.user_management.auth_utils import create_access_token
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.api.resume import delete_resume_by_user
 from fastapi import BackgroundTasks
+from assistant.api.resume_utils import delete_resume_data, delete_resume_file
+
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -83,8 +85,8 @@ def create_user(
             detail="用户名已被使用"
         )
     
-    # 密码加密（bcrypt限制密码长度为72字节）
-    password_to_hash = user.password[:72]  # 截断密码到72字节
+    # 密码加密
+    password_to_hash = user.password[:72]
     hashed_password = pwd_context.hash(password_to_hash)
     
     # 创建新用户
@@ -94,7 +96,7 @@ def create_user(
         phone=user.phone,
         password_hash=hashed_password,
         role=user.role,
-        status="CREATED",
+        status="ACTIVE",
         last_login_at=None
     )
     
@@ -119,7 +121,8 @@ def create_user(
         )
     
     return db_user
-    
+
+
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login_user(
@@ -128,9 +131,6 @@ def login_user(
     db: Session = Depends(get_db)
 ):
     """用户登录"""
-    # 记录登录请求
-    # client_ip = get_remote_address(request)
-    
     # 查找用户
     db_user = db.query(User).filter(User.username == user.username).first()
     if not db_user:
@@ -224,7 +224,6 @@ def update_user(
     
     # 处理密码加密
     if "password_hash" in update_data:
-        # 验证密码强度
         password = update_data["password_hash"]
         if len(password) > 72:
             raise HTTPException(
@@ -290,15 +289,17 @@ async def delete_user(
             detail="用户不存在"
         )
     
-    from assistant.api.resume import delete_resume_by_user, delete_resume_file
+    # 删除该用户的所有简历及关联数据
     db_resumes = db.query(Resume).filter(Resume.candidate_name == db_user.username).all()
     for resume in db_resumes:
-        await delete_resume_by_user(resume.id, db, current_user_id=0, skip_background=True)
+        try:
+            delete_resume_data(resume.id, db, current_user_id=0, skip_background=True)
+        except Exception as e:
+            logger.error(f"Error deleting resume {resume.id} for user {user_id}: {e}")
     
-    # Check if user still exists before deleting (it might have been deleted by delete_resume_by_user)
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if db_user:
-        db.delete(db_user)
-        db.commit()
+    # 删除用户记录
+    db.delete(db_user)
+    db.commit()
     
+    logger.info(f"User {user_id} deleted successfully")
     return None
