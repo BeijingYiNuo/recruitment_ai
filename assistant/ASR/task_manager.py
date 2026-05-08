@@ -135,6 +135,7 @@ class TaskManager:
             self.clients[session_id]['tasks'] = [asr_sender_task, asr_receive_task, segment_task, analysis_task, send_task]
             
             logger.info(f"ASR service started for session {session_id}")
+            logger.info(f"Tasks created: asr_sender={asr_sender_task}, asr_receive={asr_receive_task}, segment={segment_task}, analysis={analysis_task}, send={send_task}")
         except Exception as e:
             logger.error(f"Error starting ASR service: {e}")
             # 清理资源
@@ -286,36 +287,47 @@ class TaskManager:
         max_block_length = 5  # 最大block长度
         current_block = []
         prev_silence = False
+        logger.info(f"task_segment_worker started for session {session_id}")
+        
         while not stop_event.is_set():
             try:
                 # 为text_q.get()添加超时，避免长时间阻塞
                 text = await asyncio.wait_for(text_q.get(), timeout=0.5)
                 if text:
                     asr_data_list.append(text)
-                    logger.info(f"asr_data_list text from text_q: {text}")
+                    logger.info(f"[segment_worker] Received text from text_q: {text}")
 
-                # logger.info(f"Received text from text_q: {text.get('text')}")
                 if text is not None:
-                    current_block.append(text.get('text'))
+                    text_content = text.get('text')
+                    if text_content:
+                        current_block.append(text_content)
+                        logger.info(f"[segment_worker] Added to current_block, length: {len(current_block)}")
+                        
+                        # 长度触发
+                        if len(current_block) >= max_block_length:
+                            block_text = ' '.join(current_block)
+                            await block_q.put(block_text)
+                            logger.info(f"[length ]Generated block: {block_text}")
+                            current_block.clear()
+                            
+                        # 收到文本后重置静默状态
+                        prev_silence = False
             except asyncio.TimeoutError:
                 pass
+            
+            # 检查静默状态
             async with state.lock:
                 is_silence = state.is_silence
-            #静默触发
-            # logger.info(f"current_silence: {is_silence}, prev_silence:      {prev_silence}, current_block len: {len(current_block)}")
+            
+            logger.debug(f"[segment_worker] is_silence: {is_silence}, prev_silence: {prev_silence}, current_block len: {len(current_block)}")
+            
+            # 静默触发：从有声音变为静默时触发
             if is_silence and not prev_silence and current_block:
-                prev_silence = True
                 block_text = ' '.join(current_block)
                 await block_q.put(block_text)
-                # logger.info(f"[silence ]Generated block: {block_text}")
-                current_block.clear() 
-                        
-            #长度触发
-            if len(current_block) >= max_block_length:
-                block_text = ' '.join(current_block)
-                await block_q.put(block_text)
-                # logger.info(f"[length ]Generated block: {block_text}")
-                current_block.clear() 
+                logger.info(f"[silence ]Generated block: {block_text}")
+                current_block.clear()
+            
             prev_silence = is_silence
     
     async def task_analysis_worker(self, session_id: str):
@@ -330,14 +342,25 @@ class TaskManager:
         result_q = self.clients[session_id]['result_q']
         stop_event = self.clients[session_id]['stop_event']
         state = self.clients[session_id]['state']
-        collection_name = self.clients[session_id]['collection_name'] or None
+        # 使用get方法避免KeyError，collection_name可能不存在
+        collection_name = self.clients[session_id].get('collection_name') or None
+        logger.info(f"task_analysis_worker started for session {session_id}, collection_name: {collection_name}")
 
         index = 0
+        logger.info(f"task_analysis_worker entering main loop for session {session_id}")
+        
         while not stop_event.is_set():
             try:
+                # 检查队列状态
+                if stop_event.is_set():
+                    logger.info(f"task_analysis_worker stop_event set, exiting")
+                    break
+                    
+                logger.debug(f"task_analysis_worker waiting for block_q, current qsize: {block_q.qsize()}")
+                
                 # 为block_q.get()添加超时，避免长时间阻塞
                 block_text = await asyncio.wait_for(block_q.get(), timeout=0.1)
-                
+                logger.info(f"Received block from block_q: {block_text}")
                 if block_text:
                     # 调用LLM分析
                     index += 1

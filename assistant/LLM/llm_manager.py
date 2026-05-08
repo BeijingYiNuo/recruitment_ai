@@ -67,7 +67,7 @@ class LLMManager:
         messages.append(
             {"role":"user", "content": f"当前面试对话单元：\n{block}"}
         )
-        
+        logger.info(f"[{time.strftime('%H:%M:%S')}] 开始分析文本...")
         stream = await self.llm_client.chat.completions.create(
             messages=messages,
             extra_body={"thinking": {"type": "disabled"}},
