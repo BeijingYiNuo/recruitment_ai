@@ -1,9 +1,10 @@
+import asyncio
 import urllib
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
-from assistant.config.database import get_db
+from assistant.config.database import get_db, SessionLocal
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
 from fastapi import UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -14,8 +15,8 @@ from datetime import datetime
 from typing import Dict, Any
 from fastapi import BackgroundTasks
 from assistant.api.resume_utils import (
-    process_resume_background_with_images, 
-    store_resume_details, 
+    process_resume_background_with_images,
+    store_resume_details,
     extract_text,
     delete_resume_file,
     delete_resume_data
@@ -75,22 +76,16 @@ async def import_resume(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
-    
+
     # 2. 读取文件 + 校验
     content = await file.read()
-    if not content:
+    is_valid, err_msg = file_manager.validate_file_size(content)
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件内容为空"
+            detail=err_msg
         )
-    
-    max_size = 10 * 1024 * 1024  # 10MB
-    if len(content) > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"文件大小超过限制（{max_size // 1024 // 1024}MB）"
-        )
-    
+
     # 3. 上传文件到 TOS（保存原始文件）
     result = file_manager.upload_file(
         db=db,
@@ -99,10 +94,10 @@ async def import_resume(
         filename=file.filename,
         file_type="resume"
     )
-    
+
     # 4. 检查用户是否已有简历记录
     existing_resume = db.query(Resume).filter(Resume.candidate_name == candidate_name).first()
-    
+
     if existing_resume:
         # 更新原有简历记录
         existing_resume.file_path = result['tos_key']
@@ -127,9 +122,8 @@ async def import_resume(
         db.add(db_resume)
         db.commit()
         db.refresh(db_resume)
-    
+
     # 5. 后台处理简历分析（PDF 转图片 + 视觉 LLM 识别）
-    # 传入文件二进制内容和文件名，后台自行判断是否需要图片识别
     background_tasks.add_task(
         process_resume_background_with_images,
         db,
@@ -138,7 +132,7 @@ async def import_resume(
         file.filename,  # 文件名（用于判断文件类型）
         current_user_id
     )
-    
+
     # 立即返回响应
     return {
         "id": db_resume.id,
@@ -147,6 +141,143 @@ async def import_resume(
         "file_type": db_resume.file_type,
         "status": db_resume.status,
     }
+
+
+@router.post("/import/batch", response_model=List[Dict[str, Any]], status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
+async def import_resumes_batch(
+    request: Request,
+    user_id: int,
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """批量导入简历，并行解析，支持一次上传多个 PDF/Word 文件"""
+    # 1. 检查用户是否存在
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    if not files or len(files) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="请至少上传一个文件"
+        )
+
+    max_size = 10 * 1024 * 1024  # 10MB
+    max_files = 20
+    if len(files) > max_files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"单次最多上传 {max_files} 个文件"
+        )
+
+    # ========== 阶段1：并发读取所有文件 ==========
+    async def _read_file(file: UploadFile) -> dict:
+        content = await file.read()
+        return {"filename": file.filename, "content": content}
+
+    file_datas = await asyncio.gather(*[_read_file(f) for f in files], return_exceptions=True)
+
+    # ========== 阶段2：并行处理每个文件（上传TOS + 创建DB记录）==========
+    def _process_single_file(file_data: dict) -> dict:
+        """同步处理单个文件的上传和入库"""
+        filename = file_data["filename"]
+        content = file_data["content"]
+
+        if isinstance(content, Exception):
+            return {"filename": filename, "success": False, "error": f"读取文件失败: {content}"}
+
+        if not content:
+            return {"filename": filename, "success": False, "error": "文件内容为空"}
+
+        if len(content) > max_size:
+            return {
+                "filename": filename,
+                "success": False,
+                "error": f"文件大小超过限制（{max_size // 1024 // 1024}MB）"
+            }
+
+        # 每个文件使用独立数据库会话，避免并发冲突
+        session = SessionLocal()
+        try:
+            result = file_manager.upload_file(
+                db=session,
+                user_id=current_user_id,
+                file_content=content,
+                filename=filename,
+                file_type="resume"
+            )
+
+            db_resume = Resume(
+                user_id=user_id,
+                file_path=result['tos_key'],
+                file_type=result['file_type'],
+                candidate_name="待解析",
+                status=ResumeStatus.UPLOADED,
+                content=None,
+                extracted_at=datetime.now()
+            )
+            session.add(db_resume)
+            session.commit()
+            session.refresh(db_resume)
+
+            return {
+                "filename": filename,
+                "content": content,
+                "resume_id": db_resume.id,
+                "success": True,
+            }
+        except Exception as e:
+            session.rollback()
+            return {"filename": filename, "success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    # 使用线程池执行同步 IO 操作（TOS上传），并行处理
+    loop = asyncio.get_event_loop()
+    tasks = [loop.run_in_executor(None, _process_single_file, fd) for fd in file_datas]
+    processed = await asyncio.gather(*tasks)
+
+    # ========== 阶段3：并发启动所有后台分析任务 ==========
+    async def _run_analysis(item: dict):
+        if not item.get("success"):
+            return item
+        session = SessionLocal()
+        try:
+            await process_resume_background_with_images(
+                session, item["resume_id"], item["content"], item["filename"], current_user_id
+            )
+        except Exception as e:
+            logger.error(f"简历分析失败 [{item['filename']}]: {e}")
+        finally:
+            session.close()
+
+    # 所有分析任务并发执行（不等待完成，立即返回）
+    analysis_tasks = [asyncio.create_task(_run_analysis(item)) for item in processed]
+    asyncio.ensure_future(asyncio.gather(*analysis_tasks, return_exceptions=True))
+
+    # ========== 返回结果 ==========
+    results = []
+    for item in processed:
+        if item.get("success"):
+            results.append({
+                "id": item["resume_id"],
+                "filename": item["filename"],
+                "success": True,
+                "status": "UPLOADED",
+            })
+        else:
+            results.append({
+                "filename": item["filename"],
+                "success": False,
+                "error": item["error"],
+            })
+
+    return results
 
 
 @router.get("/{resume_id}", response_model=ResumeResponse)
@@ -180,35 +311,31 @@ async def download_resume(
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """下载简历文件"""
-    # 检查简历是否存在且属于当前用户
+    """下载简历文件（支持大文件流式下载）"""
     resume = db.query(Resume).filter(
-        Resume.id == resume_id, 
+        Resume.id == resume_id,
         Resume.user_id == current_user_id
     ).first()
-    
+
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="简历不存在或不属于当前用户所有"
         )
-    
-    # 记录下载日志
+
     logger.info(f"User {current_user_id} downloaded resume {resume_id}")
-    
-    # 下载文件
-    file_content = file_manager.download_file(resume.file_path)
+
     filename = os.path.basename(resume.file_path)
     encoded_filename = urllib.parse.quote(filename)
-    
-    # 返回文件
+
     return StreamingResponse(
-            iter([file_content]),
-            media_type="application/octet-stream",
-            headers={
-                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
-            }
-        )
+        file_manager.stream_file_content(resume.file_path),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+            "Transfer-Encoding": "chunked"
+        }
+    )
 
 
 @router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -140,7 +140,7 @@ class TosFileManager:
     
     def download_file(self, tos_key: str) -> bytes:
         """
-        从 TOS 下载文件
+        从 TOS 下载文件（一次性读取，适用于小文件）
         
         Args:
             tos_key: TOS 对象键
@@ -159,6 +159,63 @@ class TosFileManager:
         except Exception as e:
             logger.error(f"Failed to download file from TOS: {e}")
             raise
+    
+    def download_file_stream(self, tos_key: str, chunk_size: int = 8192):
+        """
+        从 TOS 流式下载文件（逐块读取，适用于大文件）
+
+        Args:
+            tos_key: TOS 对象键
+            chunk_size: 每次读取的块大小（默认8KB）
+
+        Returns:
+            Generator: 文件内容块的生成器
+        """
+        try:
+            result = self.client.get_object(
+                bucket=self.bucket_name,
+                key=tos_key
+            )
+
+            while True:
+                chunk = result.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"Failed to stream file from TOS: {e}")
+            raise
+
+    def stream_file_content(self, tos_key: str):
+        """
+        流式生成文件内容（供下载接口使用）
+
+        Args:
+            tos_key: TOS 对象键
+
+        Yields:
+            bytes: 文件内容块
+        """
+        yield from self.download_file_stream(tos_key)
+
+    @staticmethod
+    def validate_file_size(content: bytes, max_size: int = 10 * 1024 * 1024) -> tuple[bool, str]:
+        """
+        校验文件大小
+
+        Args:
+            content: 文件内容
+            max_size: 最大允许大小（默认 10MB）
+
+        Returns:
+            tuple: (是否合法, 错误信息)
+        """
+        if not content:
+            return False, "文件内容为空"
+        if len(content) > max_size:
+            return False, f"文件大小超过限制（{max_size // 1024 // 1024}MB）"
+        return True, ""
     
     def delete_file(self, tos_key: str, db: Optional[Session] = None) -> bool:
         """
