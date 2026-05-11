@@ -12,11 +12,13 @@ from assistant.entity.interview_helper import (
     EvaluationStandard, InterviewAudioTranscript
 )
 from assistant.entity.knowledge import UserKnowledge, KnowledgeRole, ChunkingStrategy
+from assistant.entity.position import Position, PositionRound
 from assistant.enums import (
     UserRole, ResumeStatus,
     SessionType, SessionStatus, Recommendation,
     ReminderStatus, SendMethod, ReportStatus,
-    QuestionType
+    QuestionType,
+    PositionStatus, RoundType,
 )
 
 __all__ = [
@@ -34,5 +36,7 @@ __all__ = [
     "InterviewQuestion", "QuestionType",
     "EvaluationStandard", "InterviewAudioTranscript",
     # Knowledge
-    "UserKnowledge", "KnowledgeRole", "ChunkingStrategy"
+    "UserKnowledge", "KnowledgeRole", "ChunkingStrategy",
+    # Position
+    "Position", "PositionRound", "PositionStatus", "RoundType",
 ]

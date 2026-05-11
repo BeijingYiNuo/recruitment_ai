@@ -13,6 +13,9 @@ from assistant.entity.VO.interview_helper_vo import (
     InterviewAudioTranscriptResponse
 )
 from assistant.entity.VO.knowledge_vo import KnowledgeBaseResponse
+from assistant.entity.VO.position_vo import (
+    PositionResponse, PositionListResponse, PositionRoundResponse
+)
 
 __all__ = [
     # User
@@ -28,5 +31,7 @@ __all__ = [
     "InterviewQuestionResponse", "EvaluationStandardResponse",
     "InterviewAudioTranscriptResponse",
     # Knowledge
-    "KnowledgeBaseResponse"
+    "KnowledgeBaseResponse",
+    # Position
+    "PositionResponse", "PositionListResponse", "PositionRoundResponse",
 ]

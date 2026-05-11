@@ -1,6 +1,6 @@
 from assistant.entity.DTO.user_dto import UserCreate, UserUpdate, UserLogin, TokenResponse
 from assistant.entity.DTO.resume_dto import (
-    ResumeCreate, ResumeUpdate, ResumeEducationCreate,
+    ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate
 )
 from assistant.entity.DTO.interview_dto import (
@@ -16,12 +16,16 @@ from assistant.entity.DTO.interview_helper_dto import (
     InterviewAudioTranscriptCreate, InterviewAudioTranscriptUpdate
 )
 from assistant.entity.DTO.knowledge_dto import CreateKnowledgeBaseRequest
+from assistant.entity.DTO.position_dto import (
+    PositionCreate, PositionUpdate,
+    PositionRoundCreate, PositionRoundUpdate, PositionRoundReorder
+)
 
 __all__ = [
     # User
     "UserCreate", "UserUpdate", "UserLogin", "TokenResponse",
     # Resume
-    "ResumeCreate", "ResumeUpdate", "ResumeEducationCreate",
+    "ResumeCreate", "ResumeUpdate", "ResumeReviewRequest", "ResumeEducationCreate",
     "ResumeWorkExperienceCreate", "ResumeSkillCreate", "ResumeProjectCreate",
     # Interview
     "InterviewSessionCreate", "InterviewSessionUpdate",
@@ -34,5 +38,8 @@ __all__ = [
     "EvaluationStandardCreate", "EvaluationStandardUpdate",
     "InterviewAudioTranscriptCreate", "InterviewAudioTranscriptUpdate",
     # Knowledge
-    "CreateKnowledgeBaseRequest"
+    "CreateKnowledgeBaseRequest",
+    # Position
+    "PositionCreate", "PositionUpdate",
+    "PositionRoundCreate", "PositionRoundUpdate", "PositionRoundReorder",
 ]
