@@ -16,6 +16,12 @@ class ResumeResponse(BaseModel):
     updated_at: datetime
     extracted_at: Optional[datetime] = None
 
+    # 审核相关字段
+    review_status: Optional[str] = None
+    reviewer_id: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    review_comment: Optional[str] = None
+
     class Config:
         from_attributes = True
 

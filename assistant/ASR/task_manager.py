@@ -44,19 +44,21 @@ class TaskManager:
         return client
         
 
-    async def init_interview_task(self, session_id: str, req: Any, websocket=None) -> None:
+    async def init_interview_task(self, session_id: str, round_id: str, req: Any, websocket=None) -> None:
         """
         初始化面试任务
-        
+
         Args:
             session_id: 会话ID
+            round_id: 轮次ID
             req: ASR请求参数
             websocket: WebSocket连接对象
         """
+        composite_key = f"{session_id}_{round_id}"
         # 停止之前的ASR服务
-        if session_id in self.clients:
-            await self.stop_asr(session_id)
-        
+        if composite_key in self.clients:
+            await self.stop_asr(composite_key)
+
         # 创建停止事件和队列
         stop_event = asyncio.Event()
 
@@ -67,14 +69,14 @@ class TaskManager:
         block_q = asyncio.Queue(maxsize=500)
         streaming_q = asyncio.Queue(maxsize=500)
         result_q = asyncio.Queue(maxsize=500)
-        output_q = asyncio.Queue(maxsize=500)   
+        output_q = asyncio.Queue(maxsize=500)
         state = ASRState()  # 创建状态对象,生命周期覆盖面试全过程
-        
+
         # 创建ASR客户端实例
         asr_client = await self.build_asr_client()
-        
+
         # 保存客户端信息
-        self.clients[session_id] = {
+        self.clients[composite_key] = {
             'asr_client': asr_client,
             'stop_event': stop_event,
             'audio_q': audio_q,
@@ -88,71 +90,77 @@ class TaskManager:
             'status': 'starting',
             'websocket': websocket,
             'req': req,
-            'asr_data_list': []
+            'asr_data_list': [],
+            'session_id': session_id,
+            'round_id': round_id
         }
-    async def start_interview(self, session_id: str, req: Any, record_voice: bool = False,current_user_id: int = None,db: Session = None):
+    async def start_interview(self, session_id: str, round_id: str, req: Any, record_voice: bool = False, current_user_id: int = None, db: Session = None):
         """
-        为指定会话启动面试服务
-        
+        为指定轮次启动面试服务
+
         Args:
             session_id: 会话ID
+            round_id: 轮次ID
             req: ASR请求参数
             record_voice: 是否记录语音
             current_user_id: 当前用户ID
             db: 数据库会话（可选）
         """
+        composite_key = f"{session_id}_{round_id}"
         try:
             # 初始化面试任务
-            await self.init_interview_task(session_id, req)
+            await self.init_interview_task(session_id, round_id, req)
             knowledge_id = db.query(InterviewSession).filter(InterviewSession.id == session_id).first().knowledge_id
             if knowledge_id:
                 collection_name = db.query(UserKnowledge).filter(UserKnowledge.id == knowledge_id).first().name
                 if collection_name:
-                    self.clients[session_id]['collection_name'] = collection_name
+                    self.clients[composite_key]['collection_name'] = collection_name
                     logger.info(f"[启动知识库检索: {collection_name}")
                 else:
                     logger.info(f"[未启动知识库检索]")
-            
+
             # 存储 db 和 current_user_id 到客户端信息中
-            self.clients[session_id]['db'] = db
-            self.clients[session_id]['current_user_id'] = current_user_id
-            
+            self.clients[composite_key]['db'] = db
+            self.clients[composite_key]['current_user_id'] = current_user_id
+
             # 建立ASR客户端连接
-            asr_client = self.clients[session_id]['asr_client']
+            asr_client = self.clients[composite_key]['asr_client']
             await asr_client.create_asr_connection()
-            
+
             # 更新状态
-            self.clients[session_id]['status'] = 'running'
-            
+            self.clients[composite_key]['status'] = 'running'
+
             # 启动各个子任务（使用create_task而不是gather）
-            asr_sender_task = asyncio.create_task(self.asr_sender(session_id, record_voice,current_user_id,db))
-            asr_receive_task = asyncio.create_task(self.asr_receive(session_id))
-            segment_task = asyncio.create_task(self.task_segment_worker(session_id))
-            analysis_task = asyncio.create_task(self.task_analysis_worker(session_id))
-            send_task = asyncio.create_task(self.task_send_worker(session_id))
-            
+            asr_sender_task = asyncio.create_task(self.asr_sender(composite_key, record_voice, current_user_id, db))
+            asr_receive_task = asyncio.create_task(self.asr_receive(composite_key))
+            segment_task = asyncio.create_task(self.task_segment_worker(composite_key))
+            analysis_task = asyncio.create_task(self.task_analysis_worker(composite_key))
+            send_task = asyncio.create_task(self.task_send_worker(composite_key))
+
             # 保存任务引用，便于后续取消
-            self.clients[session_id]['tasks'] = [asr_sender_task, asr_receive_task, segment_task, analysis_task, send_task]
-            
-            logger.info(f"ASR service started for session {session_id}")
-            logger.info(f"Tasks created: asr_sender={asr_sender_task}, asr_receive={asr_receive_task}, segment={segment_task}, analysis={analysis_task}, send={send_task}")
+            self.clients[composite_key]['tasks'] = [asr_sender_task, asr_receive_task, segment_task, analysis_task, send_task]
+
+            logger.info(f"ASR service started for session {session_id}, round {round_id}")
         except Exception as e:
-            logger.error(f"Error starting ASR service: {e}")
+            logger.error(f"Error starting ASR service for session {session_id}, round {round_id}: {e}")
             # 清理资源
-            if session_id in self.clients:
-                await self.stop_asr(session_id)
+            if composite_key in self.clients:
+                await self.stop_asr(composite_key)
             raise
     
-    async def asr_sender(self, session_id: str, record_voice: bool = False,current_user_id: int = None,db: Session = None):
+    async def asr_sender(self, composite_key: str, record_voice: bool = False, current_user_id: int = None, db: Session = None):
         """
         给ASR服务端发送音频数据
-        
+
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
         """
-        asr_client = self.clients[session_id]['asr_client']
-        audio_q = self.clients[session_id]['audio_q']
-        stop_event = self.clients[session_id]['stop_event']
+        client = self.clients[composite_key]
+        asr_client = client['asr_client']
+        audio_q = client['audio_q']
+        stop_event = client['stop_event']
+        session_id = client.get('session_id', composite_key)
+        round_id = client.get('round_id', '')
         first_packet = True
         SAMPLE_RATE = 16000 
         wav_buffer = None
@@ -220,27 +228,29 @@ class TaskManager:
                     user_id=current_user_id,
                     session_id=session_id,
                     file_content=wav_buffer.getvalue(),
-                    filename=f"{current_user_id}_{session_id}.wav",
+                    filename=f"{current_user_id}_{session_id}_{round_id}.wav",
                     file_type='voice'
                 )
-                logger.info(f"Uploaded audio file for session {session_id}")
+                logger.info(f"Uploaded audio file for session {session_id}, round {round_id}")
             except Exception as e:
                 logger.error(f"Error in asr_sender upload: {e}")
 
 
 
-    async def asr_receive(self, session_id: str):
+    async def asr_receive(self, composite_key: str):
         """
         从ASR服务端接收结果
-        
+
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
         """
-        asr_client = self.clients[session_id]['asr_client']
-        asr_q = self.clients[session_id]['asr_q']
-        text_q = self.clients[session_id]['text_q']
-        stop_event = self.clients[session_id]['stop_event']
-        state = self.clients[session_id]['state']
+        client = self.clients[composite_key]
+        asr_client = client['asr_client']
+        asr_q = client['asr_q']
+        text_q = client['text_q']
+        stop_event = client['stop_event']
+        state = client['state']
+        session_id = client.get('session_id', composite_key)
         
 
         # 在一个循环中不断接收ASR结果
@@ -270,20 +280,21 @@ class TaskManager:
                 await asyncio.sleep(0.1) 
                 continue
 
-    async def task_segment_worker(self, session_id: str):
+    async def task_segment_worker(self, composite_key: str):
         """
         处理ASR结果，提取文本
         从text_q中取出内容，经过一些策略聚集一些内容生成block，放入到block_q中
-        
+
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
         """
-        text_q = self.clients[session_id]['text_q']
-        block_q = self.clients[session_id]['block_q']
-        stop_event = self.clients[session_id]['stop_event']
-        state = self.clients[session_id]['state']
-        asr_data_list = self.clients[session_id]['asr_data_list']
-        # 文本聚集策略参数
+        client = self.clients[composite_key]
+        text_q = client['text_q']
+        block_q = client['block_q']
+        stop_event = client['stop_event']
+        state = client['state']
+        asr_data_list = client['asr_data_list']
+        session_id = client.get('session_id', composite_key)
         max_block_length = 5  # 最大block长度
         current_block = []
         prev_silence = False
@@ -330,24 +341,25 @@ class TaskManager:
             
             prev_silence = is_silence
     
-    async def task_analysis_worker(self, session_id: str):
+    async def task_analysis_worker(self, composite_key: str):
         """
         处理文本，调用LLM分析
         从block_q中获取内容，经过llm_analysis分析，生成结果并放入streaming_q、当生成完一整句话后放入result_q
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
         """
-        block_q = self.clients[session_id]['block_q']
-        streaming_q = self.clients[session_id]['streaming_q']
-        result_q = self.clients[session_id]['result_q']
-        stop_event = self.clients[session_id]['stop_event']
-        state = self.clients[session_id]['state']
+        client = self.clients[composite_key]
+        block_q = client['block_q']
+        streaming_q = client['streaming_q']
+        result_q = client['result_q']
+        stop_event = client['stop_event']
+        state = client['state']
         # 使用get方法避免KeyError，collection_name可能不存在
-        collection_name = self.clients[session_id].get('collection_name') or None
-        logger.info(f"task_analysis_worker started for session {session_id}, collection_name: {collection_name}")
+        collection_name = client.get('collection_name') or None
+        session_id = client.get('session_id', composite_key)
+        logger.info(f"task_analysis_worker started for {composite_key}, collection_name: {collection_name}")
 
         index = 0
-        logger.info(f"task_analysis_worker entering main loop for session {session_id}")
         
         while not stop_event.is_set():
             try:
@@ -385,18 +397,19 @@ class TaskManager:
                 await asyncio.sleep(0.1)
                 continue
 
-    async def task_send_worker(self, session_id: str):
+    async def task_send_worker(self, composite_key: str):
         """
         发送ASR结果到WebSocket
         1. asr_q,streaming_q,result_q 中的内容放入output_q
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
         """
-        asr_q = self.clients[session_id]['asr_q']
-        result_q = self.clients[session_id]['result_q']
-        streaming_q = self.clients[session_id]['streaming_q']
-        output_q = self.clients[session_id]['output_q']
-        stop_event = self.clients[session_id]['stop_event']
+        client = self.clients[composite_key]
+        asr_q = client['asr_q']
+        result_q = client['result_q']
+        streaming_q = client['streaming_q']
+        output_q = client['output_q']
+        stop_event = client['stop_event']
         
         while not stop_event.is_set():
             try:
@@ -431,58 +444,58 @@ class TaskManager:
                 # 发生异常时短暂休眠，避免CPU占用过高
                 await asyncio.sleep(0.1)
     
-    def get_output_queue(self, session_id: str):
+    def get_output_queue(self, composite_key: str):
         """
         获取指定会话的输出队列
-        
+
         Args:
-            session_id: 会话ID
-            
+            composite_key: 复合键（session_id_round_id）
+
         Returns:
             asyncio.Queue: ASR队列，如果会话不存在则返回None
         """
-        if session_id in self.clients:
-            return self.clients[session_id]['output_q']
+        if composite_key in self.clients:
+            return self.clients[composite_key]['output_q']
         return None
-    
-    def get_audio_queue(self, session_id: str):
+
+    def get_audio_queue(self, composite_key: str):
         """
         获取指定会话的音频队列
-        
+
         Args:
-            session_id: 会话ID
-            
+            composite_key: 复合键（session_id_round_id）
+
         Returns:
             asyncio.Queue: 音频队列，如果会话不存在则返回None
         """
-        if session_id in self.clients:
-            return self.clients[session_id]['audio_q']
+        if composite_key in self.clients:
+            return self.clients[composite_key]['audio_q']
         return None
-    
-    def set_websocket(self, session_id: str, websocket):
+
+    def set_websocket(self, composite_key: str, websocket):
         """
-        将websocket连接与session_id关联
-        
+        将websocket连接与composite_key关联
+
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
             websocket: WebSocket连接对象
         """
-        if session_id in self.clients:
-            self.clients[session_id]['websocket'] = websocket
-            logger.info(f"WebSocket connection updated for session {session_id}")
-    
-    
-    async def stop_asr(self, session_id: str) -> None:
+        if composite_key in self.clients:
+            self.clients[composite_key]['websocket'] = websocket
+            logger.info(f"WebSocket connection updated for {composite_key}")
+
+
+    async def stop_asr(self, composite_key: str) -> None:
         """
         为用户停止ASR服务
-        
+
         Args:
-            session_id: 会话ID
+            composite_key: 复合键（session_id_round_id）
         """
-        if session_id not in self.clients:
+        if composite_key not in self.clients:
             return
 
-        client_info = self.clients[session_id]
+        client_info = self.clients[composite_key]
         state = client_info.get("state")
         asr_data_list = client_info.get("asr_data_list")
         
@@ -528,9 +541,11 @@ class TaskManager:
                 try:
                     from assistant.file.file_manager import TosFileManager
                     file_manager = TosFileManager()
+                    session_id = client_info.get('session_id', composite_key)
+                    round_id = client_info.get('round_id', '')
                     file_manager.save_asr_data_to_markdown(
                         asr_data_list=asr_data_list,
-                        session_id=session_id,
+                        session_id=f"{session_id}_{round_id}",
                         current_user_id=current_user_id,
                         db=client_info.get('db')
                     )
@@ -538,5 +553,6 @@ class TaskManager:
                     logger.error(f"Error saving ASR data to markdown: {e}")
 
         # 8️⃣ 删除
-        del self.clients[session_id]
+        if composite_key in self.clients:
+            del self.clients[composite_key]
 

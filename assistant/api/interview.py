@@ -6,11 +6,12 @@ from pydantic import BaseModel
 import asyncio
 import json
 import wave
+from datetime import datetime
 from assistant.entity.user import User
 from fastapi import WebSocketDisconnect
 from assistant.config.database import get_db
 from assistant.entity import (
-    InterviewSession, SessionType, SessionStatus,
+    InterviewSession, InterviewSessionRound, SessionType, SessionStatus,
     InterviewSessionQuestion, InterviewSessionStandard,
     InterviewEvaluation, Recommendation,
     InterviewReport, ReportStatus,
@@ -48,11 +49,11 @@ class StartAsrRequest(BaseModel):
     file: Optional[str] = None
     use_llm: bool = True
 
-# 语音识别相关接口
-@router.post("/asr/start/{session_id}")
-async def start_asr(session_id: str, req: StartAsrRequest ,db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id),record_voice: bool = True):
+# 语音识别相关接口（session_id + round_id，一个轮次对应一次面试）
+@router.post("/asr/start/{session_id}/{round_id}")
+async def start_asr(session_id: str, round_id: str, req: StartAsrRequest, db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id), record_voice: bool = True):
     """
-    为指定会话启动ASR服务
+    为指定会话的指定轮次启动ASR服务
     """
     session = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id, InterviewSession.id == session_id).first()
     if not session:
@@ -60,101 +61,121 @@ async def start_asr(session_id: str, req: StartAsrRequest ,db: Session = Depends
             status_code=status.HTTP_404_NOT_FOUND,
             detail="会话不存在或用户没有权限访问该会话。"
         )
-    if session.status != SessionStatus.SCHEDULED:
+    # 只允许在"已预约"或"进行中"状态下启动ASR
+    if session.status not in (SessionStatus.SCHEDULED, SessionStatus.ONGOING):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="会话状态错误，不能启动ASR服务。"
         )
-    
-    try:
 
-        await task_manager.start_interview(session_id,req,record_voice,current_user_id,db)
+    # 验证轮次存在且状态为pending
+    session_round = db.query(InterviewSessionRound).filter(
+        InterviewSessionRound.id == round_id,
+        InterviewSessionRound.session_id == session_id
+    ).first()
+    if not session_round:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="轮次不存在。"
+        )
+    if session_round.status != 'pending':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="轮次状态错误，不能启动ASR服务。"
+        )
+
+    try:
+        # 将会话状态置为"进行中"
+        session.status = SessionStatus.ONGOING
+        if not session.started_at:
+            session.started_at = datetime.utcnow()
+        db.commit()
+
+        await task_manager.start_interview(session_id, round_id, req, record_voice, current_user_id, db)
         return {
             "status": "started",
             "mode": "mic" if req.mic else "file"
         }
     except Exception as e:
-        logger.error(f"Error starting ASR: {e}")
+        logger.error(f"Error starting ASR for session {session_id}, round {round_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start ASR: {str(e)}")
 
-@router.post("/asr/stop/{session_id}")
-async def stop_asr(session_id: str, db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id)):
+@router.post("/asr/stop/{session_id}/{round_id}")
+async def stop_asr(session_id: str, round_id: str, db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id)):
     """
-    为指定会话停止ASR服务
+    为指定会话的指定轮次停止ASR服务
     """
+    composite_key = f"{session_id}_{round_id}"
+
     # 验证会话存在且用户有权限
     session = db.query(InterviewSession).filter(
         InterviewSession.id == session_id,
         InterviewSession.recruiter_id == current_user_id
     ).first()
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="会话不存在或用户没有权限访问该会话。"
         )
-    
+
     try:
         # 停止ASR服务（会自动断开WebSocket连接）
-        await task_manager.stop_asr(session_id)
-        
-        # 更新面试会话状态（不检查 recruiter_id，避免多角色登录问题）
-        session = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
-        if session:
-            session.status = SessionStatus.COMPLETED
+        await task_manager.stop_asr(composite_key)
+
+        # 更新轮次状态为completed
+        session_round = db.query(InterviewSessionRound).filter(
+            InterviewSessionRound.id == round_id,
+            InterviewSessionRound.session_id == session_id
+        ).first()
+        if session_round:
+            session_round.status = 'completed'
             db.commit()
-            db.refresh(session)
-            logger.info(f"Session {session_id} status updated to COMPLETED")
-        
-        # 更新用户状态（如果用户存在）
-        if session and session.candidate_name:
-            user = db.query(User).filter(User.username == session.candidate_name).first()
-            if user:
-                user.status = "COMPLETED"
-                db.commit()
-                db.refresh(user)
-                logger.info(f"User {session.candidate_name} status updated to COMPLETED")
-        
+            db.refresh(session_round)
+            logger.info(f"Session {session_id} round {round_id} status updated to completed")
+
         return {
             "status": "completed"
         }
     except Exception as e:
-        logger.error(f"Error stopping ASR: {e}", exc_info=True)
+        logger.error(f"Error stopping ASR for session {session_id}, round {round_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stop ASR: {str(e)}")
 
-@router.websocket("/asr/stream/{session_id}")
-async def websocket_asr_stream(websocket: WebSocket, session_id: str, db: Session = Depends(get_db)):
+@router.websocket("/asr/stream/{session_id}/{round_id}")
+async def websocket_asr_stream(websocket: WebSocket, session_id: str, round_id: str, db: Session = Depends(get_db)):
     """
-    WebSocket端点，用于传输ASR和LLM的流式数据
+    WebSocket端点，用于传输ASR和LLM的流式数据（按轮次隔离）
     """
+    composite_key = f"{session_id}_{round_id}"
+
     # 使用统一的认证中间件获取用户ID
     try:
         current_user_id = await get_current_user_id_from_websocket(websocket)
     except HTTPException as e:
         await websocket.close(code=1008, reason=e.detail)
         return
-    
+
     # 检查会话是否存在且用户有权限
     session = db.query(InterviewSession).filter(
         InterviewSession.id == session_id,
         InterviewSession.recruiter_id == current_user_id
     ).first()
-    
+
     if not session:
         await websocket.close(code=1008, reason="会话不存在或用户没有权限访问该会话")
         return
-    
+
     # 接受WebSocket连接
     await websocket.accept()
-    
-    # 检查ASRManager中是否已经存在该session_id的客户端信息
-    if session_id in task_manager.clients:
+
+    # 检查ASRManager中是否已经存在该composite_key的客户端信息
+    if composite_key in task_manager.clients:
         # 更新现有客户端的WebSocket连接
-        task_manager.set_websocket(session_id, websocket)
+        task_manager.set_websocket(composite_key, websocket)
     else:
         # 如果不存在，返回错误
-        await websocket.close(code=1008, reason="ASR service not started for this session")
-        logger.error(f"WebSocket connection failed: ASR service not started for session {session_id}")
+        await websocket.close(code=1008, reason="ASR service not started for this session round")
+        logger.error(f"WebSocket connection failed: ASR service not started for {composite_key}")
         return
     
     def validate_audio_data(data: bytes) -> bool:
@@ -229,8 +250,8 @@ async def websocket_asr_stream(websocket: WebSocket, session_id: str, db: Sessio
         # logger.info(f"音频数据格式校验通过，长度{data_len}字节，{sample_count}个采样点")
         return True
 
-    audio_q = task_manager.get_audio_queue(session_id)
-    output_q = task_manager.get_output_queue(session_id)
+    audio_q = task_manager.get_audio_queue(composite_key)
+    output_q = task_manager.get_output_queue(composite_key)
     wf = wave.open("dump.wav", "wb")
     wf.setnchannels(1)
     wf.setsampwidth(2)
@@ -317,8 +338,8 @@ async def websocket_asr_stream(websocket: WebSocket, session_id: str, db: Sessio
         # 确保wave文件被关闭
         wf.close()
         # 保持客户端信息，但将websocket设为None
-        if session_id in task_manager.clients:
-            task_manager.clients[session_id]['websocket'] = None
+        if composite_key in task_manager.clients:
+            task_manager.clients[composite_key]['websocket'] = None
 
 
 

@@ -7,7 +7,7 @@ from assistant.enums import ResumeStatus
 class Resume(Base):
     """简历表"""
     __tablename__ = "resume"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="简历ID")
     user_id = Column(Integer, nullable=False, comment="面试官ID")
     file_path = Column(String(255), nullable=False, comment="简历文件路径")
@@ -18,6 +18,12 @@ class Resume(Base):
     created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     extracted_at = Column(DateTime, comment="提取时间")
+
+    # 简历审核字段
+    review_status = Column(String(20), comment="审核结果: PASS=通过, PENDING=待定, FAIL=淘汰, NULL=未审核")
+    reviewer_id = Column(Integer, comment="审核人ID")
+    reviewed_at = Column(DateTime, comment="审核时间")
+    review_comment = Column(Text, comment="审核意见")
     
     # 逻辑关联关系
     # 与User的关系（多对一）

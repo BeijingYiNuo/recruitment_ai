@@ -34,10 +34,9 @@ api_router.include_router(
     user_router,
     dependencies=[Depends(get_current_user_id)]
 )
-api_router.include_router(
-    resume_router,
-    dependencies=[Depends(get_current_user_id)]
-)
+# resume 路由单独包含，不添加顶层认证依赖
+# 每个路由内部自行注入 get_current_user_id
+api_router.include_router(resume_router)
 api_router.include_router(
     interview_reserve_router,
     dependencies=[Depends(get_current_user_id)]

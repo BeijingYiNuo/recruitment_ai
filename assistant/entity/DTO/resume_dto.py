@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
 class ResumeCreate(BaseModel):
@@ -17,6 +18,12 @@ class ResumeUpdate(BaseModel):
     file_type: str = None
     status: str = None
     content: str = None
+
+
+class ResumeReviewRequest(BaseModel):
+    """简历审核请求模型"""
+    decision: str  # PASS / PENDING / FAIL
+    comment: Optional[str] = None
 
 
 class ResumeEducationCreate(BaseModel):

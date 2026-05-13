@@ -16,6 +16,7 @@ class InterviewSession(Base):
     recruiter_id = Column(Integer, nullable=False, comment="招聘官ID")
     resume_id = Column(Integer, nullable=True, comment="简历ID")
     knowledge_id = Column(Integer, nullable=False, comment="关联知识库ID")
+    position_id = Column(Integer, nullable=True, comment="关联岗位ID")
     session_type = Column(Enum(SessionType), nullable=False, default=SessionType.ONLINE, comment="面试类型")
     status = Column(Enum(SessionStatus), nullable=False, default=SessionStatus.SCHEDULED, comment="面试状态")
     scheduled_start_at = Column(DateTime, comment="面试预定开始时间")
@@ -36,6 +37,25 @@ class InterviewSession(Base):
     # 与InterviewReport的关系（一对多）
     # 与InterviewReminder的关系（一对多）
     # 与InterviewAudioTranscript的关系（一对多）
+    # 与InterviewSessionRounds的关系（一对多）
+
+
+class InterviewSessionRound(Base):
+    """面试会话轮次状态表"""
+    __tablename__ = "interview_session_round"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="ID")
+    session_id = Column(Integer, nullable=False, comment="面试会话ID")
+    round_id = Column(Integer, nullable=False, comment="关联岗位轮次ID")
+    round_name = Column(String(100), nullable=False, comment="轮次名称")
+    round_type = Column(String(50), nullable=False, comment="轮次类型")
+    round_number = Column(Integer, nullable=False, comment="轮次序号")
+    status = Column(String(20), nullable=False, default="pending", comment="轮次状态: pending/pass/fail/skip")
+    score = Column(Integer, comment="评分")
+    comment = Column(Text, comment="评价")
+    evaluated_at = Column(DateTime, comment="评估时间")
+    created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
 
 
 class InterviewSessionQuestion(Base):

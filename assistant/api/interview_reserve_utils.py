@@ -1,7 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
-from assistant.entity import InterviewSession, User
+from assistant.entity import InterviewSession, InterviewSessionRound, User, Resume
+from assistant.entity.position import Position, PositionRound
 from assistant.enums import SessionStatus
 from assistant.entity.DTO import InterviewSessionCreate, InterviewSessionUpdate
 from assistant.utils.logger import logger
@@ -106,6 +107,29 @@ def create_interview_session(db: Session, user_id: int, session_data: InterviewS
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="面试时间和招聘官与现有预约冲突"
         )
+
+    # 4. 如果关联了简历，检查简历是否存在且审核通过
+    if session_data.resume_id:
+        resume = db.query(Resume).filter(Resume.id == session_data.resume_id).first()
+        if not resume:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="关联的简历不存在"
+            )
+        if resume.review_status != 'PASS':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="只有审核通过的简历才能创建面试"
+            )
+
+    # 5. 如果关联了岗位，检查岗位是否存在
+    if session_data.position_id:
+        position = db.query(Position).filter(Position.id == session_data.position_id).first()
+        if not position:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="关联的岗位不存在"
+            )
     
     # 将字符串时间转换为 datetime 对象
     try:
@@ -125,6 +149,7 @@ def create_interview_session(db: Session, user_id: int, session_data: InterviewS
         recruiter_id=recruiter_id,
         knowledge_id=session_data.knowledge_id,
         resume_id=session_data.resume_id,
+        position_id=session_data.position_id,
         session_type=session_data.session_type,
         status=SessionStatus.SCHEDULED,
         scheduled_start_at=start_time,
@@ -135,7 +160,24 @@ def create_interview_session(db: Session, user_id: int, session_data: InterviewS
     db.add(db_session)
     db.commit()
     db.refresh(db_session)
-    
+
+    # 6. 如果关联了岗位，自动生成该岗位的面试轮次记录
+    if session_data.position_id:
+        position_rounds = db.query(PositionRound).filter(
+            PositionRound.position_id == session_data.position_id
+        ).order_by(PositionRound.round_number).all()
+        for pr in position_rounds:
+            session_round = InterviewSessionRound(
+                session_id=db_session.id,
+                round_id=pr.id,
+                round_name=pr.round_name,
+                round_type=pr.round_type.value if hasattr(pr.round_type, 'value') else pr.round_type,
+                round_number=pr.round_number,
+                status="pending"
+            )
+            db.add(session_round)
+        db.commit()
+
     return db_session
 
 
@@ -194,10 +236,31 @@ def update_interview_session(db: Session, user_id: int, session_id: int, session
     update_data = session_data.dict(exclude_unset=True, exclude={'scheduled_start_at', 'scheduled_end_at'})
     for key, value in update_data.items():
         setattr(db_session, key, value)
-    
+
+    # 5. 如果更新了 position_id，重新生成对应的轮次记录
+    if 'position_id' in update_data and update_data['position_id'] is not None:
+        # 删除旧轮次记录
+        db.query(InterviewSessionRound).filter(
+            InterviewSessionRound.session_id == session_id
+        ).delete()
+        # 生成新轮次记录
+        position_rounds = db.query(PositionRound).filter(
+            PositionRound.position_id == update_data['position_id']
+        ).order_by(PositionRound.round_number).all()
+        for pr in position_rounds:
+            session_round = InterviewSessionRound(
+                session_id=session_id,
+                round_id=pr.id,
+                round_name=pr.round_name,
+                round_type=pr.round_type.value if hasattr(pr.round_type, 'value') else pr.round_type,
+                round_number=pr.round_number,
+                status="pending"
+            )
+            db.add(session_round)
+
     db.commit()
     db.refresh(db_session)
-    
+
     return db_session
 
 

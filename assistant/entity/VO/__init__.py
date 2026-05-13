@@ -6,7 +6,8 @@ from assistant.entity.VO.resume_vo import (
 from assistant.entity.VO.interview_vo import (
     InterviewSessionResponse, InterviewSessionQuestionResponse,
     InterviewSessionStandardResponse, InterviewEvaluationResponse,
-    InterviewReportResponse, InterviewReminderResponse
+    InterviewReportResponse, InterviewReminderResponse,
+    SessionRoundResponse
 )
 from assistant.entity.VO.interview_helper_vo import (
     InterviewQuestionResponse, EvaluationStandardResponse,
@@ -26,7 +27,7 @@ __all__ = [
     # Interview
     "InterviewSessionResponse", "InterviewSessionQuestionResponse",
     "InterviewSessionStandardResponse", "InterviewEvaluationResponse",
-    "InterviewReportResponse", "InterviewReminderResponse",
+    "InterviewReportResponse", "InterviewReminderResponse", "SessionRoundResponse",
     # Interview Helper
     "InterviewQuestionResponse", "EvaluationStandardResponse",
     "InterviewAudioTranscriptResponse",

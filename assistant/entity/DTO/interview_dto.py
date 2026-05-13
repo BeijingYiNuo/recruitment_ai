@@ -10,6 +10,7 @@ class InterviewSessionCreate(BaseModel):
     candidate_name: str
     resume_id: Optional[int] = None
     knowledge_id: Optional[int] = None
+    position_id: Optional[int] = None
     session_type: SessionType
     scheduled_start_at: str
     scheduled_end_at: str
@@ -35,6 +36,7 @@ class InterviewSessionUpdate(BaseModel):
     """面试会话更新模型"""
     candidate_name: Optional[str] = None
     resume_id: Optional[int] = None
+    position_id: Optional[int] = None
     session_type: Optional[SessionType] = None
     scheduled_start_at: Optional[str] = None
     scheduled_end_at: Optional[str] = None
@@ -118,3 +120,10 @@ class InterviewReminderUpdate(BaseModel):
     message: str = None
     status: str = None
     send_method: SendMethod = None
+
+
+class SessionRoundUpdate(BaseModel):
+    """面试轮次状态更新模型"""
+    status: str  # pass/fail/skip
+    score: Optional[int] = None
+    comment: Optional[str] = None

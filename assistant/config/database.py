@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 DB_HOST = '152.136.119.117'
 DB_PORT = '3306'
 DB_USER = 'root'
-DB_PASSWORD = '123456'
+DB_PASSWORD = 'Midas_75'
 DB_NAME = 'ai_recruitment'
 
 # 创建数据库引擎

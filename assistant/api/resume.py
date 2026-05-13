@@ -24,7 +24,7 @@ from assistant.api.resume_utils import (
 from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
-    ResumeCreate, ResumeUpdate, ResumeEducationCreate,
+    ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate
 )
 from assistant.entity.VO import (
@@ -32,6 +32,7 @@ from assistant.entity.VO import (
     ResumeWorkExperienceResponse, ResumeSkillResponse, ResumeProjectResponse
 )
 from assistant.user_management.auth_middleware import get_current_user_id
+from assistant.user_management.auth_utils import verify_token
 from assistant.utils.logger import logger
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -49,11 +50,20 @@ router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 def get_resumes(
     skip: int = 0,
     limit: int = 100,
+    review_status: str = None,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取当前用户的所有简历"""
-    resumes = db.query(Resume).filter(Resume.user_id == current_user_id).offset(skip).limit(limit).all()
+    """获取当前用户的所有简历，支持按审核状态筛选"""
+    query = db.query(Resume).filter(Resume.user_id == current_user_id)
+
+    if review_status == "null":
+        query = query.filter(Resume.review_status.is_(None))
+    elif review_status:
+        query = query.filter(Resume.review_status == review_status)
+
+    query = query.order_by(Resume.created_at.desc())
+    resumes = query.offset(skip).limit(limit).all()
     return resumes
 
 
@@ -280,6 +290,41 @@ async def import_resumes_batch(
     return results
 
 
+@router.post("/{resume_id}/review", response_model=ResumeResponse)
+def review_resume(
+    resume_id: int,
+    data: ResumeReviewRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """审核简历: PASS=通过, PENDING=待定, FAIL=淘汰"""
+    if data.decision not in ("PASS", "PENDING", "FAIL"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="无效的审核决策，请使用 PASS/PENDING/FAIL"
+        )
+
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户"
+        )
+
+    resume.review_status = data.decision
+    resume.reviewer_id = current_user_id
+    resume.reviewed_at = datetime.now()
+    resume.review_comment = data.comment
+    db.commit()
+    db.refresh(resume)
+
+    logger.info(f"User {current_user_id} reviewed resume {resume_id}: {data.decision}")
+    return resume
+
+
 @router.get("/{resume_id}", response_model=ResumeResponse)
 def get_resume_by_user(
     resume_id: int,
@@ -334,6 +379,66 @@ async def download_resume(
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
             "Transfer-Encoding": "chunked"
+        }
+    )
+
+
+@router.get("/preview/{resume_id}")
+async def preview_resume(
+    resume_id: int,
+    token: str = None,
+    db: Session = Depends(get_db)
+):
+    """预览简历文件（内联展示，不触发下载）"""
+    # 通过 token 查询参数验证身份（用于 iframe/img 直接 URL 访问）
+    if token:
+        payload = verify_token(token)
+        if payload is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="无效的认证凭据"
+            )
+        current_user_id = int(payload.get("sub"))
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="缺少认证凭据"
+        )
+
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户所有"
+        )
+
+    # 根据文件类型设置合适的 media_type
+    ext = os.path.splitext(resume.file_path)[1].lower()
+    media_type_map = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
+    filename = os.path.basename(resume.file_path)
+    encoded_filename = urllib.parse.quote(filename)
+
+    return StreamingResponse(
+        file_manager.stream_file_content(resume.file_path),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
         }
     )
 

@@ -48,3 +48,11 @@ class QuestionType(str, enum.Enum):
     TECHNICAL = "technical"
     BEHAVIORAL = "behavioral"
     SITUATIONAL = "situational"
+
+
+class RoundStatus(str, enum.Enum):
+    """面试轮次状态枚举"""
+    PENDING = "pending"        # 待面试
+    PASS = "pass"              # 通过
+    FAIL = "fail"              # 未通过
+    SKIP = "skip"              # 跳过

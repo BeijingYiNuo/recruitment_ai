@@ -11,6 +11,7 @@ class InterviewSessionResponse(BaseModel):
     recruiter_id: int
     resume_id: Optional[int] = None
     knowledge_id: Optional[int] = None
+    position_id: Optional[int] = None
     session_type: SessionType
     status: SessionStatus
     scheduled_start_at: datetime
@@ -88,6 +89,25 @@ class InterviewReminderResponse(BaseModel):
     message: str
     status: ReminderStatus
     send_method: SendMethod
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SessionRoundResponse(BaseModel):
+    """面试轮次状态响应模型"""
+    id: int
+    session_id: int
+    round_id: int
+    round_name: str
+    round_type: str
+    round_number: int
+    status: str
+    score: Optional[int] = None
+    comment: Optional[str] = None
+    evaluated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

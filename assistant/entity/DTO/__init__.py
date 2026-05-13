@@ -8,7 +8,8 @@ from assistant.entity.DTO.interview_dto import (
     InterviewSessionQuestionCreate, InterviewSessionStandardCreate,
     InterviewEvaluationCreate, InterviewEvaluationUpdate,
     InterviewReportCreate, InterviewReportUpdate,
-    InterviewReminderCreate, InterviewReminderUpdate
+    InterviewReminderCreate, InterviewReminderUpdate,
+    SessionRoundUpdate
 )
 from assistant.entity.DTO.interview_helper_dto import (
     InterviewQuestionCreate, InterviewQuestionUpdate,
@@ -33,6 +34,8 @@ __all__ = [
     "InterviewEvaluationCreate", "InterviewEvaluationUpdate",
     "InterviewReportCreate", "InterviewReportUpdate",
     "InterviewReminderCreate", "InterviewReminderUpdate",
+    # Session Round
+    "SessionRoundUpdate",
     # Interview Helper
     "InterviewQuestionCreate", "InterviewQuestionUpdate",
     "EvaluationStandardCreate", "EvaluationStandardUpdate",

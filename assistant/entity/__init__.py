@@ -3,6 +3,7 @@ from assistant.entity.resume import Resume, ResumeEducation, ResumeWorkExperienc
 from assistant.entity.interview import (
     InterviewSession,
     InterviewSessionQuestion, InterviewSessionStandard,
+    InterviewSessionRound,
     InterviewEvaluation,
     InterviewReport,
     InterviewReminder
@@ -28,7 +29,7 @@ __all__ = [
     "Resume", "ResumeStatus", "ResumeEducation", "ResumeWorkExperience", "ResumeSkill", "ResumeProject",
     # Interview
     "InterviewSession", "SessionType", "SessionStatus",
-    "InterviewSessionQuestion", "InterviewSessionStandard",
+    "InterviewSessionQuestion", "InterviewSessionStandard", "InterviewSessionRound",
     "InterviewEvaluation", "Recommendation",
     "InterviewReport", "ReportStatus",
     "InterviewReminder", "ReminderStatus", "SendMethod",

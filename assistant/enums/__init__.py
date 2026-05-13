@@ -4,7 +4,7 @@ from .resume_enum import ResumeStatus, ReviewDecision
 from .interview_enum import (
     SessionType, SessionStatus, Recommendation,
     ReminderStatus, SendMethod, ReportStatus,
-    QuestionType
+    QuestionType, RoundStatus
 )
 from .position_enum import PositionStatus, RoundType
 
@@ -17,6 +17,8 @@ __all__ = [
     "SessionType", "SessionStatus", "Recommendation",
     "ReminderStatus", "SendMethod", "ReportStatus",
     "QuestionType",
+    # Round
+    "RoundStatus",
     # Position
     "PositionStatus", "RoundType",
 ]
