@@ -1,4 +1,5 @@
 import asyncio
+import json
 import urllib
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from assistant.config.database import get_db, SessionLocal
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
-from fastapi import UploadFile, File
+from fastapi import UploadFile, File, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 import urllib.parse
 import os
@@ -159,6 +160,7 @@ async def import_resumes_batch(
     request: Request,
     user_id: int,
     files: List[UploadFile] = File(...),
+    candidate_names: str = Form("[]"),
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
@@ -192,11 +194,21 @@ async def import_resumes_batch(
 
     file_datas = await asyncio.gather(*[_read_file(f) for f in files], return_exceptions=True)
 
+    # Parse candidate names (JSON array string) and pair with files
+    try:
+        parsed_names = json.loads(candidate_names) if candidate_names else []
+    except json.JSONDecodeError:
+        parsed_names = []
+    for i, fd in enumerate(file_datas):
+        if isinstance(fd, dict) and i < len(parsed_names) and parsed_names[i]:
+            fd["candidate_name"] = parsed_names[i].strip()
+
     # ========== 阶段2：并行处理每个文件（上传TOS + 创建DB记录）==========
     def _process_single_file(file_data: dict) -> dict:
         """同步处理单个文件的上传和入库"""
         filename = file_data["filename"]
         content = file_data["content"]
+        candidate_name = file_data.get("candidate_name", "待解析")
 
         if isinstance(content, Exception):
             return {"filename": filename, "success": False, "error": f"读取文件失败: {content}"}
@@ -226,7 +238,7 @@ async def import_resumes_batch(
                 user_id=user_id,
                 file_path=result['tos_key'],
                 file_type=result['file_type'],
-                candidate_name="待解析",
+                candidate_name=candidate_name,
                 status=ResumeStatus.UPLOADED,
                 content=None,
                 extracted_at=datetime.now()
@@ -239,6 +251,7 @@ async def import_resumes_batch(
                 "filename": filename,
                 "content": content,
                 "resume_id": db_resume.id,
+                "candidate_name": candidate_name,
                 "success": True,
             }
         except Exception as e:

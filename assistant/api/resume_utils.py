@@ -8,6 +8,7 @@ import base64
 from pathlib import Path
 from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from fastapi import BackgroundTasks
 from assistant.enums.user_enum import UserRole
 from assistant.LLM.llm_resume_analysis import sync_analyze_resume_with_llm, analyze_resume_with_llm
@@ -394,8 +395,23 @@ def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
                 status="CREATED",
             )
             db.add(db_user)
-            db.commit()  # 立即提交，避免后续外键依赖问题
-            logger.info(f"[新用户创建成功] username: {username}, email: {email}")
+            try:
+                db.commit()  # 立即提交，避免后续外键依赖问题
+                db.refresh(db_user)
+                logger.info(f"[新用户创建成功] username: {username}, email: {email}")
+            except IntegrityError:
+                # 并发场景：另一个后台任务已创建同邮箱/同名的用户
+                db.rollback()
+                db_user = db.query(User).filter(
+                    (User.username == username) | (User.email == email)
+                ).first()
+                if db_user:
+                    db_user.email = email
+                    db_user.recruiter_id = current_user_id
+                    db_user.phone = phone
+                    db.commit()
+                    db.refresh(db_user)
+                    logger.info(f"[用户已存在，更新成功(并发)] username: {username}, email: {email}")
     
     # 存储教育经历
     for edu in parsed_data.get("educations", []):
