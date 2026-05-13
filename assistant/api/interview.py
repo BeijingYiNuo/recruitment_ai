@@ -123,16 +123,28 @@ async def stop_asr(session_id: str, round_id: str, db: Session = Depends(get_db)
         # 停止ASR服务（会自动断开WebSocket连接）
         await task_manager.stop_asr(composite_key)
 
-        # 更新轮次状态为completed
-        session_round = db.query(InterviewSessionRound).filter(
-            InterviewSessionRound.id == round_id,
+        # 根据所有轮次状态自动更新会话状态
+        all_rounds = db.query(InterviewSessionRound).filter(
             InterviewSessionRound.session_id == session_id
-        ).first()
-        if session_round:
-            session_round.status = 'completed'
+        ).all()
+        if all_rounds:
+            statuses = [r.status for r in all_rounds]
+            if all(s == 'pending' for s in statuses):
+                # 所有轮次都未评估 → 回到已预约状态
+                session.status = SessionStatus.SCHEDULED
+            elif any(s == 'fail' for s in statuses):
+                # 出现未通过 → 面试已完成
+                session.status = SessionStatus.COMPLETED
+                session.ended_at = datetime.now()
+            elif all(s in ('pass', 'skip') for s in statuses):
+                # 全部通过或跳过 → 面试已完成
+                session.status = SessionStatus.COMPLETED
+                session.ended_at = datetime.now()
+            else:
+                # 部分已评估、部分待定 → 进行中
+                session.status = SessionStatus.ONGOING
             db.commit()
-            db.refresh(session_round)
-            logger.info(f"Session {session_id} round {round_id} status updated to completed")
+            logger.info(f"Session {session_id} status updated to {session.status} based on round statuses")
 
         return {
             "status": "completed"
@@ -329,7 +341,7 @@ async def websocket_asr_stream(websocket: WebSocket, session_id: str, round_id: 
         # 创建两个并发任务
         receive_task = asyncio.create_task(receive_audio())
         send_task = asyncio.create_task(send_output())
-        
+
         # 等待任一任务完成
         await asyncio.gather(receive_task, send_task, return_exceptions=True)
     except Exception as e:
@@ -337,9 +349,10 @@ async def websocket_asr_stream(websocket: WebSocket, session_id: str, round_id: 
     finally:
         # 确保wave文件被关闭
         wf.close()
-        # 保持客户端信息，但将websocket设为None
+        # 仅当当前 handler 设置的 websocket 未被新 handler 替换时才置空
         if composite_key in task_manager.clients:
-            task_manager.clients[composite_key]['websocket'] = None
+            if task_manager.clients[composite_key].get('websocket') is websocket:
+                task_manager.clients[composite_key]['websocket'] = None
 
 
 

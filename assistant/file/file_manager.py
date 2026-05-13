@@ -25,10 +25,10 @@ class TosFileManager:
     def __init__(self):
         if self._initialized:
             return
-        
+
         self.config_manager = ConfigManager()
         tos_config = self.config_manager.config['tos']
-        
+
         # 初始化 TOS 客户端
         self.client = tos.TosClientV2(
             ak=tos_config['access_key'],
@@ -36,7 +36,7 @@ class TosFileManager:
             endpoint=tos_config['endpoint'],
             region=tos_config['region']
         )
-        
+
         self.bucket_name = tos_config['bucket_name']
         self._initialized = True
         logger.info(f"TOS FileManager initialized with bucket: {self.bucket_name}")
@@ -113,9 +113,9 @@ class TosFileManager:
                 user_id=user_id,
                 session_id=session_id,
                 file_name=filename,
-                file_type=file_type,  # 使用传入的 file_type 参数（resume/voice/dialogue）
+                file_type=file_type,
                 file_size=len(file_content),
-                file_uri=tos_key,  # file_uri 存储 tos_key
+                file_uri=tos_key,
             )
             db.add(db_file)
             db.commit()

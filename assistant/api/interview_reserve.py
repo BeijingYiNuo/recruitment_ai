@@ -165,13 +165,26 @@ def update_session_round(
     db.commit()
     db.refresh(session_round)
 
-    # 检查是否所有轮次都已评估，全部完成则将会话置为已完成
+    # 根据所有轮次状态自动更新会话状态
     all_rounds = db.query(InterviewSessionRound).filter(
         InterviewSessionRound.session_id == session_id
     ).all()
-    if all_rounds and all(r.status in ("pass", "fail", "skip") for r in all_rounds):
-        session.status = SessionStatus.COMPLETED
-        session.ended_at = datetime.now()
+    if all_rounds:
+        statuses = [r.status for r in all_rounds]
+        if all(s == 'pending' for s in statuses):
+            # 所有轮次都未评估 → 回到已预约状态
+            session.status = SessionStatus.SCHEDULED
+        elif any(s == 'fail' for s in statuses):
+            # 出现未通过 → 面试已完成
+            session.status = SessionStatus.COMPLETED
+            session.ended_at = datetime.now()
+        elif all(s in ('pass', 'skip') for s in statuses):
+            # 全部通过或跳过 → 面试已完成
+            session.status = SessionStatus.COMPLETED
+            session.ended_at = datetime.now()
+        else:
+            # 部分已评估、部分待定 → 进行中
+            session.status = SessionStatus.ONGOING
         db.commit()
 
     return session_round

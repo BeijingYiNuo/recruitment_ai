@@ -55,7 +55,6 @@ class TaskManager:
             websocket: WebSocket连接对象
         """
         composite_key = f"{session_id}_{round_id}"
-        # 停止之前的ASR服务
         if composite_key in self.clients:
             await self.stop_asr(composite_key)
 
@@ -70,7 +69,6 @@ class TaskManager:
         streaming_q = asyncio.Queue(maxsize=500)
         result_q = asyncio.Queue(maxsize=500)
         output_q = asyncio.Queue(maxsize=500)
-        state = ASRState()  # 创建状态对象,生命周期覆盖面试全过程
 
         # 创建ASR客户端实例
         asr_client = await self.build_asr_client()
@@ -86,7 +84,7 @@ class TaskManager:
             'streaming_q': streaming_q,
             'result_q': result_q,
             'output_q': output_q,
-            'state': state,
+            'state': ASRState(),
             'status': 'starting',
             'websocket': websocket,
             'req': req,
@@ -498,7 +496,7 @@ class TaskManager:
         client_info = self.clients[composite_key]
         state = client_info.get("state")
         asr_data_list = client_info.get("asr_data_list")
-        
+
         # 1️⃣ 标记状态
         if state:
             state.connected = False
@@ -520,8 +518,6 @@ class TaskManager:
         for task in tasks:
             task.cancel()
 
-        
-
         # 5️⃣ 等待任务结束
         await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -532,9 +528,8 @@ class TaskManager:
                 await asr_client.session.close()
             except Exception:
                 pass
-        
+
         # 7️⃣ 处理 asr_data_list 并写入 Markdown 文件
-        asr_data_list = client_info.get('asr_data_list', [])
         if asr_data_list:
             current_user_id = client_info.get('current_user_id') or (getattr(client_info.get('req'), 'user_id', None) if client_info.get('req') else None)
             if current_user_id:
@@ -545,7 +540,7 @@ class TaskManager:
                     round_id = client_info.get('round_id', '')
                     file_manager.save_asr_data_to_markdown(
                         asr_data_list=asr_data_list,
-                        session_id=f"{session_id}_{round_id}",
+                        session_id=session_id,
                         current_user_id=current_user_id,
                         db=client_info.get('db')
                     )
