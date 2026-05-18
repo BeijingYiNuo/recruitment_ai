@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能面试助手 - 阶段化面试系统</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #3b82f6; --primary-hover: #2563eb;
+            --secondary: #10b981; --secondary-hover: #059669;
+            --danger: #ef4444; --danger-hover: #dc2626;
+            --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1; --gray-400: #94a3b8;
+            --gray-500: #64748b; --gray-600: #475569;
+            --gray-700: #334155; --gray-800: #1e293b;
+            --radius: 8px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--gray-100); color: var(--gray-800);
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+
+        /* Header */
+        header {
+            text-align: center; margin-bottom: 1.5rem;
+        }
+        h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Stage Progress Bar */
+        .stage-bar {
+            background: white; border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .stage-label {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 0.75rem;
+        }
+        .stage-label .current {
+            font-weight: 600; font-size: 1.1rem;
+            color: var(--primary);
+        }
+        .stage-label .progress {
+            font-size: 0.85rem; color: var(--gray-500);
+        }
+        .stage-steps {
+            display: flex; align-items: center; gap: 0;
+        }
+        .stage-step {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; gap: 0.25rem;
+            position: relative;
+        }
+        .stage-dot {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 600;
+            background: var(--gray-200); color: var(--gray-500);
+            transition: all 0.3s; position: relative; z-index: 1;
+            border: 2px solid var(--gray-200);
+        }
+        .stage-step.done .stage-dot {
+            background: var(--secondary); color: white;
+            border-color: var(--secondary);
+        }
+        .stage-step.current .stage-dot {
+            background: var(--primary); color: white;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.2);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(59,130,246,0.2); }
+            50% { box-shadow: 0 0 0 8px rgba(59,130,246,0.1); }
+        }
+        .stage-step .connector {
+            position: absolute; top: 14px; right: 50%;
+            width: 100%; height: 2px;
+            background: var(--gray-200); z-index: 0;
+        }
+        .stage-step.done .connector { background: var(--secondary); }
+        .stage-step:first-child .connector { display: none; }
+        .stage-name {
+            font-size: 0.7rem; color: var(--gray-500);
+            text-align: center; white-space: nowrap;
+            margin-top: 0.25rem;
+        }
+        .stage-step.current .stage-name { color: var(--primary); font-weight: 500; }
+        .stage-step.done .stage-name { color: var(--secondary); }
+
+        /* Login Section */
+        .login-section {
+            background: white; border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 1.5rem;
+            margin-bottom: 1rem; display: flex;
+            align-items: center; gap: 1rem; flex-wrap: wrap;
+        }
+        .login-section label { font-weight: 500; color: var(--gray-600); }
+        .login-section input {
+            padding: 0.5rem 0.75rem; border: 1px solid var(--gray-300);
+            border-radius: var(--radius); font-size: 0.9rem;
+            outline: none; transition: border-color 0.2s;
+        }
+        .login-section input:focus { border-color: var(--primary); }
+        .login-section .user-info {
+            display: flex; align-items: center; gap: 0.5rem;
+            margin-left: auto;
+        }
+        .user-badge {
+            background: var(--gray-100); padding: 0.25rem 0.75rem;
+            border-radius: 20px; font-size: 0.85rem;
+            color: var(--gray-600);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.6rem 1.2rem; font-size: 0.9rem; font-weight: 500;
+            border: none; border-radius: var(--radius); cursor: pointer;
+            transition: all 0.2s; display: inline-flex;
+            align-items: center; gap: 0.5rem;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-secondary:hover:not(:disabled) { background: var(--secondary-hover); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+        /* Grid */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
+        /* Panels */
+        .panel {
+            background: white; border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 1.25rem;
+            display: flex; flex-direction: column;
+        }
+        .panel-header {
+            display: flex; align-items: center; gap: 0.5rem;
+            margin-bottom: 0.75rem; padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .panel-title { font-size: 1rem; font-weight: 600; }
+        .panel-content {
+            flex: 1; min-height: 250px; max-height: 450px;
+            overflow-y: auto; padding: 0.75rem;
+            background: var(--gray-100); border-radius: var(--radius);
+            font-size: 0.95rem; line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .panel-content::-webkit-scrollbar { width: 6px; }
+        .panel-content::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 3px; }
+        .panel-content::-webkit-scrollbar-thumb { background: var(--gray-400); border-radius: 3px; }
+
+        .panel-wide { grid-column: 1 / -1; }
+
+        /* Status */
+        .status-bar {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.75rem 1.25rem; background: white;
+            border-radius: var(--radius); box-shadow: var(--shadow);
+            justify-content: space-between;
+        }
+        .status-left { display: flex; align-items: center; gap: 0.75rem; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--gray-400);
+        }
+        .status-dot.active { background: var(--secondary); }
+        .status-dot.error { background: var(--danger); }
+        .session-badge {
+            font-size: 0.8rem; color: var(--gray-500);
+            background: var(--gray-100); padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+        }
+
+        .loading {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%; border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>智能面试助手 · 阶段化面试系统</h1>
+        </header>
+
+        <!-- Login / Session Info -->
+        <div class="login-section">
+            <label>用户名</label>
+            <input type="text" id="usernameInput" value="Xhr12345679" placeholder="用户名">
+            <label>密码</label>
+            <input type="password" id="passwordInput" value="Xhr12345679" placeholder="密码">
+            <button id="loginBtn" class="btn btn-primary">登录</button>
+            <div class="user-info">
+                <span id="userBadge" class="user-badge" style="display:none"></span>
+                <span id="sessionBadge" class="session-badge" style="display:none"></span>
+            </div>
+        </div>
+
+        <!-- Stage Progress -->
+        <div class="stage-bar" id="stageBar">
+            <div class="stage-label">
+                <span class="current" id="stageCurrentName">等待开始</span>
+                <span class="progress" id="stageProgress"></span>
+            </div>
+            <div class="stage-steps" id="stageSteps"></div>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+            <button id="startBtn" class="btn btn-secondary" disabled>启动面试</button>
+            <button id="stopBtn" class="btn btn-danger" disabled>结束面试</button>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid-2">
+            <div class="panel">
+                <div class="panel-header">
+                    <span style="background:var(--primary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;">🎙</span>
+                    <span class="panel-title">实时语音转文本</span>
+                </div>
+                <div id="asrBox" class="panel-content">等待面试开始...</div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span style="background:var(--secondary);color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;">💡</span>
+                    <span class="panel-title">面试官建议</span>
+                </div>
+                <div id="adviceBox" class="panel-content">等待面试开始...</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="panel panel-wide">
+                <div class="panel-header">
+                    <span style="background:#f59e0b;color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;">📋</span>
+                    <span class="panel-title">面试者评价</span>
+                </div>
+                <div id="evalBox" class="panel-content">等待面试开始...</div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <span id="statusDot" class="status-dot"></span>
+                <span id="statusText">就绪</span>
+            </div>
+            <div>
+                <button id="clearBtn" class="btn btn-sm" style="background:var(--gray-200);">清空</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===================== State =====================
+        const API_BASE = 'http://localhost:8000';
+        let token = null;
+        let userId = null;
+        let sessionId = null;
+        let roundId = null;
+        let ws = null;
+        let isRunning = false;
+
+        // Stage definitions (must match backend)
+        const STAGES = [
+            { key: 'welcome', name: '开场' },
+            { key: 'self_intro', name: '自我介绍' },
+            { key: 'project', name: '项目深挖' },
+            { key: 'theory', name: '技术理论' },
+            { key: 'culture', name: '文化匹配' },
+            { key: 'candidate_qa', name: '候选人提问' },
+            { key: 'closing', name: '结束总结' }
+        ];
+
+        let currentStageIndex = -1; // -1 = not started
+
+        // ===================== DOM refs =====================
+        const $ = id => document.getElementById(id);
+        const usernameInput = $('usernameInput');
+        const passwordInput = $('passwordInput');
+        const loginBtn = $('loginBtn');
+        const startBtn = $('startBtn');
+        const stopBtn = $('stopBtn');
+        const clearBtn = $('clearBtn');
+        const asrBox = $('asrBox');
+        const adviceBox = $('adviceBox');
+        const evalBox = $('evalBox');
+        const userBadge = $('userBadge');
+        const sessionBadge = $('sessionBadge');
+        const stageCurrentName = $('stageCurrentName');
+        const stageProgress = $('stageProgress');
+        const stageSteps = $('stageSteps');
+        const statusText = $('statusText');
+        const statusDot = $('statusDot');
+
+        // ===================== Stage Progress =====================
+        function renderStageProgress(activeIndex) {
+            stageSteps.innerHTML = '';
+            STAGES.forEach((s, i) => {
+                const step = document.createElement('div');
+                step.className = 'stage-step';
+                if (i < activeIndex) step.classList.add('done');
+                if (i === activeIndex) step.classList.add('current');
+
+                const dot = document.createElement('div');
+                dot.className = 'stage-dot';
+                dot.textContent = i < activeIndex ? '✓' : (i === activeIndex ? '●' : '○');
+                step.appendChild(dot);
+
+                const connector = document.createElement('div');
+                connector.className = 'connector';
+                step.appendChild(connector);
+
+                const name = document.createElement('div');
+                name.className = 'stage-name';
+                name.textContent = s.name;
+                step.appendChild(name);
+
+                stageSteps.appendChild(step);
+            });
+        }
+
+        function updateStageDisplay(info) {
+            // info: { stage, display_name, stage_index, total_stages, description }
+            currentStageIndex = info.stage_index;
+            stageCurrentName.textContent = info.display_name || STAGES[info.stage_index]?.name || '未知';
+            stageProgress.textContent = `阶段 ${info.stage_index + 1} / ${info.total_stages}`;
+            renderStageProgress(info.stage_index);
+            setStatus(`当前阶段: ${info.display_name}`, 'active');
+        }
+
+        // ===================== Status =====================
+        function setStatus(text, type) {
+            statusText.textContent = text;
+            statusDot.className = 'status-dot' + (type ? ' ' + type : '');
+        }
+
+        // ===================== WebSocket =====================
+        function connectWebSocket() {
+            if (!token || !sessionId || !roundId) return;
+            const url = `ws://localhost:8000/api/asr/stream/${sessionId}/${roundId}?token=${token}`;
+            setStatus('正在连接 WebSocket...', 'active');
+
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                setStatus('WebSocket 已连接', 'active');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    switch (msg.type) {
+                        case 'asr':
+                            asrBox.textContent = msg.data || asrBox.textContent;
+                            break;
+                        case 'streaming':
+                            handleStreaming(msg.data);
+                            break;
+                    }
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+
+            ws.onclose = () => {
+                if (isRunning) {
+                    setStatus('WebSocket 已断开', 'error');
+                } else {
+                    setStatus('已断开', '');
+                }
+            };
+
+            ws.onerror = () => {
+                setStatus('WebSocket 错误', 'error');
+            };
+        }
+
+        function handleStreaming(data) {
+            if (data.response_type === 'advice') {
+                adviceBox.textContent += data.content;
+                adviceBox.scrollTop = adviceBox.scrollHeight;
+            } else if (data.response_type === 'evaluation') {
+                evalBox.textContent += data.content;
+                evalBox.scrollTop = evalBox.scrollHeight;
+            } else if (data.response_type === 'done') {
+                // LLM response complete - add newline separator
+                adviceBox.textContent += '\n---\n';
+                evalBox.textContent += '\n---\n';
+            } else if (data.response_type === 'stage_info') {
+                updateStageDisplay(data);
+            }
+        }
+
+        // ===================== API Calls =====================
+        async function api(method, path, body) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const opts = { method, headers };
+            if (body) opts.body = JSON.stringify(body);
+
+            const resp = await fetch(`${API_BASE}${path}`, opts);
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                throw new Error(err.detail || resp.statusText);
+            }
+            return resp.json();
+        }
+
+        // ===================== Login =====================
+        loginBtn.addEventListener('click', async () => {
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<div class="loading"></div>';
+            try {
+                const data = await api('POST', '/api/users/login', {
+                    username: usernameInput.value,
+                    password: passwordInput.value
+                });
+                token = data.access_token;
+                userId = data.user_id;
+                userBadge.textContent = `用户: ${data.username} (ID: ${data.user_id})`;
+                userBadge.style.display = 'inline';
+                setStatus('登录成功', 'active');
+                startBtn.disabled = false;
+            } catch (e) {
+                alert('登录失败: ' + e.message);
+                setStatus('登录失败', 'error');
+            } finally {
+                loginBtn.innerHTML = '登录';
+                loginBtn.disabled = false;
+            }
+        });
+
+        // ===================== Start Interview =====================
+        startBtn.addEventListener('click', async () => {
+            if (!token) { alert('请先登录'); return; }
+
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<div class="loading"></div> 启动中...';
+
+            try {
+                // 1. Create session
+                const now = new Date();
+                const fmtDT = (d) => {
+                    const pad = n => String(n).padStart(2, '0');
+                    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                };
+                const session = await api('POST', '/api/reserve/sessions', {
+                    candidate_name: '面试候选人',
+                    knowledge_id: 1,
+                    session_type: 'online',
+                    scheduled_start_at: fmtDT(now),
+                    scheduled_end_at: fmtDT(new Date(now.getTime() + 3600000))
+                });
+                sessionId = session.id;
+                sessionBadge.textContent = `会话 #${sessionId}`;
+                sessionBadge.style.display = 'inline';
+                setStatus('会话已创建', 'active');
+
+                // 2. Get rounds
+                const rounds = await api('GET', `/api/reserve/sessions/${sessionId}/rounds`);
+                if (!rounds || rounds.length === 0) {
+                    throw new Error('没有可用的面试轮次');
+                }
+                roundId = rounds[0].id;
+
+                // 3. Start ASR
+                await api('POST', `/api/asr/start/${sessionId}/${roundId}`, {
+                    mic: true,
+                    use_llm: true,
+                    seg_duration: 200
+                });
+
+                isRunning = true;
+                stopBtn.disabled = false;
+
+                // Clear boxes
+                asrBox.textContent = '';
+                adviceBox.textContent = '';
+                evalBox.textContent = '';
+                currentStageIndex = -1;
+                renderStageProgress(-1);
+                stageCurrentName.textContent = '面试已启动';
+                stageProgress.textContent = '';
+
+                // 4. Connect WebSocket
+                connectWebSocket();
+
+                setStatus('面试进行中...', 'active');
+            } catch (e) {
+                alert('启动失败: ' + e.message);
+                startBtn.disabled = false;
+                setStatus('启动失败', 'error');
+            } finally {
+                startBtn.innerHTML = '启动面试';
+            }
+        });
+
+        // ===================== Stop Interview =====================
+        stopBtn.addEventListener('click', async () => {
+            if (!sessionId || !roundId) return;
+
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '<div class="loading"></div> 停止中...';
+
+            try {
+                await api('POST', `/api/asr/stop/${sessionId}/${roundId}`);
+
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+
+                isRunning = false;
+                startBtn.disabled = false;
+                setStatus('面试已结束', '');
+            } catch (e) {
+                alert('停止失败: ' + e.message);
+            } finally {
+                stopBtn.innerHTML = '结束面试';
+            }
+        });
+
+        // ===================== Clear =====================
+        clearBtn.addEventListener('click', () => {
+            asrBox.textContent = '';
+            adviceBox.textContent = '';
+            evalBox.textContent = '';
+        });
+
+        // ===================== Init =====================
+        renderStageProgress(-1);
+        setStatus('就绪', '');
+    </script>
+</body>
+</html>

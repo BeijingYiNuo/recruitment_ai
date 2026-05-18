@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 import wave
 import io
 from assistant.entity import InterviewSession, UserKnowledge
+from assistant.interview.stage_manager import StageManager
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -90,7 +91,8 @@ class TaskManager:
             'req': req,
             'asr_data_list': [],
             'session_id': session_id,
-            'round_id': round_id
+            'round_id': round_id,
+            'stage_manager': None
         }
     async def start_interview(self, session_id: str, round_id: str, req: Any, record_voice: bool = False, current_user_id: int = None, db: Session = None):
         """
@@ -120,6 +122,10 @@ class TaskManager:
             # 存储 db 和 current_user_id 到客户端信息中
             self.clients[composite_key]['db'] = db
             self.clients[composite_key]['current_user_id'] = current_user_id
+
+            # 初始化面试阶段管理器
+            self.clients[composite_key]['stage_manager'] = StageManager()
+            logger.info(f"[面试阶段] 阶段管理器已初始化")
 
             # 建立ASR客户端连接
             asr_client = self.clients[composite_key]['asr_client']
@@ -358,31 +364,58 @@ class TaskManager:
         logger.info(f"task_analysis_worker started for {composite_key}, collection_name: {collection_name}")
 
         index = 0
-        
+
         while not stop_event.is_set():
             try:
                 # 检查队列状态
                 if stop_event.is_set():
                     logger.info(f"task_analysis_worker stop_event set, exiting")
                     break
-                    
+
                 logger.debug(f"task_analysis_worker waiting for block_q, current qsize: {block_q.qsize()}")
-                
+
                 # 为block_q.get()添加超时，避免长时间阻塞
                 block_text = await asyncio.wait_for(block_q.get(), timeout=0.1)
                 logger.info(f"Received block from block_q: {block_text}")
                 if block_text:
                     # 调用LLM分析
                     index += 1
-                    llm_result = await self.llm_manager.analyze(block_text, streaming_q, stop_event,index,collection_name)
-                    
-                    if llm_result:
-                        # 放入streaming_q（流式输出）
-                        await streaming_q.put(llm_result)
-                        
-                        # 检查是否是完整的句子（简单判断：以句号、问号或感叹号结尾）
-                        if any(block_text.endswith(punct) for punct in ['.', '。', '?', '？', '!', '！']):
-                            await result_q.put(llm_result)
+
+                    # 获取阶段上下文
+                    stage_manager: StageManager = client.get('stage_manager')
+                    stage_context = stage_manager.build_prompt_context() if stage_manager else ""
+                    if stage_manager:
+                        logger.info(f"[面试阶段] 当前阶段: {stage_manager.config['display_name']}")
+
+                    llm_result = await self.llm_manager.analyze(
+                        block_text, streaming_q, stop_event, index,
+                        collection_name, stage_context
+                    )
+
+                    # 记录一次问答
+                    if stage_manager:
+                        stage_manager.record_exchange()
+
+                    # 处理阶段切换
+                    if llm_result and stage_manager:
+                        llm_transition = llm_result.get("has_transition", False)
+                        prog_transition = stage_manager.should_transition()
+
+                        if llm_transition or prog_transition:
+                            transition_info = stage_manager.transition_to_next()
+                            if transition_info:
+                                logger.info(f"[面试阶段] 切换到: {transition_info['display_name']}")
+                                # 发送阶段切换信息到前端
+                                await streaming_q.put({
+                                    "response_type": "stage_info",
+                                    "stage": transition_info["current_stage"],
+                                    "display_name": transition_info["display_name"],
+                                    "stage_index": transition_info["stage_index"],
+                                    "total_stages": transition_info["total_stages"],
+                                    "description": transition_info["description"],
+                                })
+                            else:
+                                logger.info(f"[面试阶段] 面试已结束")
                 
                 # 短暂休眠，让出控制权给其他任务
                 await asyncio.sleep(0.01)

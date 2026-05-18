@@ -46,3 +46,4 @@ volcengine-python-sdk>=1.0.0        # 导入名: tos - 对象存储
 
 # ===== 系统工具 =====
 websockets>=12.0
+sk-0f454d2d55e744d487a90a59f740485b
