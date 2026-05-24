@@ -3,6 +3,7 @@ import enum
 
 class ResumeStatus(str, enum.Enum):
     """简历状态枚举"""
+    PENDING_UPLOAD = "PENDING_UPLOAD"
     UPLOADED = "UPLOADED"
     PROCESSED = "PROCESSED"
     ANALYZED = "ANALYZED"

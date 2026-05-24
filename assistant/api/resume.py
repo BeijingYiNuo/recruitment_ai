@@ -164,7 +164,7 @@ async def import_resumes_batch(
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """批量导入简历，并行解析，支持一次上传多个 PDF/Word 文件"""
+    """批量导入简历，仅快速建库后立即返回，TOS上传和分析均在后台执行"""
     # 1. 检查用户是否存在
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -194,7 +194,7 @@ async def import_resumes_batch(
 
     file_datas = await asyncio.gather(*[_read_file(f) for f in files], return_exceptions=True)
 
-    # Parse candidate names (JSON array string) and pair with files
+    # 解析候选人姓名
     try:
         parsed_names = json.loads(candidate_names) if candidate_names else []
     except json.JSONDecodeError:
@@ -203,9 +203,9 @@ async def import_resumes_batch(
         if isinstance(fd, dict) and i < len(parsed_names) and parsed_names[i]:
             fd["candidate_name"] = parsed_names[i].strip()
 
-    # ========== 阶段2：并行处理每个文件（上传TOS + 创建DB记录）==========
-    def _process_single_file(file_data: dict) -> dict:
-        """同步处理单个文件的上传和入库"""
+    # ========== 阶段2：快速创建DB记录（不等待TOS上传）==========
+    def _create_resume_record(file_data: dict) -> dict:
+        """创建简历DB记录，状态为PENDING_UPLOAD"""
         filename = file_data["filename"]
         content = file_data["content"]
         candidate_name = file_data.get("candidate_name", "待解析")
@@ -223,23 +223,15 @@ async def import_resumes_batch(
                 "error": f"文件大小超过限制（{max_size // 1024 // 1024}MB）"
             }
 
-        # 每个文件使用独立数据库会话，避免并发冲突
         session = SessionLocal()
         try:
-            result = file_manager.upload_file(
-                db=session,
-                user_id=current_user_id,
-                file_content=content,
-                filename=filename,
-                file_type="resume"
-            )
-
+            file_ext = os.path.splitext(filename)[1].lower().lstrip('.')
             db_resume = Resume(
                 user_id=user_id,
-                file_path=result['tos_key'],
-                file_type=result['file_type'],
+                file_path="",  # TOS上传后更新
+                file_type=file_ext or "unknown",
                 candidate_name=candidate_name,
-                status=ResumeStatus.UPLOADED,
+                status=ResumeStatus.PENDING_UPLOAD,
                 content=None,
                 extracted_at=datetime.now()
             )
@@ -260,30 +252,64 @@ async def import_resumes_batch(
         finally:
             session.close()
 
-    # 使用线程池执行同步 IO 操作（TOS上传），并行处理
     loop = asyncio.get_event_loop()
-    tasks = [loop.run_in_executor(None, _process_single_file, fd) for fd in file_datas]
+    tasks = [loop.run_in_executor(None, _create_resume_record, fd) for fd in file_datas]
     processed = await asyncio.gather(*tasks)
 
-    # ========== 阶段3：并发启动所有后台分析任务 ==========
-    async def _run_analysis(item: dict):
+    # ========== 阶段3：后台TOS上传 + 分析（不阻塞响应）==========
+    async def _background_process(item: dict):
+        """后台任务：TOS上传 → 更新状态 → 简历分析"""
         if not item.get("success"):
-            return item
+            return
         session = SessionLocal()
         try:
+            # Step 1: 上传文件到 TOS（同步操作，在线程池执行避免阻塞事件循环）
+            def _upload_to_tos():
+                upload_session = SessionLocal()
+                try:
+                    return file_manager.upload_file(
+                        db=upload_session,
+                        user_id=current_user_id,
+                        file_content=item["content"],
+                        filename=item["filename"],
+                        file_type="resume"
+                    )
+                finally:
+                    upload_session.close()
+
+            result = await loop.run_in_executor(None, _upload_to_tos)
+
+            # Step 2: 更新简历记录（TOS key + 状态）
+            resume = session.query(Resume).filter(Resume.id == item["resume_id"]).first()
+            if resume:
+                resume.file_path = result['tos_key']
+                resume.file_type = result['file_type']
+                resume.status = ResumeStatus.UPLOADED
+                session.commit()
+
+            # Step 3: 简历分析（PDF转图片 + LLM，异步执行）
             await process_resume_background_with_images(
                 session, item["resume_id"], item["content"], item["filename"], current_user_id
             )
         except Exception as e:
-            logger.error(f"简历分析失败 [{item['filename']}]: {e}")
+            logger.error(f"简历后台处理失败 [{item['filename']}]: {e}")
+            # 避免记录永久卡在 PENDING_UPLOAD 状态
+            try:
+                resume = session.query(Resume).filter(Resume.id == item["resume_id"]).first()
+                if resume and resume.status == ResumeStatus.PENDING_UPLOAD:
+                    resume.status = ResumeStatus.FAILED_ANALYSIS
+                    session.commit()
+            except Exception:
+                pass
         finally:
             session.close()
 
-    # 所有分析任务并发执行（不等待完成，立即返回）
-    analysis_tasks = [asyncio.create_task(_run_analysis(item)) for item in processed]
-    asyncio.ensure_future(asyncio.gather(*analysis_tasks, return_exceptions=True))
+    asyncio.ensure_future(asyncio.gather(
+        *[asyncio.create_task(_background_process(item)) for item in processed],
+        return_exceptions=True
+    ))
 
-    # ========== 返回结果 ==========
+    # ========== 立即返回（不等待TOS上传和分析）==========
     results = []
     for item in processed:
         if item.get("success"):
@@ -291,7 +317,7 @@ async def import_resumes_batch(
                 "id": item["resume_id"],
                 "filename": item["filename"],
                 "success": True,
-                "status": "UPLOADED",
+                "status": ResumeStatus.PENDING_UPLOAD.value,
             })
         else:
             results.append({
