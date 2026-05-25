@@ -97,3 +97,8 @@ class TosImportItem(BaseModel):
 class BatchTosImportRequest(BaseModel):
     """从TOS批量导入简历的请求"""
     resumes: list[TosImportItem]
+
+
+class ProcessPendingRequest(BaseModel):
+    """处理待分析简历的请求（不传 resume_ids 则处理所有待分析的简历）"""
+    resume_ids: Optional[list[int]] = None

@@ -1,3 +1,4 @@
+import asyncio
 from assistant.utils.logger import logger
 import pdfplumber
 from docx import Document
@@ -236,6 +237,180 @@ async def extract_text_from_images(image_paths: list) -> str:
     full_text = "\n\n".join(all_texts)
     logger.info(f"图片文本提取完成，总长度: {len(full_text)} 字符")
     return full_text
+
+
+async def extract_text_from_images_concurrent(image_paths: list) -> str:
+    """
+    并发提取所有页面的图片文本（比串行快 N 倍）
+
+    每页独立调 LLM 提取文本，结果按页序合并。
+    用于单个页面 token 太大不适用合并模式时的备用方案。
+    """
+    if not llm_client or not image_paths:
+        return ""
+
+    prompt = """请仔细分析这张简历图片，提取图片中的所有文字内容。
+要求：
+1. 保留原有的段落结构和换行
+2. 准确识别所有中文、英文、数字
+3. 不要遗漏任何文字
+4. 只返回提取到的文本内容，不要其他解释"""
+
+    async def _extract_one(image_path: str, page_num: int) -> str:
+        try:
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+
+            messages = [
+                {"role": "system", "content": "你是一个专业的简历图片识别助手"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                        }
+                    ]
+                }
+            ]
+
+            response = await llm_client.chat.completions.create(
+                model=VISION_MODEL,
+                messages=messages,
+                extra_body={"thinking": {"type": "disabled"}},
+                max_tokens=4000,
+                stream=False,
+            )
+
+            text = response.choices[0].message.content
+            logger.info(f"第 {page_num} 页并发提取完成，长度: {len(text)} 字符")
+            return text
+        except Exception as e:
+            logger.error(f"识别第 {page_num} 页失败: {e}")
+            return f"[第 {page_num} 页识别失败]"
+
+    tasks = [_extract_one(p, i) for i, p in enumerate(image_paths, 1)]
+    results = await asyncio.gather(*tasks)
+
+    full_text = "\n\n".join(results)
+    logger.info(f"并发提取完成，共 {len(results)} 页，总长度: {len(full_text)} 字符")
+    return full_text
+
+
+async def analyze_resume_with_llm_from_images(image_paths: list) -> dict:
+    """
+    使用视觉 LLM 直接从简历图片解析出结构化 JSON
+    （合并"提取文本" + "结构化解析"两次 LLM 调用为一次）
+
+    将所有图片页一次性发给 LLM，直接输出结构化 JSON，省去中间文本提取步骤。
+
+    Args:
+        image_paths: 图片路径列表
+
+    Returns:
+        Dict: 结构化解析结果，同 analyze_resume_with_llm 返回格式
+    """
+    if not llm_client or not image_paths:
+        return {"educations": [], "work_experiences": [], "skills": [], "projects": []}
+
+    from assistant.LLM.llm_resume_analysis import extract_json_safe
+
+    prompt = """请仔细分析这些简历图片，提取所有信息并直接输出 JSON。
+
+强制要求（必须遵守）：
+1. 只能输出 JSON，不允许任何额外文字
+2. JSON 必须能被 Python 的 json.loads() 正确解析
+3. 所有 key 必须使用双引号
+4. 所有字符串必须使用双引号
+5. 不允许出现多余逗号
+6. 不存在的值必须为 null（不能是 "" 或 "无"）
+7. 年龄 age 必须是整数，无法确定则为 null
+8. is_985 / is_211 必须是整数 0 或 1，无法判断则为 null
+9. 日期必须为 "YYYY-MM-DD"，无法确定则为 null
+
+输出 JSON 格式如下：
+
+{
+  "person_info": {
+    "name": "string or null",
+    "age": number or null,
+    "gender": "string or null",
+    "phone": "string or null",
+    "email": "string or null",
+    "address": "string or null"
+  },
+  "educations": [
+    {
+      "school_name": "string or null",
+      "degree": "string or null",
+      "major": "string or null",
+      "start_date": "YYYY-MM-DD or null",
+      "end_date": "YYYY-MM-DD or null",
+      "is_985": 0 or 1 or null,
+      "is_211": 0 or 1 or null
+    }
+  ],
+  "work_experiences": [
+    {
+      "company_name": "string or null",
+      "position": "string or null",
+      "start_date": "YYYY-MM-DD or null",
+      "end_date": "YYYY-MM-DD or null",
+      "description": "string or null"
+    }
+  ],
+  "skills": [
+    {
+      "skill_name": "string or null",
+      "proficiency_level": "string or null"
+    }
+  ],
+  "projects": [
+    {
+      "project_name": "string or null",
+      "description": "string or null",
+      "start_date": "YYYY-MM-DD or null",
+      "end_date": "YYYY-MM-DD or null",
+      "role": "string or null"
+    }
+  ]
+}
+
+注意：最终输出必须是一个纯 JSON 字符串，不允许有任何前后缀内容或 markdown 标记。"""
+
+    # 构造消息——把所有图片放在同一次请求中
+    content = [{"type": "text", "text": prompt}]
+    for image_path in image_paths:
+        with open(image_path, "rb") as f:
+            base64_image = base64.b64encode(f.read()).decode("utf-8")
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+        })
+
+    messages = [
+        {"role": "system", "content": "你是一个专业的简历解析助手"},
+        {"role": "user", "content": content}
+    ]
+
+    try:
+        response = await llm_client.chat.completions.create(
+            model=VISION_MODEL,
+            messages=messages,
+            extra_body={"thinking": {"type": "disabled"}},
+            max_tokens=4000,
+            stream=False,
+        )
+
+        response_content = response.choices[0].message.content
+        parsed_data = extract_json_safe(response_content)
+        logger.info(f"简历图片直接解析结果: {parsed_data}")
+        return parsed_data
+    except Exception as e:
+        logger.error(f"简历图片直接解析失败: {e}")
+        return {"educations": [], "work_experiences": [], "skills": [], "projects": []}
+
 
 
 def cleanup_temp_images(image_paths: list, output_dir: str = None):
@@ -607,22 +782,25 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
         if file_extension == ".pdf" and HAS_PYMUPDF:
             logger.info(f"简历 {resume_id} 为 PDF 文件，使用图片识别模式")
             
-            # 1. PDF 转图片
-            image_paths, output_dir = pdf_to_images(file_bytes)
-            
-            # 2. 图片提取文本
-            resume_text = await extract_text_from_images(image_paths)
-            
+            # 1. PDF 转图片（CPU 密集，在线程池执行避免阻塞事件循环）
+            loop = asyncio.get_event_loop()
+            image_paths, output_dir = await loop.run_in_executor(
+                None, lambda: pdf_to_images(file_bytes)
+            )
+
+            # 2. 直接解析图片为结构化 JSON（合并提取文本+结构化，一次 LLM 调用）
+            parsed_data = await analyze_resume_with_llm_from_images(image_paths)
+
             # 3. 图片识别后立即删除临时文件
             cleanup_temp_images(image_paths, output_dir)
             logger.info(f"简历 {resume_id} 临时图片已清理")
+            resume_text = ""  # 图片直接解析模式不单独存原始文本
         else:
             # Word 或其他文件：使用传统文本提取
             logger.info(f"简历 {resume_id} 为 {file_extension} 文件，使用传统文本提取模式")
             resume_text = extract_text(filename, file_bytes)
-        
-        # 4. 调用 analyze_resume_with_llm 进行结构化解析
-        parsed_data = await analyze_resume_with_llm(resume_text)
+            # 4. 调用 analyze_resume_with_llm 进行结构化解析
+            parsed_data = await analyze_resume_with_llm(resume_text)
 
         # 5. 查询简历记录
         resume = db.query(Resume).filter(Resume.id == resume_id).first()

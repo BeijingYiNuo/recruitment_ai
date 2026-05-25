@@ -3,7 +3,8 @@ from assistant.entity.DTO.resume_dto import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
     BatchUploadUrlItem, BatchUploadUrlRequest, BatchUploadUrlResponse,
-    UploadUrlResult, TosImportItem, BatchTosImportRequest
+    UploadUrlResult, TosImportItem, BatchTosImportRequest,
+    ProcessPendingRequest
 )
 from assistant.entity.DTO.interview_dto import (
     InterviewSessionCreate, InterviewSessionUpdate,
@@ -50,4 +51,6 @@ __all__ = [
     # Batch Upload
     "BatchUploadUrlItem", "BatchUploadUrlRequest", "BatchUploadUrlResponse",
     "UploadUrlResult", "TosImportItem", "BatchTosImportRequest",
+    # Process Pending
+    "ProcessPendingRequest",
 ]
