@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict, Any
 from assistant.config.database import get_db
 from assistant.entity import InterviewSession, InterviewSessionRound, PositionRound
 from assistant.enums import SessionStatus
@@ -35,8 +35,12 @@ def create_interview_session(
 
 
 
-@router.get("/sessions", response_model=List[InterviewSessionResponse])
+@router.get("/sessions")
 def get_interview_sessions_by_user(
+    skip: int = 0,
+    limit: int = 100,
+    keyword: str = "",
+    status: str = None,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
@@ -46,9 +50,19 @@ def get_interview_sessions_by_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
-    """根据用户ID获取所有面试会话"""
-    sessions = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id).all()
-    return sessions
+    """根据用户ID获取所有面试会话，支持搜索和分页"""
+    query = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id)
+
+    if keyword:
+        query = query.filter(InterviewSession.candidate_name.ilike(f"%{keyword}%"))
+
+    if status:
+        query = query.filter(InterviewSession.status == status)
+
+    query = query.order_by(InterviewSession.created_at.desc())
+    total = query.count()
+    sessions = query.offset(skip).limit(limit).all()
+    return {"items": [InterviewSessionResponse.model_validate(s) for s in sessions], "total": total}
 
 @router.get("/sessions/{session_id}", response_model=InterviewSessionResponse)
 def get_interview_session(

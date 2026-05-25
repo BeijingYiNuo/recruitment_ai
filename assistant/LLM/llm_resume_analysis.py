@@ -158,13 +158,16 @@ def extract_json_safe(response_content):
     candidate = re.sub(r",\s*}", "}", candidate)
     candidate = re.sub(r",\s*]", "]", candidate)
 
-    # 4️⃣ 用 decoder 找 JSON
+    # 4️⃣ 用 decoder 找 JSON（必须是 dict 类型，忽略字符串等非结构数据）
     decoder = json.JSONDecoder()
     idx = 0
     while idx < len(candidate):
         try:
             obj, end = decoder.raw_decode(candidate[idx:])
-            return obj
+            if isinstance(obj, dict):
+                return obj
+            # 找到的非 dict 值（如字符串）则跳过，继续搜索
+            idx += end
         except json.JSONDecodeError:
             idx += 1
 

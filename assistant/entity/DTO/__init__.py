@@ -1,7 +1,9 @@
 from assistant.entity.DTO.user_dto import UserCreate, UserUpdate, UserLogin, TokenResponse
 from assistant.entity.DTO.resume_dto import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
-    ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate
+    ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
+    BatchUploadUrlItem, BatchUploadUrlRequest, BatchUploadUrlResponse,
+    UploadUrlResult, TosImportItem, BatchTosImportRequest
 )
 from assistant.entity.DTO.interview_dto import (
     InterviewSessionCreate, InterviewSessionUpdate,
@@ -45,4 +47,7 @@ __all__ = [
     # Position
     "PositionCreate", "PositionUpdate",
     "PositionRoundCreate", "PositionRoundUpdate", "PositionRoundReorder",
+    # Batch Upload
+    "BatchUploadUrlItem", "BatchUploadUrlRequest", "BatchUploadUrlResponse",
+    "UploadUrlResult", "TosImportItem", "BatchTosImportRequest",
 ]

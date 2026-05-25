@@ -297,28 +297,57 @@ class TosFileManager:
     
     def get_file_url(self, tos_key: str, expires: int = 3600) -> str:
         """
-        生成预签名 URL（用于临时访问）
-        
+        生成预签名下载 URL
+
         Args:
             tos_key: TOS 对象键
             expires: 过期时间（秒）
-            
+
         Returns:
             str: 预签名 URL
         """
         try:
-            # 使用 TosClientV2 的 pre_signed_url 方法
-            # 注意：不同版本的 TOS SDK 参数可能不同，不要传递 method 参数
-            url = self.client.pre_signed_url(
+            from tos import HttpMethodType
+            result = self.client.pre_signed_url(
+                http_method=HttpMethodType.Http_Method_Get,
                 bucket=self.bucket_name,
                 key=tos_key,
                 expires=expires
             )
-            
-            return url
-            
+            return result.signed_url
         except Exception as e:
             logger.error(f"Failed to generate pre-signed URL: {e}")
+            raise
+
+    def generate_upload_url(self, user_id: int, filename: str, file_type: str, expires: int = 3600) -> Dict[str, str]:
+        """
+        生成预签名上传 URL（客户端直传 TOS，不经过服务器）
+
+        Args:
+            user_id: 用户 ID
+            filename: 文件名
+            file_type: 文件类别（resume/voice/dialogue）
+            expires: URL 过期时间（秒）
+
+        Returns:
+            Dict: {url: 预签名上传URL, tos_key: TOS对象键}
+        """
+        try:
+            from tos import HttpMethodType
+            tos_key = self.get_tos_key(user_id, file_type, filename)
+            result = self.client.pre_signed_url(
+                http_method=HttpMethodType.Http_Method_Put,
+                bucket=self.bucket_name,
+                key=tos_key,
+                expires=expires
+            )
+            logger.info(f"Generated upload URL for {tos_key}, expires in {expires}s")
+            return {
+                'url': result.signed_url,
+                'tos_key': tos_key,
+            }
+        except Exception as e:
+            logger.error(f"Failed to generate upload URL: {e}")
             raise
 
     def format_time_fast(self, ms: int | None) -> str:

@@ -26,7 +26,8 @@ from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
-    ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate
+    ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
+    BatchUploadUrlRequest, UploadUrlResult, TosImportItem, BatchTosImportRequest
 )
 from assistant.entity.VO import (
     ResumeResponse, ResumeEducationResponse,
@@ -47,16 +48,20 @@ router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
 
 # 简历相关接口
-@router.get("", response_model=List[ResumeResponse])
+@router.get("")
 def get_resumes(
     skip: int = 0,
     limit: int = 100,
     review_status: str = None,
+    keyword: str = "",
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取当前用户的所有简历，支持按审核状态筛选"""
+    """获取当前用户的所有简历，支持按审核状态筛选、搜索和分页"""
     query = db.query(Resume).filter(Resume.user_id == current_user_id)
+
+    if keyword:
+        query = query.filter(Resume.candidate_name.ilike(f"%{keyword}%"))
 
     if review_status == "null":
         query = query.filter(Resume.review_status.is_(None))
@@ -64,8 +69,9 @@ def get_resumes(
         query = query.filter(Resume.review_status == review_status)
 
     query = query.order_by(Resume.created_at.desc())
+    total = query.count()
     resumes = query.offset(skip).limit(limit).all()
-    return resumes
+    return {"items": [ResumeResponse.model_validate(r) for r in resumes], "total": total}
 
 
 @router.post("/import", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
@@ -327,6 +333,240 @@ async def import_resumes_batch(
             })
 
     return results
+
+
+@router.post("/batch/upload-urls", response_model=Dict[str, Any])
+@limiter.limit("10/minute")
+async def get_batch_upload_urls(
+    request: Request,
+    data: BatchUploadUrlRequest,
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    批量获取预签名上传URL（客户端直传TOS，绕过服务器带宽瓶颈）
+
+    客户端流程：
+    1. 调用此接口获取预签名URL + tos_key
+    2. 直接用 PUT 请求上传文件到 TOS（不经过服务器）
+    3. 调用 /import/batch/from-tos 通知服务器开始处理
+    """
+    if not data.files or len(data.files) == 0:
+        raise HTTPException(status_code=400, detail="请至少提供一个文件")
+
+    max_files = 20
+    if len(data.files) > max_files:
+        raise HTTPException(status_code=400, detail=f"单次最多 {max_files} 个文件")
+
+    upload_urls = []
+    for f in data.files:
+        url_info = file_manager.generate_upload_url(
+            user_id=current_user_id,
+            filename=f.filename,
+            file_type="resume"
+        )
+        upload_urls.append({
+            "filename": f.filename,
+            "url": url_info["url"],
+            "tos_key": url_info["tos_key"],
+        })
+
+    return {"upload_urls": upload_urls}
+
+
+@router.post("/batch/import-from-tos", response_model=List[Dict[str, Any]], status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
+async def import_resumes_batch_from_tos(
+    request: Request,
+    data: BatchTosImportRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    从TOS批量导入简历（文件已由客户端直传到TOS）
+
+    步骤：
+    1. 检查TOS中文件是否存在
+    2. 创建DB记录
+    3. 后台下载文件并分析
+    """
+    if not data.resumes or len(data.resumes) == 0:
+        raise HTTPException(status_code=400, detail="请至少提供一个简历")
+
+    max_files = 20
+    if len(data.resumes) > max_files:
+        raise HTTPException(status_code=400, detail=f"单次最多 {max_files} 个文件")
+
+    loop = asyncio.get_event_loop()
+
+    # ========== 创建DB记录（按姓名去重） ==========
+    def _create_record(item: TosImportItem) -> dict:
+        session = SessionLocal()
+        try:
+            file_ext = os.path.splitext(item.filename)[1].lower().lstrip('.')
+
+            # 按候选人姓名查找是否已存在
+            existing = session.query(Resume).filter(
+                Resume.candidate_name == item.candidate_name,
+                Resume.user_id == current_user_id
+            ).first()
+
+            if existing:
+                # 删除旧文件（TOS + 记录）
+                old_file_path = existing.file_path
+                if old_file_path:
+                    try:
+                        del_session = SessionLocal()
+                        try:
+                            file_manager.delete_file(old_file_path, del_session)
+                        finally:
+                            del_session.close()
+                    except Exception as e:
+                        logger.warning(f"删除旧简历文件失败 [{item.candidate_name}]: {e}")
+
+                # 更新现有记录（触发重新分析）
+                existing.file_path = item.tos_key
+                existing.file_type = file_ext or "unknown"
+                existing.status = ResumeStatus.UPLOADED
+                existing.content = None
+                existing.extracted_at = datetime.now()
+                session.commit()
+                session.refresh(existing)
+
+                return {
+                    "filename": item.filename,
+                    "tos_key": item.tos_key,
+                    "resume_id": existing.id,
+                    "candidate_name": item.candidate_name,
+                    "success": True,
+                    "updated": True,
+                }
+            else:
+                # 创建新记录
+                db_resume = Resume(
+                    user_id=current_user_id,
+                    file_path=item.tos_key,
+                    file_type=file_ext or "unknown",
+                    candidate_name=item.candidate_name,
+                    status=ResumeStatus.UPLOADED,
+                    content=None,
+                    extracted_at=datetime.now()
+                )
+                session.add(db_resume)
+                session.commit()
+                session.refresh(db_resume)
+
+                return {
+                    "filename": item.filename,
+                    "tos_key": item.tos_key,
+                    "resume_id": db_resume.id,
+                    "candidate_name": item.candidate_name,
+                    "success": True,
+                    "updated": False,
+                }
+        except Exception as e:
+            session.rollback()
+            return {"filename": item.filename, "success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    tasks = [loop.run_in_executor(None, _create_record, item) for item in data.resumes]
+    processed = await asyncio.gather(*tasks)
+
+    # ========== 后台下载TOS文件 + 分析 ==========
+    async def _background_process_from_tos(item: dict):
+        if not item.get("success"):
+            return
+        try:
+            # 从TOS下载文件内容
+            file_bytes = file_manager.download_file(item["tos_key"])
+
+            session = SessionLocal()
+            try:
+                # 如果是更新已有简历，先清除旧的解析数据
+                if item.get("updated"):
+                    session.query(ResumeEducation).filter(
+                        ResumeEducation.resume_id == item["resume_id"]
+                    ).delete()
+                    session.query(ResumeWorkExperience).filter(
+                        ResumeWorkExperience.resume_id == item["resume_id"]
+                    ).delete()
+                    session.query(ResumeSkill).filter(
+                        ResumeSkill.resume_id == item["resume_id"]
+                    ).delete()
+                    session.query(ResumeProject).filter(
+                        ResumeProject.resume_id == item["resume_id"]
+                    ).delete()
+                    session.commit()
+                    logger.info(f"已清除简历 {item['resume_id']} 的旧解析数据，准备重新分析")
+
+                await process_resume_background_with_images(
+                    session, item["resume_id"], file_bytes, item["filename"], current_user_id
+                )
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"TOS简历后台处理失败 [{item['filename']}]: {e}")
+            try:
+                session = SessionLocal()
+                resume = session.query(Resume).filter(Resume.id == item["resume_id"]).first()
+                if resume and resume.status == ResumeStatus.UPLOADED:
+                    resume.status = ResumeStatus.FAILED_ANALYSIS
+                    session.commit()
+                session.close()
+            except Exception:
+                pass
+
+    asyncio.ensure_future(asyncio.gather(
+        *[asyncio.create_task(_background_process_from_tos(item)) for item in processed],
+        return_exceptions=True
+    ))
+
+    # ========== 立即返回 ==========
+    results = []
+    for item in processed:
+        if item.get("success"):
+            results.append({
+                "id": item["resume_id"],
+                "filename": item["filename"],
+                "success": True,
+                "status": ResumeStatus.UPLOADED.value,
+            })
+        else:
+            results.append({
+                "filename": item["filename"],
+                "success": False,
+                "error": item["error"],
+            })
+    return results
+
+
+@router.post("/batch/upload-file", response_model=Dict[str, str])
+@limiter.limit("30/minute")
+async def batch_upload_file(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    接收前端单文件并上传到TOS（CORS中转，代替浏览器直传TOS）
+
+    前端逐文件调用此接口上传，绕过浏览器跨域限制。
+    返回 tos_key 后用于 /batch/import-from-tos 批量建库。
+    """
+    content = await file.read()
+    is_valid, err_msg = file_manager.validate_file_size(content)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err_msg)
+
+    result = file_manager.upload_file(
+        db=db,
+        user_id=current_user_id,
+        file_content=content,
+        filename=file.filename,
+        file_type="resume"
+    )
+    return {"tos_key": result["tos_key"], "filename": file.filename}
 
 
 @router.post("/{resume_id}/review", response_model=ResumeResponse)

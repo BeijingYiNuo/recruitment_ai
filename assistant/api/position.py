@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict, Any
 from assistant.config.database import get_db
 from assistant.entity.position import Position, PositionRound
 from assistant.entity.DTO.position_dto import (
@@ -18,15 +18,25 @@ router = APIRouter(prefix="/api/positions", tags=["岗位管理"])
 
 # ========== 岗位 CRUD ==========
 
-@router.get("", response_model=List[PositionListResponse])
+@router.get("")
 def list_positions(
+    skip: int = 0,
+    limit: int = 100,
+    keyword: str = "",
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取岗位列表（仅当前用户创建的岗位）"""
-    positions = db.query(Position).filter(
+    """获取岗位列表（仅当前用户创建的岗位），支持搜索和分页"""
+    query = db.query(Position).filter(
         Position.created_by == current_user_id
-    ).order_by(Position.created_at.desc()).all()
+    )
+
+    if keyword:
+        query = query.filter(Position.name.ilike(f"%{keyword}%"))
+
+    query = query.order_by(Position.created_at.desc())
+    total = query.count()
+    positions = query.offset(skip).limit(limit).all()
 
     result = []
     for pos in positions:
@@ -41,7 +51,7 @@ def list_positions(
             round_count=round_count,
             created_at=pos.created_at,
         ))
-    return result
+    return {"items": result, "total": total}
 
 
 @router.post("", response_model=PositionResponse, status_code=status.HTTP_201_CREATED)

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import List
+from typing import List, Dict, Any
 import re
 from assistant.entity import Resume, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject
 from passlib.context import CryptContext
@@ -28,16 +28,29 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/users", tags=["用户管理"])
 
 
-@router.get("", response_model=List[UserResponse])
+@router.get("")
 def get_users(
     skip: int = 0,
     limit: int = 100,
+    keyword: str = "",
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取用户列表"""
-    users = db.query(User).filter(User.id == current_user_id or User.recruiter_id==current_user_id).offset(skip).limit(limit).all()
-    return users
+    """获取用户列表，支持搜索和分页"""
+    query = db.query(User).filter(
+        (User.id == current_user_id) | (User.recruiter_id == current_user_id)
+    )
+
+    if keyword:
+        query = query.filter(
+            User.username.ilike(f"%{keyword}%") |
+            User.email.ilike(f"%{keyword}%") |
+            User.phone.ilike(f"%{keyword}%")
+        )
+
+    total = query.count()
+    users = query.offset(skip).limit(limit).all()
+    return {"items": [UserResponse.model_validate(u) for u in users], "total": total}
 
 
 @router.get("/{user_id}", response_model=UserResponse)

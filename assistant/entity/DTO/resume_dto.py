@@ -63,3 +63,37 @@ class ResumeProjectCreate(BaseModel):
     start_date: datetime
     end_date: datetime
     role: str = None
+
+
+class BatchUploadUrlItem(BaseModel):
+    """批量上传URL - 单个文件信息"""
+    filename: str
+
+
+class BatchUploadUrlRequest(BaseModel):
+    """获取批量预签名上传URL的请求"""
+    files: list[BatchUploadUrlItem]
+
+
+class UploadUrlResult(BaseModel):
+    """预签名上传URL结果"""
+    filename: str
+    url: str
+    tos_key: str
+
+
+class BatchUploadUrlResponse(BaseModel):
+    """批量预签名上传URL响应"""
+    upload_urls: list[UploadUrlResult]
+
+
+class TosImportItem(BaseModel):
+    """TOS导入 - 单个简历信息"""
+    tos_key: str
+    filename: str
+    candidate_name: str = "待解析"
+
+
+class BatchTosImportRequest(BaseModel):
+    """从TOS批量导入简历的请求"""
+    resumes: list[TosImportItem]

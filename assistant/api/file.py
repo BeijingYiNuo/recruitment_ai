@@ -85,16 +85,27 @@ async def upload_file(
 
 @router.get("/list")
 async def list_files(
+    skip: int = 0,
+    limit: int = 100,
+    keyword: str = "",
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """
-    获取用户所有文件列表
+    获取用户所有文件列表，支持搜索和分页
     """
-    files = db.query(TosFile).filter(TosFile.user_id == current_user_id).all()
+    query = db.query(TosFile).filter(TosFile.user_id == current_user_id)
+
+    if keyword:
+        query = query.filter(TosFile.file_name.ilike(f"%{keyword}%"))
+
+    query = query.order_by(TosFile.updated_at.desc())
+    total = query.count()
+    files = query.offset(skip).limit(limit).all()
     return {
         "message": "文件列表",
-        "data": files
+        "data": files,
+        "total": total
     }   
 
 
