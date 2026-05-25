@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 from assistant.utils.logger import logger
 import pdfplumber
 from docx import Document
@@ -153,15 +154,23 @@ def pdf_to_images(pdf_bytes: bytes, output_dir: str = None, dpi: int = 300) -> t
     
     # 使用 PyMuPDF 打开 PDF
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    image_paths = []
-    
-    for page_num, page in enumerate(doc, 1):
-        # 渲染页面
+    num_pages = len(doc)
+
+    def render_page(page_num):
+        """渲染单页 PDF 为图片（线程安全，get_pixmap 释放 GIL）"""
+        page = doc[page_num]
         pix = page.get_pixmap(matrix=fitz.Matrix(dpi/72, dpi/72))
-        image_path = output_dir / f"page_{page_num:03d}.jpg"
+        image_path = output_dir / f"page_{page_num + 1:03d}.jpg"
         pix.save(str(image_path))
-        image_paths.append(str(image_path))
-    
+        return str(image_path)
+
+    # 多页 PDF 并发渲染
+    if num_pages <= 1:
+        image_paths = [render_page(0)]
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(num_pages, 8)) as executor:
+            image_paths = list(executor.map(render_page, range(num_pages)))
+
     doc.close()
     logger.info(f"PDF 转图片完成，共 {len(image_paths)} 页，输出目录: {output_dir}")
     return image_paths, str(output_dir)
@@ -588,6 +597,12 @@ def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
                     db.refresh(db_user)
                     logger.info(f"[用户已存在，更新成功(并发)] username: {username}, email: {email}")
     
+    # 先删除该简历原有的关联记录（防止重复导入导致重复数据）
+    db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
+    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
+    db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
+    db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
+
     # 存储教育经历
     for edu in parsed_data.get("educations", []):
         # 处理日期字段，确保不为 None

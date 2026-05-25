@@ -10,7 +10,7 @@ load_dotenv()
 # JWT配置
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")  # 应该在生产环境中设置为强密钥
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1小时
+ACCESS_TOKEN_EXPIRE_MINUTES = 240  # 4小时
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """生成访问令牌"""
