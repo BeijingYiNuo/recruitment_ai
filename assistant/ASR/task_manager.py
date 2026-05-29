@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import Dict, Any, Optional
 from assistant.config.config_manager import ConfigManager
 from assistant.utils.logger import logger
@@ -11,6 +12,8 @@ import wave
 import io
 from assistant.entity import InterviewSession, UserKnowledge
 from assistant.interview.stage_manager import StageManager
+from asyncio import QueueEmpty
+from assistant.context.memory_manager import ContextManager
 # 常量定义
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -70,6 +73,8 @@ class TaskManager:
         streaming_q = asyncio.Queue(maxsize=500)
         result_q = asyncio.Queue(maxsize=500)
         output_q = asyncio.Queue(maxsize=500)
+        stage_cmd_q = asyncio.Queue(maxsize=10)
+        manual_analysis_q = asyncio.Queue(maxsize=5)
 
         # 创建ASR客户端实例
         asr_client = await self.build_asr_client()
@@ -85,6 +90,8 @@ class TaskManager:
             'streaming_q': streaming_q,
             'result_q': result_q,
             'output_q': output_q,
+            'stage_cmd_q': stage_cmd_q,
+            'manual_analysis_q': manual_analysis_q,
             'state': ASRState(),
             'status': 'starting',
             'websocket': websocket,
@@ -92,7 +99,8 @@ class TaskManager:
             'asr_data_list': [],
             'session_id': session_id,
             'round_id': round_id,
-            'stage_manager': None
+            'stage_manager': None,
+            'context_manager': ContextManager()
         }
     async def start_interview(self, session_id: str, round_id: str, req: Any, record_voice: bool = False, current_user_id: int = None, db: Session = None):
         """
@@ -126,6 +134,11 @@ class TaskManager:
             # 初始化面试阶段管理器
             self.clients[composite_key]['stage_manager'] = StageManager()
             logger.info(f"[面试阶段] 阶段管理器已初始化")
+
+            # 初始化上下文管理器并注入LLM客户端（用于LTM压缩）
+            ctx_mgr = self.clients[composite_key]['context_manager']
+            ctx_mgr.set_llm_client(self.llm_manager.llm_client)
+            logger.info(f"[上下文管理] 上下文管理器已初始化")
 
             # 建立ASR客户端连接
             asr_client = self.clients[composite_key]['asr_client']
@@ -287,7 +300,13 @@ class TaskManager:
     async def task_segment_worker(self, composite_key: str):
         """
         处理ASR结果，提取文本
-        从text_q中取出内容，经过一些策略聚集一些内容生成block，放入到block_q中
+        从text_q中取出内容，按【说话人切换】生成block，放入到block_q中
+
+        策略：
+        - 同一说话人的连续 utterances 合并为一个 block
+        - 说话人切换时立即 emit 上一个 block
+        - max_block_length 作为安全上限（防止单人说太长阻塞）
+        - 静默时也触发 emit（当前说话人说完后停顿）
 
         Args:
             composite_key: 复合键（session_id_round_id）
@@ -299,58 +318,79 @@ class TaskManager:
         state = client['state']
         asr_data_list = client['asr_data_list']
         session_id = client.get('session_id', composite_key)
-        max_block_length = 5  # 最大block长度
+        max_block_length = 30  # 同一说话人安全上限
+        min_block_chars = 30  # 最短 block 长度（字符），短于此值不触发 LLM 分析
         current_block = []
+        current_speaker = None
         prev_silence = False
-        logger.info(f"task_segment_worker started for session {session_id}")
-        
+        logger.info(f"[segment_worker] 启动 (speaker-group mode) session={session_id}")
+
+        async def _emit_block():
+            nonlocal current_block, current_speaker
+            if not current_block:
+                return
+            block_text = ' '.join(current_block)
+
+            # 过滤过短的 block（通常是语气回应、嗯、是等），不触发 LLM 分析
+            if len(block_text) < min_block_chars:
+                logger.info(f"[segment_worker] 丢弃短 block (speaker={current_speaker}, "
+                            f"chars={len(block_text)}): {block_text[:60]}...")
+                current_block = []
+                current_speaker = None
+                return
+
+            await block_q.put((block_text, current_speaker))
+            logger.info(f"[segment_worker] emit block (speaker={current_speaker}, "
+                        f"segments={len(current_block)}): {block_text[:80]}...")
+            current_block = []
+            current_speaker = None
+
+        async def _on_utterance(text_data: dict):
+            nonlocal current_block, current_speaker
+
+            text_content = text_data.get('text', '')
+            speaker_id = text_data.get('speaker_id')
+            if not text_content:
+                return
+
+            # 如果说话人切换了 → 先 emit 之前的 block
+            if current_speaker is not None and speaker_id != current_speaker and current_block:
+                await _emit_block()
+
+            current_block.append(text_content)
+            current_speaker = speaker_id
+            logger.debug(f"[segment_worker] 累积 speaker={speaker_id} "
+                         f"segments={len(current_block)}")
+
+            # 安全上限触发
+            if len(current_block) >= max_block_length:
+                await _emit_block()
+
         while not stop_event.is_set():
             try:
-                # 为text_q.get()添加超时，避免长时间阻塞
                 text = await asyncio.wait_for(text_q.get(), timeout=0.5)
                 if text:
                     asr_data_list.append(text)
-                    logger.info(f"[segment_worker] Received text from text_q: {text}")
-
-                if text is not None:
-                    text_content = text.get('text')
-                    if text_content:
-                        current_block.append(text_content)
-                        logger.info(f"[segment_worker] Added to current_block, length: {len(current_block)}")
-                        
-                        # 长度触发
-                        if len(current_block) >= max_block_length:
-                            block_text = ' '.join(current_block)
-                            await block_q.put(block_text)
-                            logger.info(f"[length ]Generated block: {block_text}")
-                            current_block.clear()
-                            
-                        # 收到文本后重置静默状态
-                        prev_silence = False
+                    await _on_utterance(text)
+                    # 收到文本后重置静默状态
+                    prev_silence = False
             except asyncio.TimeoutError:
                 pass
-            
-            # 检查静默状态
+
+            # 检查静默状态 → 说话人停顿后 emit
             async with state.lock:
                 is_silence = state.is_silence
-            
-            logger.debug(f"[segment_worker] is_silence: {is_silence}, prev_silence: {prev_silence}, current_block len: {len(current_block)}")
-            
-            # 静默触发：从有声音变为静默时触发
+
             if is_silence and not prev_silence and current_block:
-                block_text = ' '.join(current_block)
-                await block_q.put(block_text)
-                logger.info(f"[silence ]Generated block: {block_text}")
-                current_block.clear()
-            
+                await _emit_block()
+
             prev_silence = is_silence
     
     async def task_analysis_worker(self, composite_key: str):
         """
         处理文本，调用LLM分析
-        从block_q中获取内容，经过llm_analysis分析，生成结果并放入streaming_q、当生成完一整句话后放入result_q
-        Args:
-            composite_key: 复合键（session_id_round_id）
+        从block_q中获取内容 → Reply Agent (流式) → Flow Agent (每N轮分类阶段)
+        同时从stage_cmd_q接收手动阶段切换指令
         """
         client = self.clients[composite_key]
         block_q = client['block_q']
@@ -358,73 +398,225 @@ class TaskManager:
         result_q = client['result_q']
         stop_event = client['stop_event']
         state = client['state']
-        # 使用get方法避免KeyError，collection_name可能不存在
+        stage_cmd_q = client['stage_cmd_q']
         collection_name = client.get('collection_name') or None
         session_id = client.get('session_id', composite_key)
         logger.info(f"task_analysis_worker started for {composite_key}, collection_name: {collection_name}")
 
         index = 0
+        turn_counter = 0
+        flow_check_counter = 0
+        FLOW_CHECK_INTERVAL = 3  # Flow Agent 每 N 个 block 分类一次
+
+        from assistant.interview.stage_manager import STAGE_ORDER as _STAGE_ORDER
+
+        async def _send_stage_info(transition_info) -> bool:
+            """如果阶段有变化则推送 stage_info 到前端"""
+            if not transition_info:
+                return False
+            logger.info(f"[面试阶段] 当前: {transition_info['display_name']}")
+            await streaming_q.put({
+                "response_type": "stage_info",
+                "stage": transition_info["current_stage"],
+                "display_name": transition_info["display_name"],
+                "stage_index": transition_info["stage_index"],
+                "total_stages": transition_info["total_stages"],
+                "description": transition_info["description"],
+            })
+            return True
+
+        async def _check_stage_cmd() -> bool:
+            """检查是否有手动阶段切换指令，有则执行并返回 True"""
+            nonlocal flow_check_counter
+            try:
+                cmd = stage_cmd_q.get_nowait()
+            except QueueEmpty:
+                return False
+
+            logger.info(f"[手动阶段切换] 命令: {cmd}")
+            stage_manager: StageManager = client.get('stage_manager')
+            if not stage_manager:
+                logger.warning("[手动阶段切换] 阶段管理器不存在")
+                return True
+
+            target = cmd.get("target_stage")
+            direction = cmd.get("direction", "next")
+
+            if target:
+                transition_info = stage_manager.set_stage(target)
+            elif direction == "prev":
+                # 按列表顺序跳到上一阶段
+                try:
+                    cur_idx = _STAGE_ORDER.index(stage_manager.current_stage)
+                    if cur_idx > 0:
+                        transition_info = stage_manager.set_stage(_STAGE_ORDER[cur_idx - 1].value)
+                    else:
+                        transition_info = None
+                except ValueError:
+                    transition_info = None
+            else:
+                # 按列表顺序跳到下一阶段
+                try:
+                    cur_idx = _STAGE_ORDER.index(stage_manager.current_stage)
+                    if cur_idx < len(_STAGE_ORDER) - 1:
+                        transition_info = stage_manager.set_stage(_STAGE_ORDER[cur_idx + 1].value)
+                    else:
+                        transition_info = None
+                except ValueError:
+                    transition_info = None
+
+            await _send_stage_info(transition_info)
+            flow_check_counter = 0  # 重置，避免刚切又被 Flow Agent 改掉
+            return True
+
+        context_manager: ContextManager = client.get('context_manager')
+        manual_analysis_q: asyncio.Queue = client.get('manual_analysis_q')
+        last_analysis_time: float = 0
+        MIN_AUTO_ANALYSIS_INTERVAL = 8.0  # 自动分析最小间隔（秒），防止频繁调 LLM
+
+        async def _do_analyze(block_text: str, cur_index: int, turn_index: int, speaker: str = None) -> dict:
+            """执行 Reply Agent 分析（萃取公共逻辑）"""
+            nonlocal last_analysis_time, flow_check_counter
+            last_analysis_time = time.time()
+
+            stage_manager: StageManager = client.get('stage_manager')
+            stage_context = stage_manager.build_prompt_context() if stage_manager else ""
+
+            # 知识库检索
+            knowledge_base_info = ""
+            if collection_name:
+                try:
+                    knowledge_base_info = await self.llm_manager.knowledge_manager.search_knowledge(
+                        search_text=block_text,
+                        collection_name=collection_name
+                    )
+                except Exception as e:
+                    logger.error(f"知识库检索失败: {str(e)}")
+
+            if context_manager:
+                system_prompt = self.llm_manager.prompt_manager.generate_prompt(
+                    user_id="",
+                    template_name="analysis",
+                    knowledge_base_info=knowledge_base_info,
+                    stage_context=stage_context
+                )
+                reply_messages = context_manager.build_reply_messages(
+                    system_prompt, block_text, cur_index,
+                    
+                )
+                flow_prompt = self.llm_manager.prompt_manager.generate_prompt(
+                    user_id="",
+                    template_name="flow_agent",
+                    stage_context=stage_context
+                )
+                flow_messages = context_manager.build_flow_messages(
+                    flow_prompt, block_text
+                )
+            else:
+                reply_messages = None
+                flow_messages = None
+
+            # ===== Reply Agent =====
+            result = await self.llm_manager.analyze_reply(
+                block_text, streaming_q, stop_event, cur_index,
+                collection_name, stage_context or "",
+                messages=reply_messages
+            )
+
+            advice = result.get("advice", "")
+            evaluation = result.get("evaluation", "")
+
+            if advice or evaluation:
+                logger.info(f"[分析] block#{cur_index} -> ADVICE/EVALUATION 已生成，advice_len={len(advice)}, eval_len={len(evaluation)}")
+            else:
+                logger.info(f"[分析] block#{cur_index} -> LLM 输出 SKIP，跳过本轮分析")
+
+            # ===== 存入上下文 =====
+            if context_manager:
+                context_manager.push_turn(block_text, turn_index, speaker=speaker)
+                context_manager.update_last_advice(
+                    advice=advice,
+                    evaluation=evaluation
+                )
+                logger.info(
+                    f"[上下文] block#{cur_index} "
+                    f"advice_len={len(advice)} "
+                    f"eval_len={len(evaluation)}"
+                )
+
+            # ===== Flow Agent（每 N 轮分类一次）=====
+            flow_check_counter += 1
+            if flow_check_counter >= FLOW_CHECK_INTERVAL and stage_manager:
+                flow_check_counter = 0
+                logger.info(f"[Flow Agent] 分类阶段 (block #{cur_index})")
+                flow_result = await self.llm_manager.analyze_flow(
+                    block_text, stage_context or "",
+                    messages=flow_messages
+                )
+                identified_stage = flow_result.get("stage")
+                if identified_stage:
+                    logger.info(f"[Flow Agent] 分类结果: {identified_stage} "
+                                f"(confidence={flow_result.get('confidence')})")
+                    transition_info = stage_manager.set_stage(identified_stage)
+                    await _send_stage_info(transition_info)
+
+            return result
 
         while not stop_event.is_set():
             try:
-                # 检查队列状态
-                if stop_event.is_set():
-                    logger.info(f"task_analysis_worker stop_event set, exiting")
-                    break
+                # ========== 1. 优先检查手动切换指令 ==========
+                if await _check_stage_cmd():
+                    await asyncio.sleep(0.01)
+                    continue
 
-                logger.debug(f"task_analysis_worker waiting for block_q, current qsize: {block_q.qsize()}")
+                # ========== 2. 检查手动分析指令 ==========
+                try:
+                    manual_cmd = manual_analysis_q.get_nowait()
+                    logger.info(f"[手动分析] 收到指令: {manual_cmd}")
+                    if context_manager:
+                        recent = context_manager.stm.get_recent(6)
+                        combined = " ".join(t.text for t in recent if t.text)
+                        logger.info(f"[手动分析] 取最近 {len(recent)} 条 STM 内容: {combined[:80]}...")
+                        if combined.strip():
+                            index += 1
+                            turn_counter += 1
+                            await _do_analyze(combined, index, turn_counter)
+                except QueueEmpty:
+                    pass
 
-                # 为block_q.get()添加超时，避免长时间阻塞
-                block_text = await asyncio.wait_for(block_q.get(), timeout=0.1)
-                logger.info(f"Received block from block_q: {block_text}")
-                if block_text:
-                    # 调用LLM分析
-                    index += 1
+                # ========== 3. 从 block_q 取内容 ==========
+                try:
+                    block_item = await asyncio.wait_for(block_q.get(), timeout=0.1)
+                except asyncio.TimeoutError:
+                    continue
 
-                    # 获取阶段上下文
-                    stage_manager: StageManager = client.get('stage_manager')
-                    stage_context = stage_manager.build_prompt_context() if stage_manager else ""
-                    if stage_manager:
-                        logger.info(f"[面试阶段] 当前阶段: {stage_manager.config['display_name']}")
+                if isinstance(block_item, tuple):
+                    block_text, block_speaker = block_item
+                else:
+                    block_text, block_speaker = block_item, None
 
-                    llm_result = await self.llm_manager.analyze(
-                        block_text, streaming_q, stop_event, index,
-                        collection_name, stage_context
-                    )
+                if not block_text:
+                    continue
 
-                    # 记录一次问答
-                    if stage_manager:
-                        stage_manager.record_exchange()
+                index += 1
+                turn_counter += 1
+                flow_check_counter += 1
 
-                    # 处理阶段切换
-                    if llm_result and stage_manager:
-                        llm_transition = llm_result.get("has_transition", False)
-                        prog_transition = stage_manager.should_transition()
+                logger.info(f"[分析] block#{index} speaker={block_speaker}: {block_text[:80]}...")
 
-                        if llm_transition or prog_transition:
-                            transition_info = stage_manager.transition_to_next()
-                            if transition_info:
-                                logger.info(f"[面试阶段] 切换到: {transition_info['display_name']}")
-                                # 发送阶段切换信息到前端
-                                await streaming_q.put({
-                                    "response_type": "stage_info",
-                                    "stage": transition_info["current_stage"],
-                                    "display_name": transition_info["display_name"],
-                                    "stage_index": transition_info["stage_index"],
-                                    "total_stages": transition_info["total_stages"],
-                                    "description": transition_info["description"],
-                                })
-                            else:
-                                logger.info(f"[面试阶段] 面试已结束")
-                
-                # 短暂休眠，让出控制权给其他任务
+                # ========== 4. 判断是否触发 LLM 分析（自动分析有最小间隔）==========
+                now = time.time()
+                if now - last_analysis_time >= MIN_AUTO_ANALYSIS_INTERVAL:
+                    await _do_analyze(block_text, index, turn_counter, speaker=block_speaker)
+                else:
+                    # 间隔内：仅存入 STM，不调 LLM
+                    if context_manager:
+                        context_manager.push_turn(block_text, turn_counter, speaker=block_speaker)
+                    logger.info(f"[分析] 跳过 block#{index}（距上次分析 {now - last_analysis_time:.1f}s < {MIN_AUTO_ANALYSIS_INTERVAL:.0f}s）")
+
                 await asyncio.sleep(0.01)
-            except asyncio.TimeoutError:
-                # 超时后继续循环，避免阻塞
-                continue
             except Exception as e:
-                logger.error(f"Error in task_analysis_worker: {e}")
-                # 发生异常时短暂休眠，避免CPU占用过高
+                logger.error(f"Error in task_analysis_worker: {e}", exc_info=True)
                 await asyncio.sleep(0.1)
                 continue
 
@@ -514,6 +706,26 @@ class TaskManager:
         if composite_key in self.clients:
             self.clients[composite_key]['websocket'] = websocket
             logger.info(f"WebSocket connection updated for {composite_key}")
+
+    def get_manual_analysis_queue(self, composite_key: str):
+        """获取手动分析队列"""
+        if composite_key in self.clients:
+            return self.clients[composite_key].get('manual_analysis_q')
+        return None
+
+    def get_stage_cmd_queue(self, composite_key: str):
+        """
+        获取指定会话的阶段命令队列
+
+        Args:
+            composite_key: 复合键（session_id_round_id）
+
+        Returns:
+            asyncio.Queue: 阶段命令队列，如果会话不存在则返回None
+        """
+        if composite_key in self.clients:
+            return self.clients[composite_key].get('stage_cmd_q')
+        return None
 
 
     async def stop_asr(self, composite_key: str) -> None:

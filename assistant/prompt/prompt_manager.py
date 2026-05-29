@@ -29,6 +29,12 @@ class PromptManager:
         if os.path.exists(knowledge_trigger_path):
             with open(knowledge_trigger_path, 'r', encoding='utf-8') as f:
                 self.templates['knowledge_trigger'] = f.read()
+
+        # 加载flow_agent模板
+        flow_agent_path = os.path.join(prompt_dir, 'flow_agent.txt')
+        if os.path.exists(flow_agent_path):
+            with open(flow_agent_path, 'r', encoding='utf-8') as f:
+                self.templates['flow_agent'] = f.read()
     
     def get_prompt_template(self, template_name: str) -> str:
         """

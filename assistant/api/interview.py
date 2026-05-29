@@ -355,5 +355,101 @@ async def websocket_asr_stream(websocket: WebSocket, session_id: str, round_id: 
                 task_manager.clients[composite_key]['websocket'] = None
 
 
+class StageTransitionRequest(BaseModel):
+    """阶段切换请求体"""
+    target_stage: Optional[str] = None
+    """目标阶段key (如 welcome/self_intro/project/theory/culture/candidate_qa/closing)"""
+    direction: Optional[str] = "next"
+    """方向: next (下一阶段) / prev (上一阶段)，target_stage 为空时生效"""
+
+
+@router.post("/asr/stage/transition/{session_id}/{round_id}")
+async def manual_stage_transition(
+    session_id: str,
+    round_id: str,
+    req: StageTransitionRequest,
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    手动切换面试阶段
+    向指定会话的阶段命令队列发送切换指令，task_analysis_worker 会异步处理
+    """
+    composite_key = f"{session_id}_{round_id}"
+
+    if composite_key not in task_manager.clients:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="会话不存在或ASR服务未启动"
+        )
+
+    stage_cmd_q = task_manager.get_stage_cmd_queue(composite_key)
+    if not stage_cmd_q:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="阶段命令队列不存在"
+        )
+
+    cmd = {}
+    if req.target_stage:
+        cmd["target_stage"] = req.target_stage
+    else:
+        cmd["direction"] = req.direction or "next"
+
+    try:
+        await asyncio.wait_for(stage_cmd_q.put(cmd), timeout=2.0)
+        return {
+            "status": "queued",
+            "command": cmd
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="阶段命令队列已满，请稍后重试"
+        )
+
+
+class ManualAnalysisRequest(BaseModel):
+    """手动触发分析请求体"""
+    pass
+
+
+@router.post("/asr/analyze/manual/{session_id}/{round_id}")
+async def manual_trigger_analysis(
+    session_id: str,
+    round_id: str,
+    req: ManualAnalysisRequest,
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    手动触发 AI 分析
+    向指定会话的手动分析队列发送指令，task_analysis_worker 会异步处理最近 3 条 STM 内容
+    """
+    composite_key = f"{session_id}_{round_id}"
+
+    if composite_key not in task_manager.clients:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="会话不存在或ASR服务未启动"
+        )
+
+    manual_q = task_manager.get_manual_analysis_queue(composite_key)
+    if not manual_q:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="手动分析队列不存在"
+        )
+
+    try:
+        await asyncio.wait_for(manual_q.put({"trigger": "manual"}), timeout=2.0)
+        return {
+            "status": "queued",
+            "message": "手动分析已触发，结果将通过 WebSocket 推送"
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="手动分析队列已满，请稍后重试"
+        )
+
 
 
