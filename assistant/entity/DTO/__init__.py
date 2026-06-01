@@ -2,6 +2,8 @@ from assistant.entity.DTO.user_dto import UserCreate, UserUpdate, UserLogin, Tok
 from assistant.entity.DTO.resume_dto import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
+    ResumeEducationDetail, ResumeWorkExperienceDetail, ResumeSkillDetail,
+    ResumeProjectDetail, ResumeUpdateDetailRequest,
 )
 from assistant.entity.DTO.interview_dto import (
     InterviewSessionCreate, InterviewSessionUpdate,
@@ -28,6 +30,8 @@ __all__ = [
     # Resume
     "ResumeCreate", "ResumeUpdate", "ResumeReviewRequest", "ResumeEducationCreate",
     "ResumeWorkExperienceCreate", "ResumeSkillCreate", "ResumeProjectCreate",
+    "ResumeEducationDetail", "ResumeWorkExperienceDetail", "ResumeSkillDetail",
+    "ResumeProjectDetail", "ResumeUpdateDetailRequest",
     # Interview
     "InterviewSessionCreate", "InterviewSessionUpdate",
     "InterviewSessionQuestionCreate", "InterviewSessionStandardCreate",

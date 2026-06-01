@@ -102,3 +102,47 @@ class BatchTosImportRequest(BaseModel):
 class ProcessPendingRequest(BaseModel):
     """处理待分析简历的请求（不传 resume_ids 则处理所有待分析的简历）"""
     resume_ids: Optional[list[int]] = None
+
+
+class ResumeEducationDetail(BaseModel):
+    """编辑简历时的教育经历条目"""
+    school_name: str = ""
+    degree: Optional[str] = ""
+    major: Optional[str] = ""
+    start_date: Optional[str] = None  # "YYYY-MM-DD"
+    end_date: Optional[str] = None
+    is_985: Optional[int] = 0
+    is_211: Optional[int] = 0
+
+
+class ResumeWorkExperienceDetail(BaseModel):
+    """编辑简历时的工作经历条目"""
+    company_name: str = ""
+    position: Optional[str] = ""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = ""
+
+
+class ResumeSkillDetail(BaseModel):
+    """编辑简历时的技能条目"""
+    skill_name: str = ""
+    proficiency_level: Optional[str] = ""
+
+
+class ResumeProjectDetail(BaseModel):
+    """编辑简历时的项目经历条目"""
+    project_name: str = ""
+    description: Optional[str] = ""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    role: Optional[str] = ""
+
+
+class ResumeUpdateDetailRequest(BaseModel):
+    """编辑简历详情请求：一次性提交全部数据，后端 delete-then-insert"""
+    candidate_name: Optional[str] = None
+    educations: list[ResumeEducationDetail] = []
+    work_experiences: list[ResumeWorkExperienceDetail] = []
+    skills: list[ResumeSkillDetail] = []
+    projects: list[ResumeProjectDetail] = []

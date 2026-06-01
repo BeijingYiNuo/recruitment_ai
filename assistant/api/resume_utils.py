@@ -129,7 +129,7 @@ def extract_text_from_docx_stream(docx_bytes: bytes) -> str:
 
 # ========== PDF 转图片 + 图片识别相关函数 ==========
 
-def pdf_to_images(pdf_bytes: bytes, output_dir: str = None, dpi: int = 300) -> tuple:
+def pdf_to_images(pdf_bytes: bytes, output_dir: str = None, dpi: int = 200) -> tuple:
     """
     将 PDF 二进制流转为图片
     
@@ -495,7 +495,8 @@ def delete_resume_data(
     db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == db_resume.id).delete()
     db.query(ResumeSkill).filter(ResumeSkill.resume_id == db_resume.id).delete()
     db.query(ResumeProject).filter(ResumeProject.resume_id == db_resume.id).delete()
-    db.query(User).filter(User.username == db_resume.candidate_name).delete()
+    if db_resume.candidate_name and db_resume.candidate_name != "待解析":
+        db.query(User).filter(User.username == db_resume.candidate_name).delete()
     
     # 删除主表记录
     db.delete(db_resume)
@@ -758,7 +759,7 @@ async def process_resume_background(db, resume_id, resume_text: str, current_use
             candidate_name = store_resume_details(db, resume_id, parsed_data, current_user_id)
             resume.status = ResumeStatus.ANALYZED
             resume.extracted_at = datetime.now()
-            resume.candidate_name = candidate_name
+            resume.candidate_name = candidate_name[:50] if candidate_name else "待解析"
             resume.content = final_text  # 存储识别到的文本用于追溯
             db.commit()
             logger.info(f"简历 {resume_id} 分析完成（{'图片识别' if use_image_recognition else '文本提取'}）")
@@ -828,7 +829,7 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
             candidate_name = store_resume_details(db, resume_id, parsed_data, current_user_id)
             resume.status = ResumeStatus.ANALYZED
             resume.extracted_at = datetime.now()
-            resume.candidate_name = candidate_name
+            resume.candidate_name = candidate_name[:50] if candidate_name else "待解析"
             resume.content = resume_text  # 存储识别到的文本
             db.commit()
             logger.info(f"简历 {resume_id} 分析完成")

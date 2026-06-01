@@ -1,10 +1,9 @@
 import asyncio
-import json
 import urllib
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from assistant.config.database import get_db, SessionLocal
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
 from fastapi import UploadFile, File, Form
@@ -28,6 +27,7 @@ from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
+    ResumeUpdateDetailRequest,
 )
 from assistant.entity.VO import (
     ResumeResponse, ResumeEducationResponse,
@@ -53,6 +53,16 @@ analysis_semaphore = asyncio.Semaphore(MAX_CONCURRENT_ANALYSIS)
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
 
+def _parse_date(date_str: Optional[str]) -> Optional[datetime]:
+    """解析 'YYYY-MM-DD' 字符串为 datetime，无效返回 None"""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return None
+
+
 # 简历相关接口
 @router.get("")
 def get_resumes(
@@ -60,10 +70,12 @@ def get_resumes(
     limit: int = 100,
     review_status: str = None,
     keyword: str = "",
+    start_time: str = None,
+    end_time: str = None,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """获取当前用户的所有简历，支持按审核状态筛选、搜索和分页"""
+    """获取当前用户的所有简历，支持按审核状态筛选、搜索、时间范围筛选和分页"""
     query = db.query(Resume).filter(Resume.user_id == current_user_id)
 
     if keyword:
@@ -73,6 +85,11 @@ def get_resumes(
         query = query.filter(Resume.review_status.is_(None))
     elif review_status:
         query = query.filter(Resume.review_status == review_status)
+
+    if start_time:
+        query = query.filter(Resume.created_at >= start_time)
+    if end_time:
+        query = query.filter(Resume.created_at <= end_time)
 
     query = query.order_by(Resume.created_at.desc())
     total = query.count()
@@ -85,7 +102,6 @@ def get_resumes(
 async def import_resume(
     request: Request,
     user_id: int,
-    candidate_name: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -118,33 +134,19 @@ async def import_resume(
         file_type="resume"
     )
 
-    # 4. 检查用户是否已有简历记录
-    existing_resume = db.query(Resume).filter(Resume.candidate_name == candidate_name).first()
-
-    if existing_resume:
-        # 更新原有简历记录
-        existing_resume.file_path = result['tos_key']
-        existing_resume.file_type = result['file_type']
-        existing_resume.status = ResumeStatus.UPLOADED
-        existing_resume.content = None
-        existing_resume.extracted_at = datetime.now()
-        db.commit()
-        db.refresh(existing_resume)
-        db_resume = existing_resume
-    else:
-        # 创建新简历记录
-        db_resume = Resume(
-            user_id=user_id,
-            file_path=result['tos_key'],
-            file_type=result['file_type'],
-            candidate_name=candidate_name,
-            status=ResumeStatus.UPLOADED,
-            content=None,
-            extracted_at=datetime.now()
-        )
-        db.add(db_resume)
-        db.commit()
-        db.refresh(db_resume)
+    # 4. 创建新简历记录（姓名由后续 LLM 分析解析填充）
+    db_resume = Resume(
+        user_id=user_id,
+        file_path=result['tos_key'],
+        file_type=result['file_type'],
+        candidate_name="待解析",
+        status=ResumeStatus.UPLOADED,
+        content=None,
+        extracted_at=datetime.now()
+    )
+    db.add(db_resume)
+    db.commit()
+    db.refresh(db_resume)
 
     # 5. 后台处理简历分析（PDF 转图片 + 视觉 LLM 识别）
     background_tasks.add_task(
@@ -172,7 +174,6 @@ async def import_resume(
 async def batch_import_local(
     request: Request,
     files: List[UploadFile] = File(...),
-    candidate_names: str = Form("[]"),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """
@@ -189,13 +190,6 @@ async def batch_import_local(
     if len(files) > MAX_BATCH_FILES:
         raise HTTPException(status_code=400, detail=f"单次最多 {MAX_BATCH_FILES} 个文件")
 
-    # 解析候选人姓名
-    parsed_names = []
-    try:
-        parsed_names = json.loads(candidate_names) if candidate_names else []
-    except json.JSONDecodeError:
-        pass
-
     # ========== 保存到本地临时目录 ==========
     batch_dir = Path(tempfile.gettempdir()) / f"resume_batch_{current_user_id}_{datetime.now().strftime('%Y%m%d%H%M%S_%f')}"
     batch_dir.mkdir(parents=True, exist_ok=True)
@@ -208,11 +202,10 @@ async def batch_import_local(
             pass
         local_path = batch_dir / f"{idx:03d}_{file.filename}"
         local_path.write_bytes(content)
-        name = parsed_names[idx].strip() if idx < len(parsed_names) and parsed_names[idx] else "待解析"
         return {
             "local_path": str(local_path),
             "filename": file.filename,
-            "candidate_name": name,
+            "candidate_name": "待解析",
         }
 
     # 并发写入本地磁盘
@@ -245,36 +238,19 @@ async def batch_import_local(
             tos_key = tos_result["tos_key"]
             logger.info(f"本地文件上传TOS成功: {item['filename']} → {tos_key}")
 
-            # 4. 创建 DB 记录
+            # 4. 创建 DB 记录（姓名由后续 LLM 分析解析填充）
             file_ext = os.path.splitext(item["filename"])[1].lower().lstrip('.')
-            existing = None
-            if item["candidate_name"] and item["candidate_name"] != "待解析":
-                existing = session.query(Resume).filter(
-                    Resume.candidate_name == item["candidate_name"],
-                    Resume.user_id == current_user_id
-                ).first()
-
-            resume_id = None
-            if existing:
-                existing.file_path = tos_key
-                existing.file_type = file_ext or "unknown"
-                existing.status = ResumeStatus.UPLOADED
-                existing.extracted_at = datetime.now()
-                session.commit()
-                session.refresh(existing)
-                resume_id = existing.id
-            else:
-                db_resume = Resume(
-                    user_id=current_user_id, file_path=tos_key,
-                    file_type=file_ext or "unknown",
-                    candidate_name=item["candidate_name"],
-                    status=ResumeStatus.UPLOADED, content=None,
-                    extracted_at=datetime.now()
-                )
-                session.add(db_resume)
-                session.commit()
-                session.refresh(db_resume)
-                resume_id = db_resume.id
+            db_resume = Resume(
+                user_id=current_user_id, file_path=tos_key,
+                file_type=file_ext or "unknown",
+                candidate_name="待解析",
+                status=ResumeStatus.UPLOADED, content=None,
+                extracted_at=datetime.now()
+            )
+            session.add(db_resume)
+            session.commit()
+            session.refresh(db_resume)
+            resume_id = db_resume.id
 
             # 5. LLM 分析（受信号量控制并发数）
             async with analysis_semaphore:
@@ -367,6 +343,133 @@ def get_resume_by_user(
             detail="简历不存在或不属于当前用户所有"
         )
     return resume
+
+
+@router.put("/{resume_id}/details", response_model=ResumeResponse)
+def update_resume_details(
+    resume_id: int,
+    data: ResumeUpdateDetailRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """编辑简历详情：更新候选人姓名及所有子表数据（教育、工作、技能、项目）"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在或不属于当前用户")
+
+    # 1. 更新候选人姓名
+    if data.candidate_name is not None:
+        resume.candidate_name = data.candidate_name[:50]
+
+    # 2. delete-then-insert 子表数据
+    db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
+    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
+    db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
+    db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
+
+    # 3. 插入教育经历
+    for edu in data.educations:
+        db.add(ResumeEducation(
+            resume_id=resume_id,
+            school_name=(edu.school_name or "")[:100],
+            degree=(edu.degree or "")[:50],
+            major=(edu.major or "")[:100],
+            start_date=_parse_date(edu.start_date),
+            end_date=_parse_date(edu.end_date),
+            is_985=edu.is_985 or 0,
+            is_211=edu.is_211 or 0,
+        ))
+
+    # 4. 插入工作经历
+    for work in data.work_experiences:
+        db.add(ResumeWorkExperience(
+            resume_id=resume_id,
+            company_name=(work.company_name or "")[:100],
+            position=(work.position or "")[:100],
+            start_date=_parse_date(work.start_date),
+            end_date=_parse_date(work.end_date),
+            description=work.description or "",
+        ))
+
+    # 5. 插入技能
+    for skill in data.skills:
+        db.add(ResumeSkill(
+            resume_id=resume_id,
+            skill_name=(skill.skill_name or "")[:100],
+            proficiency_level=(skill.proficiency_level or "")[:20],
+        ))
+
+    # 6. 插入项目经历
+    for project in data.projects:
+        db.add(ResumeProject(
+            resume_id=resume_id,
+            project_name=(project.project_name or "")[:100],
+            description=project.description or "",
+            start_date=_parse_date(project.start_date),
+            end_date=_parse_date(project.end_date),
+            role=(project.role or "")[:100],
+        ))
+
+    db.commit()
+    db.refresh(resume)
+    logger.info(f"User {current_user_id} updated details for resume {resume_id}")
+    return resume
+
+
+@router.post("/{resume_id}/reparse", response_model=Dict[str, Any])
+async def reparse_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """重新解析简历：下载原始文件，重新调用 LLM 分析"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在或不属于当前用户")
+
+    # 重置状态，清除旧数据
+    resume.status = ResumeStatus.UPLOADED
+    resume.content = None
+    resume.candidate_name = "待解析"
+    resume.extracted_at = None
+    db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
+    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
+    db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
+    db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
+    db.commit()
+
+    # 下载原始文件
+    try:
+        file_bytes = file_manager.download_file(resume.file_path)
+        filename = os.path.basename(resume.file_path)
+    except Exception as e:
+        logger.error(f"重新解析下载文件失败 {resume.file_path}: {e}")
+        resume.status = ResumeStatus.FAILED_ANALYSIS
+        db.commit()
+        raise HTTPException(status_code=500, detail="无法读取原始简历文件")
+
+    # 后台异步分析
+    background_tasks.add_task(
+        process_resume_background_with_images,
+        db,
+        resume.id,
+        file_bytes,
+        filename,
+        current_user_id
+    )
+
+    return {
+        "id": resume.id,
+        "status": resume.status.value,
+        "message": "简历重新解析已启动，请稍后查看结果"
+    }
 
 
 @router.get("/download/{resume_id}")
