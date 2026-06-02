@@ -30,7 +30,7 @@ from assistant.entity.DTO import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
     ResumeUpdateDetailRequest,
-    AiReviewRequest, InterviewQuestionsRequest, InterviewQuestionsResponse,
+    AiReviewRequest, BatchAiReviewRequest, InterviewQuestionsRequest, InterviewQuestionsResponse,
     ResumePositionRequest,
 )
 from assistant.entity.VO import (
@@ -451,8 +451,102 @@ async def resume_ai_review(
         headcount=data.headcount,
     )
 
+    # 持久化 AI 审核结果到数据库
+    resume.ai_review_data = json.dumps(result, ensure_ascii=False)
+    db.commit()
+
     logger.info(f"AI review resume {resume_id}: suggestion={result.get('suggestion')}")
     return result
+
+
+@router.post("/ai-review/batch")
+async def resume_batch_ai_review(
+    data: BatchAiReviewRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """批量 AI 审核简历"""
+    results = []
+    total = len(data.resume_ids)
+
+    for idx, resume_id in enumerate(data.resume_ids):
+        logger.info(f"[Batch AI Review] processing {idx+1}/{total}, resume_id={resume_id}")
+        try:
+            resume = db.query(Resume).filter(
+                Resume.id == resume_id,
+                Resume.user_id == current_user_id
+            ).first()
+            if not resume:
+                results.append({"resume_id": resume_id, "error": "简历不存在"})
+                continue
+
+            educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all()
+            work_experiences = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all()
+            skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all()
+            projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all()
+
+            resume_details = {
+                "candidate_name": resume.candidate_name,
+                "educations": [
+                    {"school_name": e.school_name, "degree": e.degree, "major": e.major,
+                     "start_date": str(e.start_date) if e.start_date else None,
+                     "end_date": str(e.end_date) if e.end_date else None, "is_985": e.is_985, "is_211": e.is_211}
+                    for e in educations
+                ],
+                "work_experiences": [
+                    {"company_name": w.company_name, "position": w.position,
+                     "start_date": str(w.start_date) if w.start_date else None,
+                     "end_date": str(w.end_date) if w.end_date else None, "description": w.description}
+                    for w in work_experiences
+                ],
+                "skills": [{"skill_name": s.skill_name, "proficiency_level": s.proficiency_level} for s in skills],
+                "projects": [
+                    {"project_name": p.project_name, "description": p.description,
+                     "start_date": str(p.start_date) if p.start_date else None,
+                     "end_date": str(p.end_date) if p.end_date else None, "role": p.role}
+                    for p in projects
+                ],
+            }
+
+            result = await ai_review_resume(
+                resume_details=resume_details,
+                position=data.position,
+                jd=data.jd,
+                custom_requirements=data.custom_requirements,
+                headcount=data.headcount,
+            )
+            # 持久化 AI 审核结果
+            resume.ai_review_data = json.dumps(result, ensure_ascii=False)
+            db.commit()
+            results.append({"resume_id": resume_id, "candidate_name": resume.candidate_name, "result": result})
+            logger.info(f"[Batch AI Review] done {idx+1}/{total}, resume_id={resume_id}, suggestion={result.get('suggestion')}")
+
+        except Exception as e:
+            logger.error(f"[Batch AI Review] error resume_id={resume_id}: {e}", exc_info=True)
+            results.append({"resume_id": resume_id, "error": str(e)})
+
+    return {"total": total, "results": results}
+@router.get("/{resume_id}/interview-questions/cache")
+async def get_cached_interview_questions(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """仅读取缓存的面试问题，不触发生成"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在")
+    if resume.interview_questions:
+        try:
+            cached = json.loads(resume.interview_questions)
+            if cached.get("questions"):
+                return cached
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {"questions": []}
 
 
 @router.post("/{resume_id}/interview-questions")
@@ -554,11 +648,44 @@ async def resume_interview_questions_stream(
         resume_details,
         instruction=data.instruction,
         metadata={"resume_id": resume_id, "user_id": current_user_id},
+        on_complete=lambda result: _save_questions(result, resume_id),
     )
     await session.start()
 
     logger.info(f"Stream interview questions started for resume {resume_id}, session={session.id}")
     return {"stream_id": session.id}
+
+
+async def _save_questions(result: dict, resume_id: int):
+    """流式生成完成后，将结果持久化到 resume.interview_questions"""
+    logger.info(f"[_save_questions] 被调用 resume_id={resume_id}, result_keys={list(result.keys()) if result else None}, questions_count={len(result.get('questions', [])) if result else 0}")
+
+    if not result or not result.get("questions"):
+        logger.warning(f"[_save_questions] result 中没有 questions，跳过持久化。result={result}")
+        return
+
+    from assistant.config.database import SessionLocal
+    from assistant.entity import Resume
+    import json
+
+    try:
+        db = SessionLocal()
+        try:
+            resume = db.query(Resume).filter(Resume.id == resume_id).first()
+            if resume:
+                json_str = json.dumps(result, ensure_ascii=False)
+                resume.interview_questions = json_str
+                db.commit()
+                logger.info(f"[_save_questions] 持久化成功 resume_id={resume_id}, questions_count={len(result['questions'])}")
+            else:
+                logger.error(f"[_save_questions] 简历不存在 resume_id={resume_id}")
+        except Exception as e:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"[_save_questions] 持久化失败: {e}", exc_info=True)
 
 
 @router.get("/{resume_id}", response_model=ResumeResponse)

@@ -47,6 +47,8 @@ def list_positions(
             id=pos.id,
             name=pos.name,
             department=pos.department,
+            description=pos.description,
+            requirements=pos.requirements,
             status=pos.status,
             round_count=round_count,
             created_at=pos.created_at,

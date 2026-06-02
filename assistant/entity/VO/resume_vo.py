@@ -22,6 +22,7 @@ class ResumeResponse(BaseModel):
     reviewer_id: Optional[int] = None
     reviewed_at: Optional[datetime] = None
     review_comment: Optional[str] = None
+    ai_review_data: Optional[str] = None
 
     class Config:
         from_attributes = True

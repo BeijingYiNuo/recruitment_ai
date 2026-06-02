@@ -156,6 +156,15 @@ class AiReviewRequest(BaseModel):
     headcount: int = 1
 
 
+class BatchAiReviewRequest(BaseModel):
+    """批量 AI 审核请求"""
+    resume_ids: list[int]
+    position: str = ""
+    jd: str = ""
+    custom_requirements: str = ""
+    headcount: int = 1
+
+
 class InterviewQuestionsRequest(BaseModel):
     """面试问题生成请求"""
     instruction: str = ""

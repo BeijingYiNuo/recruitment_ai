@@ -26,6 +26,7 @@ class Resume(Base):
     reviewed_at = Column(DateTime, comment="审核时间")
     review_comment = Column(Text, comment="审核意见")
     interview_questions = Column(Text, comment="AI 生成的面试问题(JSON)")
+    ai_review_data = Column(Text, comment="AI 辅助审核结果(JSON): suggestion/reason/matched_points/gaps")
     
     # 逻辑关联关系
     # 与User的关系（多对一）

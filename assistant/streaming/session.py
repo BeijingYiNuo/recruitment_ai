@@ -8,7 +8,8 @@ class StreamSession:
     """一次流式会话，包装一个 async generator，支持暂停/继续/取消。"""
 
     def __init__(self, generator_factory: Callable, args: tuple = (),
-                 kwargs: dict = None, metadata: dict = None):
+                 kwargs: dict = None, metadata: dict = None,
+                 on_complete: Callable = None):
         self.id = str(uuid.uuid4())
         self._generator_factory = generator_factory
         self._args = args
@@ -21,6 +22,7 @@ class StreamSession:
         self._task: Optional[asyncio.Task] = None
         self.created_at = datetime.now()
         self.metadata = metadata or {}
+        self._on_complete = on_complete
 
     @property
     def is_paused(self) -> bool:
@@ -47,6 +49,7 @@ class StreamSession:
         self._task = asyncio.create_task(self._run())
 
     async def _run(self) -> None:
+        last_result = None
         try:
             generator = self._generator_factory(*self._args, **self._kwargs)
             async for event in generator:
@@ -55,6 +58,10 @@ class StreamSession:
                 # 暂停时阻塞等待（同样产生背压，阻止生产者过快填充）
                 await self._paused.wait()
                 await self._queue.put(event)
+                if event.get("type") == "done":
+                    last_result = event.get("result")
+                    import logging
+                    logging.info(f"[StreamSession._run] done event received, has_result={last_result is not None}")
 
             if not self._cancelled.is_set():
                 await self._queue.put({"type": "done"})
@@ -64,6 +71,14 @@ class StreamSession:
             await self._queue.put({"type": "error", "message": str(e)})
         finally:
             self._done = True
+            import logging
+            logging.info(f"[StreamSession._run] done={self._done}, has_on_complete={self._on_complete is not None}, has_last_result={last_result is not None}, last_result_keys={list(last_result.keys()) if last_result else None}")
+            if self._on_complete and last_result:
+                try:
+                    await self._on_complete(last_result)
+                    logging.info(f"[StreamSession._run] on_complete finished successfully")
+                except Exception as e:
+                    logging.error(f"on_complete callback failed: {e}", exc_info=True)
 
     async def event_generator(self) -> AsyncGenerator[dict, None]:
         """
@@ -105,7 +120,8 @@ class StreamManager:
     def create_session(self, generator_factory: Callable, *args,
                        metadata: dict = None, **kwargs) -> StreamSession:
         """创建新会话并自动启动后台生产者。"""
-        session = StreamSession(generator_factory, args, kwargs, metadata)
+        on_complete = kwargs.pop("on_complete", None)
+        session = StreamSession(generator_factory, args, kwargs, metadata, on_complete=on_complete)
         self._sessions[session.id] = session
         return session
 

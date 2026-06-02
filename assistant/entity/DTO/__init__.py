@@ -4,7 +4,7 @@ from assistant.entity.DTO.resume_dto import (
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
     ResumeEducationDetail, ResumeWorkExperienceDetail, ResumeSkillDetail,
     ResumeProjectDetail, ResumeUpdateDetailRequest,
-    AiReviewRequest, InterviewQuestionsRequest, InterviewQuestionsResponse,
+    AiReviewRequest, BatchAiReviewRequest, InterviewQuestionsRequest, InterviewQuestionsResponse,
     ResumePositionRequest,
 )
 from assistant.entity.DTO.interview_dto import (
@@ -34,7 +34,7 @@ __all__ = [
     "ResumeWorkExperienceCreate", "ResumeSkillCreate", "ResumeProjectCreate",
     "ResumeEducationDetail", "ResumeWorkExperienceDetail", "ResumeSkillDetail",
     "ResumeProjectDetail", "ResumeUpdateDetailRequest",
-    "AiReviewRequest", "InterviewQuestionsRequest", "InterviewQuestionsResponse", "ResumePositionRequest",
+    "AiReviewRequest", "BatchAiReviewRequest", "InterviewQuestionsRequest", "InterviewQuestionsResponse", "ResumePositionRequest",
     # Interview
     "InterviewSessionCreate", "InterviewSessionUpdate",
     "InterviewSessionQuestionCreate", "InterviewSessionStandardCreate",
