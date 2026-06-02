@@ -10,7 +10,7 @@ from assistant.file.file_manager import TosFileManager
 from sqlalchemy.orm import Session
 import wave
 import io
-from assistant.entity import InterviewSession, UserKnowledge
+from assistant.entity import InterviewSession, UserKnowledge, Resume, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, Position
 from assistant.interview.stage_manager import StageManager
 from asyncio import QueueEmpty
 from assistant.context.memory_manager import ContextManager
@@ -126,6 +126,70 @@ class TaskManager:
                     logger.info(f"[启动知识库检索: {collection_name}")
                 else:
                     logger.info(f"[未启动知识库检索]")
+
+            # 查询简历和岗位信息（用于注入 prompt）
+            resume_info_str = ""
+            position_info_str = ""
+            session = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+            if session:
+                if session.resume_id:
+                    try:
+                        resume = db.query(Resume).filter(Resume.id == session.resume_id).first()
+                        if resume:
+                            parts = [f"候选人姓名：{resume.candidate_name}"]
+                            educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume.id).all()
+                            if educations:
+                                edu_lines = []
+                                for e in educations:
+                                    line = f"{e.school_name or ''} {e.major or ''} {e.degree or ''}"
+                                    if e.is_985: line += " 985"
+                                    if e.is_211: line += " 211"
+                                    edu_lines.append(line.strip())
+                                parts.append("教育背景：" + "；".join(edu_lines))
+                            work_exps = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume.id).order_by(ResumeWorkExperience.end_date.desc()).all()
+                            if work_exps:
+                                work_lines = []
+                                for w in work_exps:
+                                    desc = (w.description or "")[:200]
+                                    work_lines.append(f"{w.company_name or ''} - {w.position or ''}：{desc}")
+                                parts.append("工作经历：" + "；".join(work_lines))
+                            skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume.id).all()
+                            if skills:
+                                skill_str = "、".join([f"{s.skill_name}({s.proficiency_level or '未标注'})" for s in skills])
+                                parts.append("核心技能：" + skill_str)
+                            projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume.id).order_by(ResumeProject.end_date.desc()).all()
+                            if projects:
+                                proj_lines = []
+                                for p in projects:
+                                    desc = (p.description or "")[:150]
+                                    proj_lines.append(f"{p.project_name or ''}({p.role or ''})：{desc}")
+                                parts.append("项目经历：" + "；".join(proj_lines))
+                            resume_info_str = "\n".join(parts)
+                    except Exception as e:
+                        logger.error(f"查询简历信息失败: {e}")
+                if session.position_id:
+                    try:
+                        position = db.query(Position).filter(Position.id == session.position_id).first()
+                        if position:
+                            pos_parts = [f"岗位名称：{position.name}"]
+                            if position.department:
+                                pos_parts.append(f"所属部门：{position.department}")
+                            if position.description:
+                                pos_parts.append(f"岗位描述：{position.description}")
+                            if position.requirements:
+                                pos_parts.append(f"任职要求：{position.requirements}")
+                            if position.salary_range:
+                                pos_parts.append(f"薪资范围：{position.salary_range}")
+                            position_info_str = "\n".join(pos_parts)
+                    except Exception as e:
+                        logger.error(f"查询岗位信息失败: {e}")
+
+            self.clients[composite_key]['resume_info'] = resume_info_str
+            self.clients[composite_key]['position_info'] = position_info_str
+            if resume_info_str:
+                logger.info(f"[简历信息] 已加载候选人简历上下文")
+            if position_info_str:
+                logger.info(f"[岗位信息] 已加载岗位上下文")
 
             # 存储 db 和 current_user_id 到客户端信息中
             self.clients[composite_key]['db'] = db
@@ -498,7 +562,9 @@ class TaskManager:
                     user_id="",
                     template_name="analysis",
                     knowledge_base_info=knowledge_base_info,
-                    stage_context=stage_context
+                    stage_context=stage_context,
+                    resume_info=client.get('resume_info', ''),
+                    position_info=client.get('position_info', '')
                 )
                 reply_messages = context_manager.build_reply_messages(
                     system_prompt, block_text, cur_index,
@@ -507,7 +573,9 @@ class TaskManager:
                 flow_prompt = self.llm_manager.prompt_manager.generate_prompt(
                     user_id="",
                     template_name="flow_agent",
-                    stage_context=stage_context
+                    stage_context=stage_context,
+                    resume_info=client.get('resume_info', ''),
+                    position_info=client.get('position_info', '')
                 )
                 flow_messages = context_manager.build_flow_messages(
                     flow_prompt, block_text

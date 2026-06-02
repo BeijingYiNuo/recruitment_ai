@@ -23,11 +23,15 @@ from assistant.api.resume_utils import (
     delete_resume_data
 )
 from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
+from assistant.LLM.resume_reviewer import ai_review_resume, generate_interview_questions, stream_interview_questions
+from assistant.streaming.session import StreamManager
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
     ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
     ResumeUpdateDetailRequest,
+    AiReviewRequest, InterviewQuestionsRequest, InterviewQuestionsResponse,
+    ResumePositionRequest,
 )
 from assistant.entity.VO import (
     ResumeResponse, ResumeEducationResponse,
@@ -35,6 +39,7 @@ from assistant.entity.VO import (
 )
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.user_management.auth_utils import verify_token
+import json
 from assistant.utils.logger import logger
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -82,7 +87,10 @@ def get_resumes(
         query = query.filter(Resume.candidate_name.ilike(f"%{keyword}%"))
 
     if review_status == "null":
-        query = query.filter(Resume.review_status.is_(None))
+        from sqlalchemy import or_
+        query = query.filter(
+            or_(Resume.review_status.is_(None), Resume.review_status == "")
+        )
     elif review_status:
         query = query.filter(Resume.review_status == review_status)
 
@@ -318,6 +326,239 @@ def review_resume(
 
     logger.info(f"User {current_user_id} reviewed resume {resume_id}: {data.decision}")
     return resume
+
+
+@router.post("/{resume_id}/unreview", response_model=ResumeResponse)
+def unreview_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """重置简历审核状态为未审核（待审核）"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户"
+        )
+
+    resume.review_status = None
+    resume.reviewer_id = None
+    resume.reviewed_at = None
+    resume.review_comment = None
+    db.commit()
+    db.refresh(resume)
+
+    logger.info(f"User {current_user_id} unreviewed resume {resume_id}")
+    return resume
+
+
+@router.put("/{resume_id}/position", response_model=ResumeResponse)
+def set_resume_position(
+    resume_id: int,
+    data: ResumePositionRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """设置简历的关联岗位"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在")
+
+    resume.position_id = data.position_id
+    db.commit()
+    db.refresh(resume)
+
+    logger.info(f"User {current_user_id} set position_id={data.position_id} for resume {resume_id}")
+    return resume
+
+
+@router.post("/{resume_id}/ai-review")
+async def resume_ai_review(
+    resume_id: int,
+    data: AiReviewRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """AI 辅助审核简历：分析简历与岗位的匹配度并给出建议"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户"
+        )
+
+    # 获取所有子表数据
+    educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all()
+    work_experiences = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all()
+    skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all()
+    projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all()
+
+    resume_details = {
+        "candidate_name": resume.candidate_name,
+        "educations": [
+            {
+                "school_name": e.school_name,
+                "degree": e.degree,
+                "major": e.major,
+                "start_date": str(e.start_date) if e.start_date else None,
+                "end_date": str(e.end_date) if e.end_date else None,
+                "is_985": e.is_985,
+                "is_211": e.is_211,
+            }
+            for e in educations
+        ],
+        "work_experiences": [
+            {
+                "company_name": w.company_name,
+                "position": w.position,
+                "start_date": str(w.start_date) if w.start_date else None,
+                "end_date": str(w.end_date) if w.end_date else None,
+                "description": w.description,
+            }
+            for w in work_experiences
+        ],
+        "skills": [
+            {"skill_name": s.skill_name, "proficiency_level": s.proficiency_level}
+            for s in skills
+        ],
+        "projects": [
+            {
+                "project_name": p.project_name,
+                "description": p.description,
+                "start_date": str(p.start_date) if p.start_date else None,
+                "end_date": str(p.end_date) if p.end_date else None,
+                "role": p.role,
+            }
+            for p in projects
+        ],
+    }
+
+    result = await ai_review_resume(
+        resume_details=resume_details,
+        position=data.position,
+        jd=data.jd,
+        custom_requirements=data.custom_requirements,
+        headcount=data.headcount,
+    )
+
+    logger.info(f"AI review resume {resume_id}: suggestion={result.get('suggestion')}")
+    return result
+
+
+@router.post("/{resume_id}/interview-questions")
+async def resume_interview_questions(
+    resume_id: int,
+    data: InterviewQuestionsRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """生成/获取面试提问问题（有缓存则直接返回，无则调 LLM 生成并持久化）"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户"
+        )
+
+    # 1. 检查是否已有缓存的面试问题（仅当无额外指令时走缓存）
+    if not data.instruction and resume.interview_questions:
+        try:
+            cached = json.loads(resume.interview_questions)
+            if cached.get("questions"):
+                logger.info(f"Interview questions cache hit for resume {resume_id}")
+                return cached
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # 2. 获取项目经历
+    projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).order_by(ResumeProject.id).all()
+
+    resume_details = {
+        "candidate_name": resume.candidate_name,
+        "projects": [
+            {
+                "project_name": p.project_name,
+                "description": p.description,
+                "role": p.role,
+                "start_date": str(p.start_date) if p.start_date else None,
+                "end_date": str(p.end_date) if p.end_date else None,
+            }
+            for p in projects
+        ],
+    }
+
+    # 3. 调用 LLM 生成（带用户指令）
+    result = await generate_interview_questions(resume_details, instruction=data.instruction)
+
+    # 4. 持久化到 DB（始终覆盖）
+    if result.get("questions"):
+        resume.interview_questions = json.dumps(result, ensure_ascii=False)
+        db.commit()
+
+    logger.info(f"Interview questions generated for resume {resume_id}")
+    return result
+
+
+@router.post("/{resume_id}/interview-questions/stream")
+async def resume_interview_questions_stream(
+    resume_id: int,
+    data: InterviewQuestionsRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """启动流式面试问题生成，返回 stream_id。"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户"
+        )
+
+    projects = db.query(ResumeProject).filter(
+        ResumeProject.resume_id == resume_id
+    ).order_by(ResumeProject.id).all()
+
+    resume_details = {
+        "candidate_name": resume.candidate_name,
+        "projects": [
+            {
+                "project_name": p.project_name,
+                "description": p.description,
+                "role": p.role,
+                "start_date": str(p.start_date) if p.start_date else None,
+                "end_date": str(p.end_date) if p.end_date else None,
+            }
+            for p in projects
+        ],
+    }
+
+    stream_manager = StreamManager.get_instance()
+    session = stream_manager.create_session(
+        stream_interview_questions,
+        resume_details,
+        instruction=data.instruction,
+        metadata={"resume_id": resume_id, "user_id": current_user_id},
+    )
+    await session.start()
+
+    logger.info(f"Stream interview questions started for resume {resume_id}, session={session.id}")
+    return {"stream_id": session.id}
 
 
 @router.get("/{resume_id}", response_model=ResumeResponse)

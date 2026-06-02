@@ -12,6 +12,7 @@ class ResumeResponse(BaseModel):
     file_path: str
     file_type: str
     status: ResumeStatus
+    position_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     extracted_at: Optional[datetime] = None

@@ -15,6 +15,7 @@ class Resume(Base):
     file_type = Column(String(100), nullable=False, comment="文件类型")
     status = Column(Enum(ResumeStatus), nullable=False, default=ResumeStatus.UPLOADED, comment="状态")
     content = Column(Text, comment="简历原始文本内容")
+    position_id = Column(Integer, nullable=True, comment="关联岗位ID")
     created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     extracted_at = Column(DateTime, comment="提取时间")
@@ -24,6 +25,7 @@ class Resume(Base):
     reviewer_id = Column(Integer, comment="审核人ID")
     reviewed_at = Column(DateTime, comment="审核时间")
     review_comment = Column(Text, comment="审核意见")
+    interview_questions = Column(Text, comment="AI 生成的面试问题(JSON)")
     
     # 逻辑关联关系
     # 与User的关系（多对一）

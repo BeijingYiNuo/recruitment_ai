@@ -146,3 +146,26 @@ class ResumeUpdateDetailRequest(BaseModel):
     work_experiences: list[ResumeWorkExperienceDetail] = []
     skills: list[ResumeSkillDetail] = []
     projects: list[ResumeProjectDetail] = []
+
+
+class AiReviewRequest(BaseModel):
+    """AI 辅助审核请求"""
+    position: str = ""
+    jd: str = ""
+    custom_requirements: str = ""
+    headcount: int = 1
+
+
+class InterviewQuestionsRequest(BaseModel):
+    """面试问题生成请求"""
+    instruction: str = ""
+
+
+class InterviewQuestionsResponse(BaseModel):
+    """面试问题生成响应"""
+    questions: list[dict] = []
+
+
+class ResumePositionRequest(BaseModel):
+    """简历关联岗位请求"""
+    position_id: Optional[int] = None

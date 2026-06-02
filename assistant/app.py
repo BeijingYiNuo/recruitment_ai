@@ -4,6 +4,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from assistant.api import api_router
+from assistant.streaming.router import router as stream_router
+from assistant.streaming.session import StreamManager
+import asyncio
 
 # 创建FastAPI应用
 app = FastAPI(title="Recruitment Service")
@@ -11,7 +14,7 @@ app = FastAPI(title="Recruitment Service")
 # 配置CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,4 +27,17 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # 包含API路由
 app.include_router(api_router)
+app.include_router(stream_router)
+
+
+@app.on_event("startup")
+async def startup_cleanup():
+    """定期清理超时的流式会话。"""
+
+    async def _cleanup():
+        while True:
+            await asyncio.sleep(120)
+            StreamManager.get_instance().cleanup_stale(300)
+
+    asyncio.create_task(_cleanup())
 

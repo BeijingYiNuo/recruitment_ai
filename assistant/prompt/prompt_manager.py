@@ -35,6 +35,18 @@ class PromptManager:
         if os.path.exists(flow_agent_path):
             with open(flow_agent_path, 'r', encoding='utf-8') as f:
                 self.templates['flow_agent'] = f.read()
+
+        # 加载ai_review模板
+        ai_review_path = os.path.join(prompt_dir, 'ai_review.txt')
+        if os.path.exists(ai_review_path):
+            with open(ai_review_path, 'r', encoding='utf-8') as f:
+                self.templates['ai_review'] = f.read()
+
+        # 加载interview_questions模板
+        interview_questions_path = os.path.join(prompt_dir, 'interview_questions.txt')
+        if os.path.exists(interview_questions_path):
+            with open(interview_questions_path, 'r', encoding='utf-8') as f:
+                self.templates['interview_questions'] = f.read()
     
     def get_prompt_template(self, template_name: str) -> str:
         """

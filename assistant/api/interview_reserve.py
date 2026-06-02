@@ -98,6 +98,41 @@ def update_interview_session(
     return update_session(db, current_user_id, session_id, session)
 
 
+from pydantic import BaseModel
+
+class NotesUpdate(BaseModel):
+    notes: str
+
+@router.patch("/sessions/{session_id}/notes", response_model=InterviewSessionResponse)
+def update_interview_notes(
+    session_id: int,
+    notes_data: NotesUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """专门更新面试备注"""
+    from assistant.entity import User
+    user = db.query(User).filter(User.id == current_user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    session = db.query(InterviewSession).filter(
+        InterviewSession.id == session_id,
+        InterviewSession.recruiter_id == current_user_id
+    ).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="该面试会话不存在"
+        )
+    session.notes = notes_data.notes
+    db.commit()
+    db.refresh(session)
+    return session
+
+
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_interview_session(
     session_id: int,
