@@ -1,13 +1,15 @@
 import os
 import hashlib
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Generator
 from datetime import datetime
+from pathlib import Path
 from sqlalchemy.orm import Session
 import tos
 from assistant.utils.logger import logger
 from assistant.config.config_manager import ConfigManager
 from assistant.entity.tos_file import TosFile
+from assistant.file.file_cache import LocalFileCache
 
 
 class TosFileManager:
@@ -38,6 +40,19 @@ class TosFileManager:
         )
 
         self.bucket_name = tos_config['bucket_name']
+
+        # 初始化本地文件缓存
+        cache_config = tos_config.get('file_cache', {})
+        if cache_config.get('enabled', True):
+            self.cache = LocalFileCache(
+                cache_dir=cache_config.get('cache_dir', '/app/file_cache'),
+                max_size_gb=int(cache_config.get('max_size_gb', 1)),
+                ttl_hours=int(cache_config.get('ttl_hours', 24)),
+                cleanup_interval_minutes=int(cache_config.get('cleanup_interval_minutes', 5)),
+            )
+        else:
+            self.cache = None
+
         self._initialized = True
         logger.info(f"TOS FileManager initialized with bucket: {self.bucket_name}")
     
@@ -141,24 +156,36 @@ class TosFileManager:
     def download_file(self, tos_key: str) -> bytes:
         """
         从 TOS 下载文件（一次性读取，适用于小文件）
-        
+        优先从本地缓存读取，未命中时从 TOS 拉取并回填缓存。
+
         Args:
             tos_key: TOS 对象键
-            
+
         Returns:
             bytes: 文件内容
         """
+        # 1. 尝试从缓存读取
+        if self.cache:
+            cached = self.cache.get(tos_key)
+            if cached is not None:
+                return cached
+
+        # 2. 从 TOS 下载
         try:
             result = self.client.get_object(
                 bucket=self.bucket_name,
                 key=tos_key
             )
-            
-            return result.read()
-            
+            content = result.read()
         except Exception as e:
             logger.error(f"Failed to download file from TOS: {e}")
             raise
+
+        # 3. 回填缓存
+        if self.cache:
+            self.cache.put(tos_key, content)
+
+        return content
     
     def download_file_stream(self, tos_key: str, chunk_size: int = 8192):
         """
@@ -189,7 +216,12 @@ class TosFileManager:
 
     def stream_file_content(self, tos_key: str):
         """
-        流式生成文件内容（供下载接口使用）
+        流式生成文件内容（供下载/预览接口使用）
+
+        写穿透策略：
+        - 缓存命中 → 直接从本地磁盘流式读取
+        - 缓存未命中 → 从 TOS 流式下载，同时写入本地临时文件，
+          下载完成后将临时文件提交为缓存文件
 
         Args:
             tos_key: TOS 对象键
@@ -197,7 +229,46 @@ class TosFileManager:
         Yields:
             bytes: 文件内容块
         """
-        yield from self.download_file_stream(tos_key)
+        # 1. 缓存命中 → 从本地流式读取
+        if self.cache:
+            cached_path = self.cache.get_path(tos_key)
+            if cached_path:
+                chunk_size = 8192
+                with open(cached_path, 'rb') as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
+                return
+
+        # 2. 缓存未命中 → 写穿透：边从 TOS 下载边写临时文件
+        if self.cache:
+            tmp_path = self.cache.get_tmp_path(tos_key)
+            try:
+                result = self.client.get_object(
+                    bucket=self.bucket_name,
+                    key=tos_key
+                )
+                chunk_size = 8192
+                with open(tmp_path, 'wb') as cache_f:
+                    while True:
+                        chunk = result.read(chunk_size)
+                        if not chunk:
+                            break
+                        cache_f.write(chunk)
+                        yield chunk
+
+                # 下载成功 → 提交缓存
+                self.cache.commit_tmp(tos_key)
+            except Exception as e:
+                # 下载失败 → 丢弃临时文件
+                self.cache.discard_tmp(tos_key)
+                logger.error(f"Failed to stream file from TOS: {e}")
+                raise
+        else:
+            # 缓存未启用 → 直接流式读取 TOS
+            yield from self.download_file_stream(tos_key)
 
     @staticmethod
     def validate_file_size(content: bytes, max_size: int = 10 * 1024 * 1024) -> tuple[bool, str]:

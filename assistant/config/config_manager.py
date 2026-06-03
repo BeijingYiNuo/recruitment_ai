@@ -39,7 +39,14 @@ class ConfigManager:
                 'secret_key':'TnpjNE5Ea3dNVFkyTVdaaE5EZzRaVGs1WlRBd05UQTNOekE0WmpZeU5qTQ==',
                 'region':'cn-beijing',
                 'endpoint':'tos-cn-beijing.volces.com',
-                'bucket_name':'ai-recruitment-beijing'
+                'bucket_name':'ai-recruitment-beijing',
+                'file_cache': {
+                    'enabled': True,
+                    'cache_dir': '/app/file_cache',
+                    'max_size_gb': 1,
+                    'ttl_hours': 24,
+                    'cleanup_interval_minutes': 5,
+                }
             }
         }
     
