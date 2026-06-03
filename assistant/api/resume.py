@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import urllib
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
@@ -7,7 +8,7 @@ from typing import List, Optional
 from assistant.config.database import get_db, SessionLocal
 from assistant.entity import Resume, ResumeStatus, ResumeEducation, ResumeWorkExperience, ResumeSkill, ResumeProject, User
 from fastapi import UploadFile, File, Form
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 import urllib.parse
 import os
 import tempfile
@@ -877,9 +878,17 @@ async def download_resume(
 async def preview_resume(
     resume_id: int,
     token: str = None,
+    request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """预览简历文件（内联展示，不触发下载）"""
+    """预览简历文件（内联展示，不触发下载）
+
+    浏览器缓存策略：
+    - Cache-Control: private, max-age=86400 → 浏览器本地缓存 24 小时
+      有效期内同一 URL 不再发起网络请求，直接从浏览器本地加载
+    - ETag: 基于文件路径+更新时间生成 → 缓存到期后发条件请求
+      文件未变 → 服务器返回 304 Not Modified（几乎不消耗带宽）
+    """
     # 通过 token 查询参数验证身份（用于 iframe/img 直接 URL 访问）
     if token:
         payload = verify_token(token)
@@ -906,6 +915,18 @@ async def preview_resume(
             detail="简历不存在或不属于当前用户所有"
         )
 
+    # 计算 ETag：基于文件路径 + 更新时间
+    # 文件重新上传/解析后 updated_at 变化 → ETag 变化 → 浏览器自动刷新缓存
+    etag = hashlib.md5(
+        f"{resume.file_path}:{resume.updated_at or resume.extracted_at or resume.created_at}".encode()
+    ).hexdigest()
+
+    # 缓存到期后，浏览器发 If-None-Match 询问文件是否变更
+    if request:
+        if_none_match = request.headers.get("If-None-Match")
+        if if_none_match and if_none_match == f'"{etag}"':
+            return Response(status_code=304)
+
     # 根据文件类型设置合适的 media_type
     ext = os.path.splitext(resume.file_path)[1].lower()
     media_type_map = {
@@ -929,6 +950,8 @@ async def preview_resume(
         media_type=media_type,
         headers={
             "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
+            "Cache-Control": "private, max-age=86400",
+            "ETag": f'"{etag}"',
         }
     )
 
