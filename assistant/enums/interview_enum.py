@@ -13,6 +13,10 @@ class SessionStatus(str, enum.Enum):
     ONGOING = "ongoing"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    PASSED = "passed"
+    FAILED = "failed"
+    PENDING = "pending"
 
 
 class Recommendation(str, enum.Enum):

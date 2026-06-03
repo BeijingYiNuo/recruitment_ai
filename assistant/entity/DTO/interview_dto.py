@@ -1,7 +1,7 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
-from assistant.enums import SessionType, Recommendation, ReportStatus, SendMethod
+from assistant.enums import SessionType, SessionStatus, Recommendation, ReportStatus, SendMethod
 
 
 
@@ -41,11 +41,12 @@ class InterviewSessionUpdate(BaseModel):
     scheduled_start_at: Optional[str] = None
     scheduled_end_at: Optional[str] = None
     notes: Optional[str] = None
-    
+    status: Optional[SessionStatus] = None
+
     @field_validator('scheduled_start_at', 'scheduled_end_at')
     @classmethod
     def validate_datetime_format(cls, v):
-        """验证日期时间格式：YYYY-MM-DD HH:MM 或 YYYY-MM-DD HH:MM:SS"""
+        """面试会话更新模型 - 验证日期时间格式"""
         if v is None:
             return v
         try:

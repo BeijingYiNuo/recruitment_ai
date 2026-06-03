@@ -9,6 +9,7 @@ from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.utils.logger import logger
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.tos_file import TosFile
+from assistant.entity.interview import InterviewSession
 
 # 初始化 TOS 文件管理器
 file_manager = TosFileManager()
@@ -20,18 +21,20 @@ router = APIRouter(prefix="/api/file", tags=["文件管理"])
 async def upload_file(
     file: UploadFile = File(..., description="上传的文件"),
     file_type: str = Form(..., description="文件类别：resume | voice | dialogue"),
+    session_id: int = Form(0, description="关联的面试会话ID"),
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """
     上传文件到 TOS 对象存储
-    
+
     - **file**: 上传的文件
     - **file_type**: 文件类别（resume | voice | dialogue）
         - resume: 简历文件
         - voice: 语音文件
         - dialogue: 对话文件
-    
+    - **session_id**: 关联的面试会话ID
+
     存储路径格式：{user_id}/{file_type}/{timestamp}_{filename}
     """
     try:
@@ -58,7 +61,8 @@ async def upload_file(
             user_id=current_user_id,
             file_content=content,
             filename=file.filename,
-            file_type=file_type
+            file_type=file_type,
+            session_id=session_id
         )
         
         logger.info(f"User {current_user_id} uploaded file: {result['tos_key']}")
@@ -102,9 +106,36 @@ async def list_files(
     query = query.order_by(TosFile.updated_at.desc())
     total = query.count()
     files = query.offset(skip).limit(limit).all()
+
+    # 获取所有关联的会话名称（候选人姓名）
+    session_ids = {f.session_id for f in files if f.session_id and f.session_id != 0}
+    session_names = {}
+    if session_ids:
+        sessions = db.query(InterviewSession.id, InterviewSession.candidate_name).filter(
+            InterviewSession.id.in_(session_ids)
+        ).all()
+        session_names = {s.id: s.candidate_name for s in sessions}
+
+    # 将文件数据转为字典并附加 session_name
+    data = []
+    for f in files:
+        fd = {
+            "id": f.id,
+            "file_name": f.file_name,
+            "file_type": f.file_type,
+            "file_size": f.file_size,
+            "user_id": f.user_id,
+            "session_id": f.session_id,
+            "file_uri": f.file_uri,
+            "created_at": str(f.created_at) if f.created_at else None,
+            "updated_at": str(f.updated_at) if f.updated_at else None,
+            "session_name": session_names.get(f.session_id) if f.session_id else None
+        }
+        data.append(fd)
+
     return {
         "message": "文件列表",
-        "data": files,
+        "data": data,
         "total": total
     }   
 
@@ -209,4 +240,54 @@ async def delete_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"文件删除失败：{str(e)}"
+        )
+
+
+@router.delete("/delete-by-session")
+async def delete_files_by_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """
+    删除某个会话文件夹下的所有文件
+
+    - **session_id**: 会话 ID
+    """
+    try:
+        # 查询该会话下属于当前用户的所有文件
+        files = db.query(TosFile).filter(
+            TosFile.session_id == session_id,
+            TosFile.user_id == current_user_id
+        ).all()
+
+        if not files:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="该会话下没有文件"
+            )
+
+        deleted_count = 0
+        for f in files:
+            success = file_manager.delete_file(tos_key=f.file_uri, db=db)
+            if success:
+                deleted_count += 1
+
+        logger.info(f"User {current_user_id} deleted {deleted_count} files in session {session_id}")
+
+        return {
+            "message": f"成功删除 {deleted_count} 个文件",
+            "data": {
+                "deleted_count": deleted_count,
+                "session_id": session_id
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete files by session: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除失败：{str(e)}"
         )

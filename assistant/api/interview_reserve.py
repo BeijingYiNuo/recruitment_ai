@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
+from datetime import datetime
 from assistant.config.database import get_db
 from assistant.entity import InterviewSession, InterviewSessionRound, PositionRound
 from assistant.enums import SessionStatus
@@ -51,6 +52,19 @@ def get_interview_sessions_by_user(
             detail="用户不存在"
         )
     """根据用户ID获取所有面试会话，支持搜索和分页"""
+
+    # 自动将已过期但状态仍为 scheduled 的面试标记为 expired
+    now = datetime.now()
+    db.query(InterviewSession).filter(
+        InterviewSession.recruiter_id == current_user_id,
+        InterviewSession.status == SessionStatus.SCHEDULED,
+        InterviewSession.scheduled_end_at < now
+    ).update(
+        {"status": SessionStatus.EXPIRED},
+        synchronize_session="fetch"
+    )
+    db.commit()
+
     query = db.query(InterviewSession).filter(InterviewSession.recruiter_id == current_user_id)
 
     if keyword:
@@ -196,10 +210,10 @@ def update_session_round(
             detail="该轮次记录不存在"
         )
 
-    if update_data.status not in ("pass", "fail", "skip"):
+    if update_data.status not in ("pass", "fail", "skip", "pending"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="状态值必须为: pass/fail/skip"
+            detail="状态值必须为: pass/fail/skip/pending"
         )
 
     session_round.status = update_data.status
