@@ -1,6 +1,8 @@
 import asyncio
 import hashlib
 import urllib
+from email.utils import formatdate, parsedate_to_datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -13,7 +15,6 @@ import urllib.parse
 import os
 import tempfile
 from pathlib import Path
-from datetime import datetime
 from typing import Dict, Any
 from fastapi import BackgroundTasks
 from assistant.api.resume_utils import (
@@ -881,78 +882,126 @@ async def preview_resume(
     request: Request = None,
     db: Session = Depends(get_db)
 ):
-    """预览简历文件（内联展示，不触发下载）
+    """HTTP 协商缓存 304 — 简历 PDF 预览
 
-    浏览器缓存策略：
-    - Cache-Control: private, max-age=86400 → 浏览器本地缓存 24 小时
-      有效期内同一 URL 不再发起网络请求，直接从浏览器本地加载
-    - ETag: 基于文件路径+更新时间生成 → 缓存到期后发条件请求
-      文件未变 → 服务器返回 304 Not Modified（几乎不消耗带宽）
+    前端（axios `responseType: blob` + `createObjectURL`）零改动，
+    浏览器 HTTP 缓存全部在后端实现。
+
+    ── 缓存头设计 ──
+    Cache-Control: public, no-cache, max-age=86400
+      - public    → 允许浏览器 / CDN 缓存
+      - no-cache  → 强制每次使用缓存前重新验证（发条件请求）
+      - max-age   → 与 no-cache 配合，兼容老旧实现
+
+    ETag: "文件二进制 MD5"
+      - 文件内容不变 → ETag 不变 → 命中缓存
+      - 文件重新上传 → 内容变 → MD5 变 → ETag 变 → 自动刷新
+
+    Last-Modified: 简历修改时间（GMT 格式）
+      - ETag 不匹配时的二级备选验证
+
+    ── 协商流程 ──
+    1）首次请求             → 200 + PDF + ETag + Last-Modified → 浏览器缓存
+    2）再次请求（no-cache） → 浏览器自动带 If-None-Match
+       ETag 一致            → 304 No Content（无响应体）
+       ETag 不一致，比对 If-Modified-Since → 304
+       资源已变更            → 200 + 新 PDF + 新 ETag + 新 Last-Modified
+    3）前端收到 304 → Axios 自动使用本地缓存 blob → createObjectURL 生成新 blob: URL
+
+    ── 约束 ──
+    - 前端 axios/fetch 不加额外请求头，不操作 blob
+    - 仅在后端实现缓存逻辑
     """
-    # 通过 token 查询参数验证身份（用于 iframe/img 直接 URL 访问）
-    if token:
-        payload = verify_token(token)
-        if payload is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="无效的认证凭据"
-            )
-        current_user_id = int(payload.get("sub"))
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="缺少认证凭据"
-        )
+    # ── 1. 认证（token 查询参数，兼容 iframe 无自定义 header） ──
+    if not token:
+        raise HTTPException(status_code=401, detail="缺少认证凭据")
+    payload = verify_token(token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="无效的认证凭据")
+    user_id = int(payload.get("sub"))
 
+    # ── 2. 查询简历 ──
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
-        Resume.user_id == current_user_id
+        Resume.user_id == user_id
     ).first()
-
     if not resume:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="简历不存在或不属于当前用户所有"
-        )
+        raise HTTPException(status_code=404, detail="简历不存在")
 
-    # 计算 ETag：基于文件路径 + 更新时间
-    # 文件重新上传/解析后 updated_at 变化 → ETag 变化 → 浏览器自动刷新缓存
-    etag = hashlib.md5(
-        f"{resume.file_path}:{resume.updated_at or resume.extracted_at or resume.created_at}".encode()
-    ).hexdigest()
+    # ── 3. 读取文件二进制 → 计算内容 MD5 = ETag ──
+    try:
+        file_bytes = file_manager.download_file(resume.file_path)
+    except Exception:
+        raise HTTPException(status_code=500, detail="文件读取失败")
 
-    # 缓存到期后，浏览器发 If-None-Match 询问文件是否变更
-    if request:
-        if_none_match = request.headers.get("If-None-Match")
-        if if_none_match and if_none_match == f'"{etag}"':
-            return Response(status_code=304)
+    file_md5 = hashlib.md5(file_bytes).hexdigest()
+    etag_value = f'"{file_md5}"'
 
-    # 根据文件类型设置合适的 media_type
-    ext = os.path.splitext(resume.file_path)[1].lower()
-    media_type_map = {
-        ".pdf": "application/pdf",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".bmp": "image/bmp",
-        ".webp": "image/webp",
-        ".doc": "application/msword",
-        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    # ── 4. 简历修改时间 → Last-Modified（GMT） ──
+    modified_at = resume.updated_at or resume.extracted_at or resume.created_at
+    if modified_at:
+        if modified_at.tzinfo is None:
+            modified_at = modified_at.replace(tzinfo=timezone.utc)
+        last_modified = formatdate(modified_at.timestamp(), usegmt=True)
+    else:
+        last_modified = None
+
+    # ── 5. 优先比对 ETag（If-None-Match） ──
+    if_none_match = request.headers.get("If-None-Match") if request else None
+    if if_none_match:
+        trimmed = if_none_match.strip()
+        if trimmed == '*' or trimmed == etag_value:
+            logger.info(
+                f"[304 ETag HIT] resume_id={resume_id} "
+                f"etag={etag_value}"
+            )
+            return Response(
+                status_code=304,
+                headers={
+                    "Cache-Control": "private, max-age=86400",
+                    "ETag": etag_value,
+                }
+            )
+
+    # ── 6. ETag 不匹配 → 比对 Last-Modified（If-Modified-Since） ──
+    if last_modified and request:
+        if_modified_since = request.headers.get("If-Modified-Since")
+        if if_modified_since:
+            try:
+                since = parsedate_to_datetime(if_modified_since)
+                if since.tzinfo is None:
+                    since = since.replace(tzinfo=timezone.utc)
+                if modified_at is not None and modified_at <= since:
+                    logger.info(
+                        f"[304 Last-Modified HIT] resume_id={resume_id} "
+                        f"last_modified={last_modified}"
+                    )
+                    return Response(
+                        status_code=304,
+                        headers={
+                            "Cache-Control": "private, max-age=86400",
+                            "ETag": etag_value,
+                        }
+                    )
+            except (ValueError, TypeError):
+                pass
+
+    # ── 7. 资源已变更 → 200 + PDF + 新缓存头 ──
+    logger.info(
+        f"[200 MISS] resume_id={resume_id} size={len(file_bytes)} "
+        f"etag={etag_value} last_modified={last_modified}"
+    )
+    headers = {
+        "Cache-Control": "private, max-age=86400",
+        "ETag": etag_value,
     }
-    media_type = media_type_map.get(ext, "application/octet-stream")
+    if last_modified:
+        headers["Last-Modified"] = last_modified
 
-    filename = os.path.basename(resume.file_path)
-    encoded_filename = urllib.parse.quote(filename)
-
-    return StreamingResponse(
-        file_manager.stream_file_content(resume.file_path),
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
-            "Cache-Control": "private, max-age=86400",
-            "ETag": f'"{etag}"',
-        }
+    return Response(
+        content=file_bytes,
+        media_type="application/pdf",
+        headers=headers,
     )
 
 

@@ -2,6 +2,7 @@ import os
 import time
 import json
 import hashlib
+import tempfile
 import threading
 import shutil
 from pathlib import Path
@@ -21,13 +22,31 @@ class LocalFileCache:
     - TTL 过期：超过 TTL 的文件自动失效
     - 后台定时清理线程
     - 写穿透（write-through）：流式下载时边读 TOS 边写缓存，首次请求不额外等待
+
+    缓存目录优先级：
+    1. 环境变量 FILE_CACHE_DIR
+    2. 参数 cache_dir（默认为临时目录，兼顾本地开发和 Docker）
     """
 
-    def __init__(self, cache_dir: str = "/app/file_cache",
+    def __init__(self, cache_dir: str = None,
                  max_size_gb: int = 1,
                  ttl_hours: int = 24,
                  cleanup_interval_minutes: int = 5):
-        self.cache_dir = Path(cache_dir)
+        # 优先级：环境变量 > 参数 > 临时目录
+        preferred = (
+            os.getenv("FILE_CACHE_DIR")
+            or cache_dir
+            or os.path.join(tempfile.gettempdir(), "file_cache")
+        )
+        # 尝试创建目录，失败时回退到系统临时目录
+        try:
+            self.cache_dir = Path(preferred)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError):
+            fallback = os.path.join(tempfile.gettempdir(), "file_cache")
+            logger.warning(f"缓存目录不可写: {preferred}，回退到: {fallback}")
+            self.cache_dir = Path(fallback)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.tmp_dir = self.cache_dir / "_tmp"
         self.max_size_bytes = max_size_gb * 1024 ** 3
         self.ttl_seconds = ttl_hours * 3600
@@ -36,9 +55,11 @@ class LocalFileCache:
         self._index_path = self.cache_dir / "_index.json"
         self._index: dict[str, dict] = {}
 
-        # 初始化目录
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        # 创建临时目录
+        try:
+            self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
 
         # 加载持久化索引
         self._load_index()
