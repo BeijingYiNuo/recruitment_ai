@@ -725,14 +725,14 @@ def get_resume_by_user(
     return resume
 
 
-@router.put("/{resume_id}/details", response_model=ResumeResponse)
+@router.put("/{resume_id}/details", response_model=Dict[str, Any])
 def update_resume_details(
     resume_id: int,
     data: ResumeUpdateDetailRequest,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """编辑简历详情：更新候选人姓名及所有子表数据（教育、工作、技能、项目）"""
+    """编辑简历详情：更新候选人姓名及所有子表数据，若修改后的姓名已存在则执行覆盖"""
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
         Resume.user_id == current_user_id
@@ -740,17 +740,71 @@ def update_resume_details(
     if not resume:
         raise HTTPException(status_code=404, detail="简历不存在或不属于当前用户")
 
-    # 1. 更新候选人姓名
-    if data.candidate_name is not None:
-        resume.candidate_name = data.candidate_name[:50]
+    new_name = data.candidate_name[:50] if data.candidate_name else resume.candidate_name
 
-    # 2. delete-then-insert 子表数据
+    # 第 1 步：检查是否存在同名简历（排除自身）
+    existing = None
+    if new_name and new_name != "待解析":
+        existing = db.query(Resume).filter(
+            Resume.user_id == current_user_id,
+            Resume.candidate_name == new_name,
+            Resume.id != resume_id
+        ).first()
+
+    if existing:
+        # ====== 覆盖模式：将当前编辑的数据迁移到同名简历 ======
+        old_tos_key = existing.file_path
+
+        # 更新现有简历的基础信息
+        existing.candidate_name = new_name
+        existing.file_path = resume.file_path
+        existing.file_type = resume.file_type
+        existing.content = resume.content
+        existing.original_file_name = resume.original_file_name
+        existing.status = resume.status
+
+        # 删除旧简历的子表数据，重新写入编辑后的数据
+        db.query(ResumeEducation).filter(ResumeEducation.resume_id == existing.id).delete()
+        db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == existing.id).delete()
+        db.query(ResumeSkill).filter(ResumeSkill.resume_id == existing.id).delete()
+        db.query(ResumeProject).filter(ResumeProject.resume_id == existing.id).delete()
+
+        target_id = existing.id
+        _insert_resume_details(db, target_id, data)
+
+        # 删除当前（被编辑的）简历记录
+        db.delete(resume)
+        db.commit()
+
+        # 后台删除旧的 TOS 文件
+        if old_tos_key:
+            try:
+                delete_resume_file(old_tos_key, db)
+            except Exception as e:
+                logger.warning(f"删除旧 TOS 文件失败: {e}")
+
+        logger.info(f"编辑保存触发覆盖：{new_name} 已合并到简历 {target_id}，原简历 {resume_id} 已删除")
+        return {"id": target_id, "merged": True, "candidate_name": new_name}
+
+    # ====== 普通模式：更新自身 ======
+    if data.candidate_name is not None:
+        resume.candidate_name = new_name
+
     db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
     db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
     db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
     db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
 
-    # 3. 插入教育经历
+    _insert_resume_details(db, resume_id, data)
+
+    db.commit()
+    db.refresh(resume)
+    logger.info(f"User {current_user_id} updated details for resume {resume_id}")
+    return {"id": resume.id, "merged": False, "candidate_name": resume.candidate_name}
+
+
+def _insert_resume_details(db, resume_id: int, data: ResumeUpdateDetailRequest):
+    """通用：将编辑后的详情数据写入指定简历"""
     for edu in data.educations:
         db.add(ResumeEducation(
             resume_id=resume_id,
@@ -762,8 +816,6 @@ def update_resume_details(
             is_985=edu.is_985 or 0,
             is_211=edu.is_211 or 0,
         ))
-
-    # 4. 插入工作经历
     for work in data.work_experiences:
         db.add(ResumeWorkExperience(
             resume_id=resume_id,
@@ -773,16 +825,12 @@ def update_resume_details(
             end_date=_parse_date(work.end_date),
             description=work.description or "",
         ))
-
-    # 5. 插入技能
     for skill in data.skills:
         db.add(ResumeSkill(
             resume_id=resume_id,
             skill_name=(skill.skill_name or "")[:100],
             proficiency_level=(skill.proficiency_level or "")[:20],
         ))
-
-    # 6. 插入项目经历
     for project in data.projects:
         db.add(ResumeProject(
             resume_id=resume_id,
@@ -792,11 +840,6 @@ def update_resume_details(
             end_date=_parse_date(project.end_date),
             role=(project.role or "")[:100],
         ))
-
-    db.commit()
-    db.refresh(resume)
-    logger.info(f"User {current_user_id} updated details for resume {resume_id}")
-    return resume
 
 
 @router.post("/{resume_id}/reparse", response_model=Dict[str, Any])
