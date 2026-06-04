@@ -154,6 +154,7 @@ async def import_resume(
         file_path=result['tos_key'],
         file_type=result['file_type'],
         candidate_name="待解析",
+        original_file_name=file.filename,
         status=ResumeStatus.UPLOADED,
         content=None,
         extracted_at=datetime.now()
@@ -262,6 +263,7 @@ async def batch_import_local(
                 user_id=current_user_id, file_path=tos_key,
                 file_type=file_ext or "unknown",
                 candidate_name="待解析",
+                original_file_name=item["filename"],
                 status=ResumeStatus.UPLOADED, content=None,
                 extracted_at=datetime.now()
             )
@@ -1057,6 +1059,34 @@ async def delete_resume_by_user(
             detail=str(e)
         )
     return None
+
+
+@router.post("/batch/delete", response_model=Dict[str, Any])
+async def batch_delete_resumes(
+    request: Request,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """批量删除简历"""
+    body = await request.json()
+    ids = body.get("ids", [])
+    if not ids or not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="请提供要删除的简历 ID 列表")
+
+    deleted = 0
+    errors = []
+    for resume_id in ids:
+        try:
+            delete_resume_data(resume_id, db, current_user_id)
+            deleted += 1
+        except ValueError as e:
+            errors.append({"id": resume_id, "error": str(e)})
+        except Exception as e:
+            errors.append({"id": resume_id, "error": str(e)})
+            db.rollback()
+
+    return {"deleted": deleted, "errors": errors}
 
 
 # 教育经历相关接口

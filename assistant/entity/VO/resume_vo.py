@@ -11,6 +11,7 @@ class ResumeResponse(BaseModel):
     candidate_name: Optional[str] = None
     file_path: str
     file_type: str
+    original_file_name: Optional[str] = None
     status: ResumeStatus
     position_id: Optional[int] = None
     created_at: datetime

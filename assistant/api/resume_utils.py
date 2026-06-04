@@ -827,6 +827,60 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
         # 6. 存储解析结果
         if parsed_data:
             candidate_name = store_resume_details(db, resume_id, parsed_data, current_user_id)
+            resume = db.query(Resume).filter(Resume.id == resume_id).first()
+
+            # 7. 检查重复：若已存在同名简历，将解析数据合并到现有简历
+            if candidate_name and candidate_name != "待解析":
+                existing = db.query(Resume).filter(
+                    Resume.user_id == current_user_id,
+                    Resume.candidate_name == candidate_name,
+                    Resume.id != resume_id
+                ).first()
+
+                if existing:
+                    logger.info(f"检测到同名简历: {candidate_name} (现有ID={existing.id}, 新ID={resume_id})，执行覆盖")
+                    old_tos_key = existing.file_path
+
+                    # 7a. 将新简历的 TOS 文件路径迁移到现有简历
+                    existing.file_path = resume.file_path
+                    existing.file_type = resume.file_type
+                    existing.content = resume.content
+                    existing.status = ResumeStatus.ANALYZED
+                    existing.extracted_at = datetime.now()
+                    existing.original_file_name = resume.original_file_name
+
+                    # 7b. 将解析后的明细记录（教育/工作/技能/项目）迁移到现有简历
+                    db.query(ResumeEducation).filter(ResumeEducation.resume_id == existing.id).delete()
+                    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == existing.id).delete()
+                    db.query(ResumeSkill).filter(ResumeSkill.resume_id == existing.id).delete()
+                    db.query(ResumeProject).filter(ResumeProject.resume_id == existing.id).delete()
+
+                    for edu in db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all():
+                        edu.resume_id = existing.id
+                    for work in db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all():
+                        work.resume_id = existing.id
+                    for skill in db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all():
+                        skill.resume_id = existing.id
+                    for proj in db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all():
+                        proj.resume_id = existing.id
+
+                    # 7c. 删除新简历（重复）记录
+                    db.delete(resume)
+                    db.commit()
+
+                    # 7d. 后台删除旧 TOS 文件（不影响响应时间）
+                    if old_tos_key:
+                        try:
+                            file_manager = get_file_manager()
+                            file_manager.delete_file(old_tos_key, db)
+                        except Exception as e:
+                            logger.warning(f"删除旧 TOS 文件失败: {e}")
+
+                    logger.info(f"简历 {candidate_name} 已合并到 ID={existing.id}，新 ID={resume_id} 已删除")
+                    return
+
+            # 无重复，正常更新当前简历
+            resume = db.query(Resume).filter(Resume.id == resume_id).first()
             resume.status = ResumeStatus.ANALYZED
             resume.extracted_at = datetime.now()
             resume.candidate_name = candidate_name[:50] if candidate_name else "待解析"
