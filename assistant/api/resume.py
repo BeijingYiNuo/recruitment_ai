@@ -144,6 +144,10 @@ async def import_resume(
         file_type="resume"
     )
 
+    # 预热本地缓存，preview 端点直接走磁盘，无需跨公网拉取 TOS
+    if file_manager.cache:
+        file_manager.cache.put(result['tos_key'], content)
+
     # 4. 创建新简历记录（姓名由后续 LLM 分析解析填充）
     db_resume = Resume(
         user_id=user_id,
@@ -247,6 +251,10 @@ async def batch_import_local(
             )
             tos_key = tos_result["tos_key"]
             logger.info(f"本地文件上传TOS成功: {item['filename']} → {tos_key}")
+
+            # 预热本地缓存，preview 端点直接走磁盘，无需跨公网拉取 TOS
+            if file_manager.cache:
+                file_manager.cache.put(tos_key, content)
 
             # 4. 创建 DB 记录（姓名由后续 LLM 分析解析填充）
             file_ext = os.path.splitext(item["filename"])[1].lower().lstrip('.')
@@ -1003,6 +1011,33 @@ async def preview_resume(
         media_type="application/pdf",
         headers=headers,
     )
+
+
+@router.post("/precache", response_model=Dict[str, Any])
+async def precache_resumes(
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """预热所有已有简历的本地缓存，下次预览直接走磁盘而非 TOS"""
+    if not file_manager.cache:
+        return {"cached": 0, "message": "本地缓存未启用，无需预热"}
+
+    resumes = db.query(Resume).filter(
+        Resume.user_id == current_user_id,
+        Resume.file_path.isnot(None),
+        Resume.file_path != ""
+    ).all()
+
+    cached = 0
+    for r in resumes:
+        try:
+            content = file_manager.download_file(r.file_path)
+            file_manager.cache.put(r.file_path, content)
+            cached += 1
+        except Exception as e:
+            logger.warning(f"预热缓存失败 resume_id={r.id}: {e}")
+
+    return {"cached": cached, "total": len(resumes), "message": f"已预热 {cached}/{len(resumes)} 份简历"}
 
 
 @router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
