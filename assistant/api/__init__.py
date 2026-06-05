@@ -5,6 +5,7 @@ from assistant.api.interview import router as interview_router
 from assistant.api.interview_knowledge import router as interview_knowledge_router
 from assistant.api.file import router as file_router
 from assistant.api.position import router as position_router
+from assistant.api.interview_report import router as interview_report_router
 
 from assistant.api.interview_reserve import router as interview_reserve_router
 from assistant.user_management.auth_middleware import get_current_user_id
@@ -54,6 +55,11 @@ api_router.include_router(
 
 api_router.include_router(
     position_router,
+    dependencies=[Depends(get_current_user_id)]
+)
+
+api_router.include_router(
+    interview_report_router,
     dependencies=[Depends(get_current_user_id)]
 )
 

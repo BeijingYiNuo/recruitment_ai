@@ -26,6 +26,11 @@ class ResumeReviewRequest(BaseModel):
     comment: Optional[str] = None
 
 
+class ResumeRemarkRequest(BaseModel):
+    """简历备注保存模型"""
+    comment: Optional[str] = None
+
+
 class ResumeEducationCreate(BaseModel):
     """教育经历创建模型"""
     resume_id: int

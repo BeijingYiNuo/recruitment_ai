@@ -1,6 +1,6 @@
 from assistant.entity.DTO.user_dto import UserCreate, UserUpdate, UserLogin, TokenResponse
 from assistant.entity.DTO.resume_dto import (
-    ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
+    ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeRemarkRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
     ResumeEducationDetail, ResumeWorkExperienceDetail, ResumeSkillDetail,
     ResumeProjectDetail, ResumeUpdateDetailRequest,
@@ -11,7 +11,7 @@ from assistant.entity.DTO.interview_dto import (
     InterviewSessionCreate, InterviewSessionUpdate,
     InterviewSessionQuestionCreate, InterviewSessionStandardCreate,
     InterviewEvaluationCreate, InterviewEvaluationUpdate,
-    InterviewReportCreate, InterviewReportUpdate,
+    InterviewReportCreate, InterviewReportUpdate, InterviewReportGenerateRequest,
     InterviewReminderCreate, InterviewReminderUpdate,
     SessionRoundUpdate
 )
@@ -30,7 +30,7 @@ __all__ = [
     # User
     "UserCreate", "UserUpdate", "UserLogin", "TokenResponse",
     # Resume
-    "ResumeCreate", "ResumeUpdate", "ResumeReviewRequest", "ResumeEducationCreate",
+    "ResumeCreate", "ResumeUpdate", "ResumeReviewRequest", "ResumeRemarkRequest", "ResumeEducationCreate",
     "ResumeWorkExperienceCreate", "ResumeSkillCreate", "ResumeProjectCreate",
     "ResumeEducationDetail", "ResumeWorkExperienceDetail", "ResumeSkillDetail",
     "ResumeProjectDetail", "ResumeUpdateDetailRequest",
@@ -39,7 +39,7 @@ __all__ = [
     "InterviewSessionCreate", "InterviewSessionUpdate",
     "InterviewSessionQuestionCreate", "InterviewSessionStandardCreate",
     "InterviewEvaluationCreate", "InterviewEvaluationUpdate",
-    "InterviewReportCreate", "InterviewReportUpdate",
+    "InterviewReportCreate", "InterviewReportUpdate", "InterviewReportGenerateRequest",
     "InterviewReminderCreate", "InterviewReminderUpdate",
     # Session Round
     "SessionRoundUpdate",

@@ -72,7 +72,9 @@ class InterviewReportResponse(BaseModel):
     """面试报告响应模型"""
     id: int
     session_id: int
-    report_content: str
+    round_id: Optional[int] = None
+    report_content: Optional[str] = None
+    report_data: Optional[str] = None
     generated_at: datetime
     status: ReportStatus
 

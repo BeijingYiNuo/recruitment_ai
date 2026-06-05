@@ -43,8 +43,9 @@ class SendMethod(str, enum.Enum):
 
 class ReportStatus(str, enum.Enum):
     """报告状态枚举"""
-    DRAFT = "draft"
-    FINAL = "final"
+    GENERATING = "generating"   # 生成中
+    FINAL = "final"             # 已完成
+    FAILED = "failed"           # 生成失败
 
 
 class QuestionType(str, enum.Enum):

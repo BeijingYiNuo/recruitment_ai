@@ -83,6 +83,11 @@ async def start_asr(session_id: str, round_id: str, req: StartAsrRequest, db: Se
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="轮次状态错误，不能启动ASR服务。"
         )
+    if session_round.evaluated_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该轮次已完成面试，无法再次启动ASR服务。"
+        )
 
     try:
         # 将会话状态置为"进行中"

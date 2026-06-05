@@ -109,12 +109,14 @@ class InterviewEvaluation(Base):
 class InterviewReport(Base):
     """面试报告表"""
     __tablename__ = "interview_report"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="面试报告ID")
     session_id = Column(Integer, nullable=False, comment="面试会话ID")
+    round_id = Column(Integer, nullable=False, comment="面试轮次ID")
     report_content = Column(Text, comment="报告内容")
+    report_data = Column(Text, comment="结构化报告数据(JSON)")
     generated_at = Column(DateTime, comment="生成时间")
-    status = Column(Enum(ReportStatus), nullable=False, default=ReportStatus.DRAFT, comment="状态")
+    status = Column(Enum(ReportStatus, values_callable=lambda x: [e.value for e in x]), nullable=False, default=ReportStatus.GENERATING, comment="状态")
     
     # 逻辑关联关系
     # 与InterviewSession的关系（多对一）

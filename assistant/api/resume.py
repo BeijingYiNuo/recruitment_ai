@@ -29,7 +29,7 @@ from assistant.LLM.resume_reviewer import ai_review_resume, generate_interview_q
 from assistant.streaming.session import StreamManager
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
-    ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeEducationCreate,
+    ResumeCreate, ResumeUpdate, ResumeReviewRequest, ResumeRemarkRequest, ResumeEducationCreate,
     ResumeWorkExperienceCreate, ResumeSkillCreate, ResumeProjectCreate,
     ResumeUpdateDetailRequest,
     AiReviewRequest, BatchAiReviewRequest, InterviewQuestionsRequest, InterviewQuestionsResponse,
@@ -337,6 +337,32 @@ def review_resume(
     db.refresh(resume)
 
     logger.info(f"User {current_user_id} reviewed resume {resume_id}: {data.decision}")
+    return resume
+
+
+@router.patch("/{resume_id}/remark", response_model=ResumeResponse)
+def save_resume_remark(
+    resume_id: int,
+    data: ResumeRemarkRequest,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id)
+):
+    """保存简历审核备注（不改变审核状态）"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user_id
+    ).first()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="简历不存在或不属于当前用户"
+        )
+
+    resume.review_comment = data.comment
+    db.commit()
+    db.refresh(resume)
+
+    logger.info(f"User {current_user_id} saved remark for resume {resume_id}")
     return resume
 
 

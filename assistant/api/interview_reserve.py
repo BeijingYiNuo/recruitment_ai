@@ -221,9 +221,8 @@ def update_session_round(
         session_round.score = update_data.score
     if update_data.comment is not None:
         session_round.comment = update_data.comment
-    if update_data.status in ("pass", "fail"):
-        from datetime import datetime
-        session_round.evaluated_at = datetime.now()
+    from datetime import datetime
+    session_round.evaluated_at = datetime.now()
 
     db.commit()
     db.refresh(session_round)
@@ -234,7 +233,12 @@ def update_session_round(
     ).all()
     if all_rounds:
         statuses = [r.status for r in all_rounds]
-        if all(s == 'pending' for s in statuses):
+        has_evaluated = any(r.evaluated_at is not None for r in all_rounds)
+        if all(s == 'pending' for s in statuses) and has_evaluated:
+            # 所有轮次都评估了但都是"待定" → 面试已完成
+            session.status = SessionStatus.COMPLETED
+            session.ended_at = datetime.now()
+        elif all(s == 'pending' for s in statuses):
             # 所有轮次都未评估 → 回到已预约状态
             session.status = SessionStatus.SCHEDULED
         elif any(s == 'fail' for s in statuses):

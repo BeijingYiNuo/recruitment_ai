@@ -95,14 +95,22 @@ class InterviewEvaluationUpdate(BaseModel):
 class InterviewReportCreate(BaseModel):
     """面试报告创建模型"""
     session_id: int
-    report_content: str
-    status: ReportStatus = ReportStatus.DRAFT
+    round_id: Optional[int] = None
+    report_content: str = None
+    report_data: Optional[str] = None
+    status: ReportStatus = ReportStatus.GENERATING
 
 
 class InterviewReportUpdate(BaseModel):
     """面试报告更新模型"""
     report_content: str = None
+    report_data: Optional[str] = None
     status: ReportStatus = None
+
+
+class InterviewReportGenerateRequest(BaseModel):
+    """面试报告生成请求"""
+    session_id: int
 
 
 class InterviewReminderCreate(BaseModel):
