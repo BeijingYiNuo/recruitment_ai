@@ -7,6 +7,7 @@ import os
 import json
 import io
 import base64
+import tempfile
 from pathlib import Path
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -325,7 +326,7 @@ async def analyze_resume_with_llm_from_images(image_paths: list) -> dict:
 
     from assistant.LLM.llm_resume_analysis import extract_json_safe
 
-    prompt = """请仔细分析这些简历图片，提取所有信息并直接输出 JSON。
+    prompt = """请仔细分析这些图片，判断其内容是否为简历，如果是则提取所有信息并直接输出 JSON。
 
 强制要求（必须遵守）：
 1. 只能输出 JSON，不允许任何额外文字
@@ -341,6 +342,7 @@ async def analyze_resume_with_llm_from_images(image_paths: list) -> dict:
 输出 JSON 格式如下：
 
 {
+  "is_resume": true,
   "person_info": {
     "name": "string or null",
     "age": number or null,
@@ -548,8 +550,20 @@ def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
         parsed_data: 解析后的结构化数据
     """
     person_info = parsed_data.get("person_info", {})
+
+    # 容错：LLM 有时返回的 JSON 缺少 person_info 外层，字段直接挂在顶层
+    if not person_info and parsed_data.get("name"):
+        person_info = {
+            "name": parsed_data.get("name"),
+            "age": parsed_data.get("age"),
+            "gender": parsed_data.get("gender"),
+            "phone": parsed_data.get("phone"),
+            "email": parsed_data.get("email"),
+            "address": parsed_data.get("address"),
+        }
+
     username = None
-    
+
     if person_info:
         # Validate and truncate fields to ensure they fit in database columns
         username = (person_info.get("name") or "")[:50]
@@ -777,16 +791,20 @@ async def process_resume_background(db, resume_id, resume_text: str, current_use
         db.rollback()
 
 
-async def process_resume_background_with_images(db, resume_id, file_bytes: bytes, filename: str, current_user_id: int):
+async def process_resume_background_with_images(db, resume_id, file_bytes: bytes, filename: str, current_user_id: int, tos_key: str = None) -> bool:
     """
     后台处理简历分析（PDF 转图片后识别）
-    
+
     Args:
         db: 数据库会话
         resume_id: 简历 ID
         file_bytes: 文件二进制内容
         filename: 文件名（用于判断文件类型）
         current_user_id: 当前用户 ID
+        tos_key: TOS 文件路径，非简历清理时使用
+
+    Returns:
+        bool: True=是有效简历, False=非简历文件已清理
     """
     image_paths = None
     output_dir = None
@@ -822,9 +840,26 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
         resume = db.query(Resume).filter(Resume.id == resume_id).first()
         if not resume:
             logger.error(f"后台任务错误：简历{resume_id}不存在")
-            return
-        
-        # 6. 存储解析结果
+            return False
+
+        # 6. 判断是否为简历
+        if parsed_data and not parsed_data.get("is_resume", True):
+            logger.warning(f"LLM 判定非简历，清理数据: resume_id={resume_id}")
+            db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
+            db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
+            db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
+            db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
+            db.query(Resume).filter(Resume.id == resume_id).delete()
+            if tos_key:
+                try:
+                    get_file_manager().delete_file(tos_key, db)
+                except Exception as e:
+                    logger.warning(f"删除 TOS 文件失败: {e}")
+            db.commit()
+            logger.info(f"非简历文件已清理: resume_id={resume_id}")
+            return False
+
+        # 7. 存储解析结果
         if parsed_data:
             candidate_name = store_resume_details(db, resume_id, parsed_data, current_user_id)
             resume = db.query(Resume).filter(Resume.id == resume_id).first()
@@ -877,7 +912,7 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
                             logger.warning(f"删除旧 TOS 文件失败: {e}")
 
                     logger.info(f"简历 {candidate_name} 已合并到 ID={existing.id}，新 ID={resume_id} 已删除")
-                    return
+                    return True
 
             # 无重复，正常更新当前简历
             resume = db.query(Resume).filter(Resume.id == resume_id).first()
@@ -887,11 +922,13 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
             resume.content = resume_text  # 存储识别到的文本
             db.commit()
             logger.info(f"简历 {resume_id} 分析完成")
+            return True
         else:
             resume.status = ResumeStatus.FAILED_ANALYSIS
             db.commit()
             logger.error(f"简历 {resume_id} 分析失败")
-    
+            return False
+
     except Exception as e:
         logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True)  # 打印完整堆栈
         
@@ -908,6 +945,6 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
             resume.status = ResumeStatus.FAILED_ANALYSIS
             db.commit()
         db.rollback()
+        return False
 
-
-import tempfile
+    return True

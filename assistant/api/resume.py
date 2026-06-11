@@ -101,7 +101,7 @@ def get_resumes(
     if end_time:
         query = query.filter(Resume.created_at <= end_time)
 
-    query = query.order_by(Resume.created_at.desc())
+    query = query.order_by(Resume.updated_at.desc())
     total = query.count()
     resumes = query.offset(skip).limit(limit).all()
     return {"items": [ResumeResponse.model_validate(r) for r in resumes], "total": total}
@@ -257,26 +257,65 @@ async def batch_import_local(
             if file_manager.cache:
                 file_manager.cache.put(tos_key, content)
 
-            # 4. 创建 DB 记录（姓名由后续 LLM 分析解析填充）
+            # 4. 查重：同名文件 → 更新已有记录，否则新建
+            existing = session.query(Resume).filter(
+                Resume.user_id == current_user_id,
+                Resume.original_file_name == item["filename"]
+            ).first()
+
             file_ext = os.path.splitext(item["filename"])[1].lower().lstrip('.')
-            db_resume = Resume(
-                user_id=current_user_id, file_path=tos_key,
-                file_type=file_ext or "unknown",
-                candidate_name="待解析",
-                original_file_name=item["filename"],
-                status=ResumeStatus.UPLOADED, content=None,
-                extracted_at=datetime.now()
-            )
-            session.add(db_resume)
-            session.commit()
-            session.refresh(db_resume)
-            resume_id = db_resume.id
+
+            if existing:
+                # 更新已有记录：覆盖文件、重置分析状态
+                existing.file_path = tos_key
+                existing.file_type = file_ext or "unknown"
+                existing.candidate_name = "待解析"
+                existing.status = ResumeStatus.UPLOADED
+                existing.extracted_at = datetime.now()
+                existing.updated_at = datetime.now()
+                existing.content = None
+                session.commit()
+                session.refresh(existing)
+                resume_id = existing.id
+                logger.info(f"更新已有简历记录: id={resume_id}, file={item['filename']}")
+            else:
+                # 新建记录
+                db_resume = Resume(
+                    user_id=current_user_id, file_path=tos_key,
+                    file_type=file_ext or "unknown",
+                    candidate_name="待解析",
+                    original_file_name=item["filename"],
+                    status=ResumeStatus.UPLOADED, content=None,
+                    extracted_at=datetime.now()
+                )
+                session.add(db_resume)
+                session.commit()
+                session.refresh(db_resume)
+                resume_id = db_resume.id
 
             # 5. LLM 分析（受信号量控制并发数）
             async with analysis_semaphore:
-                await process_resume_background_with_images(
-                    session, resume_id, content, item["filename"], current_user_id
+                is_resume = await process_resume_background_with_images(
+                    session, resume_id, content, item["filename"], current_user_id, tos_key
                 )
+
+            # 6. LLM 判断为非简历 → 清理数据
+            if not is_resume:
+                logger.warning(f"文件不是有效简历，清理数据: id={resume_id}, file={item['filename']}")
+                resume_rec = session.query(Resume).filter(Resume.id == resume_id).first()
+                if resume_rec:
+                    session.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
+                    session.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
+                    session.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
+                    session.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
+                    session.delete(resume_rec)
+                    try:
+                        file_manager.delete_file(tos_key, session)
+                    except Exception as e:
+                        logger.warning(f"删除 TOS 文件失败: {e}")
+                    session.commit()
+                    logger.info(f"非简历文件已清理: {item['filename']}")
+                    return
 
         except Exception as e:
             logger.error(f"后台处理文件失败 [{item['filename']}]: {e}")

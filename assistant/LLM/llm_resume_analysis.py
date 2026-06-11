@@ -19,7 +19,7 @@ client = AsyncOpenAI(
 RESUME_ANALYSIS_PROMPT = """
 你是一个严格的JSON生成器，不允许输出任何解释性文本。
 
-你的任务是：从简历中提取信息，并输出【完全合法的JSON字符串】。
+你的任务是：判断给定内容是否为简历，如果是则提取信息，并输出【完全合法的JSON字符串】。
 
 ⚠️ 强制要求（必须遵守）：
 1. 只能输出 JSON，不允许任何额外文字（包括解释、注释、Markdown）
@@ -43,6 +43,7 @@ RESUME_ANALYSIS_PROMPT = """
 输出 JSON 格式如下（必须严格一致）：
 
 {
+  "is_resume": true,
   "person_info": {
     "name": "string or null",
     "age": number or null,
