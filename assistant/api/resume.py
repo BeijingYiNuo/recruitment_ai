@@ -25,7 +25,7 @@ from assistant.api.resume_utils import (
     delete_resume_data
 )
 from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
-from assistant.LLM.resume_reviewer import ai_review_resume, generate_interview_questions, stream_interview_questions
+from assistant.LLM.resume_reviewer import ai_review_resume, batch_ai_review_resumes, generate_interview_questions, stream_interview_questions
 from assistant.streaming.session import StreamManager
 from assistant.file.file_manager import TosFileManager
 from assistant.entity.DTO import (
@@ -542,66 +542,94 @@ async def resume_batch_ai_review(
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
-    """批量 AI 审核简历"""
-    results = []
+    """批量 AI 横向比较审核简历（所有候选人一次性发给 LLM 比较）"""
     total = len(data.resume_ids)
+    if total == 0:
+        return {"total": 0, "results": []}
 
-    for idx, resume_id in enumerate(data.resume_ids):
-        logger.info(f"[Batch AI Review] processing {idx+1}/{total}, resume_id={resume_id}")
+    logger.info(f"[Batch AI Review] 开始横向比较审核，共 {total} 份简历，headcount={data.headcount}")
+
+    # 1. 收集所有候选人简历详情
+    resumes_details = []
+    for resume_id in data.resume_ids:
+        resume = db.query(Resume).filter(
+            Resume.id == resume_id,
+            Resume.user_id == current_user_id
+        ).first()
+        if not resume:
+            continue
+
+        educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all()
+        work_experiences = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all()
+        skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all()
+        projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all()
+
+        resumes_details.append({
+            "resume_id": resume_id,
+            "candidate_name": resume.candidate_name,
+            "educations": [
+                {"school_name": e.school_name, "degree": e.degree, "major": e.major,
+                 "start_date": str(e.start_date) if e.start_date else None,
+                 "end_date": str(e.end_date) if e.end_date else None, "is_985": e.is_985, "is_211": e.is_211}
+                for e in educations
+            ],
+            "work_experiences": [
+                {"company_name": w.company_name, "position": w.position,
+                 "start_date": str(w.start_date) if w.start_date else None,
+                 "end_date": str(w.end_date) if w.end_date else None, "description": w.description}
+                for w in work_experiences
+            ],
+            "skills": [{"skill_name": s.skill_name, "proficiency_level": s.proficiency_level} for s in skills],
+            "projects": [
+                {"project_name": p.project_name, "description": p.description,
+                 "start_date": str(p.start_date) if p.start_date else None,
+                 "end_date": str(p.end_date) if p.end_date else None, "role": p.role}
+                for p in projects
+            ],
+        })
+
+    # 2. 一次性调用 LLM 进行横向比较
+    batch_results = await batch_ai_review_resumes(
+        resumes_details=resumes_details,
+        position=data.position,
+        jd=data.jd,
+        custom_requirements=data.custom_requirements,
+        headcount=data.headcount,
+    )
+
+    # 3. 持久化每个简历的 AI 审核结果并构建返回
+    results = []
+    for item in batch_results:
+        resume_id = item["resume_id"]
         try:
-            resume = db.query(Resume).filter(
-                Resume.id == resume_id,
-                Resume.user_id == current_user_id
-            ).first()
-            if not resume:
-                results.append({"resume_id": resume_id, "error": "简历不存在"})
-                continue
-
-            educations = db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all()
-            work_experiences = db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all()
-            skills = db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all()
-            projects = db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all()
-
-            resume_details = {
-                "candidate_name": resume.candidate_name,
-                "educations": [
-                    {"school_name": e.school_name, "degree": e.degree, "major": e.major,
-                     "start_date": str(e.start_date) if e.start_date else None,
-                     "end_date": str(e.end_date) if e.end_date else None, "is_985": e.is_985, "is_211": e.is_211}
-                    for e in educations
-                ],
-                "work_experiences": [
-                    {"company_name": w.company_name, "position": w.position,
-                     "start_date": str(w.start_date) if w.start_date else None,
-                     "end_date": str(w.end_date) if w.end_date else None, "description": w.description}
-                    for w in work_experiences
-                ],
-                "skills": [{"skill_name": s.skill_name, "proficiency_level": s.proficiency_level} for s in skills],
-                "projects": [
-                    {"project_name": p.project_name, "description": p.description,
-                     "start_date": str(p.start_date) if p.start_date else None,
-                     "end_date": str(p.end_date) if p.end_date else None, "role": p.role}
-                    for p in projects
-                ],
-            }
-
-            result = await ai_review_resume(
-                resume_details=resume_details,
-                position=data.position,
-                jd=data.jd,
-                custom_requirements=data.custom_requirements,
-                headcount=data.headcount,
-            )
-            # 持久化 AI 审核结果
-            resume.ai_review_data = json.dumps(result, ensure_ascii=False)
-            db.commit()
-            results.append({"resume_id": resume_id, "candidate_name": resume.candidate_name, "result": result})
-            logger.info(f"[Batch AI Review] done {idx+1}/{total}, resume_id={resume_id}, suggestion={result.get('suggestion')}")
-
+            resume = db.query(Resume).filter(Resume.id == resume_id).first()
+            if resume:
+                resume.ai_review_data = json.dumps({
+                    "suggestion": item["suggestion"],
+                    "reason": item["reason"],
+                    "matched_points": item["matched_points"],
+                    "gaps": item["gaps"],
+                }, ensure_ascii=False)
+                db.commit()
+            results.append({
+                "resume_id": resume_id,
+                "candidate_name": item.get("candidate_name", ""),
+                "result": {
+                    "suggestion": item["suggestion"],
+                    "reason": item["reason"],
+                    "matched_points": item["matched_points"],
+                    "gaps": item["gaps"],
+                },
+            })
         except Exception as e:
-            logger.error(f"[Batch AI Review] error resume_id={resume_id}: {e}", exc_info=True)
-            results.append({"resume_id": resume_id, "error": str(e)})
+            logger.error(f"[Batch AI Review] 持久化失败 resume_id={resume_id}: {e}")
+            results.append({
+                "resume_id": resume_id,
+                "candidate_name": item.get("candidate_name", ""),
+                "error": str(e),
+            })
 
+    logger.info(f"[Batch AI Review] 横向比较审核完成，共 {len(results)} 份简历")
     return {"total": total, "results": results}
 @router.get("/{resume_id}/interview-questions/cache")
 async def get_cached_interview_questions(

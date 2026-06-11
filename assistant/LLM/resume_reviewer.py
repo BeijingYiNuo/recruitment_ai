@@ -73,6 +73,147 @@ async def ai_review_resume(resume_details: dict, position: str, jd: str,
         }
 
 
+async def batch_ai_review_resumes(
+    resumes_details: list[dict], position: str, jd: str,
+    custom_requirements: str, headcount: int
+) -> list[dict]:
+    """
+    批量横向比较审核简历：将所有候选人一次性发给 LLM 进行横向比较，
+    并强制按 1:3 比例控制通过/待定人数上限。
+
+    Args:
+        resumes_details: list[dict]，每个 dict 含 resume_id, candidate_name, educations, work_experiences, skills, projects
+        position: 岗位名称
+        jd: 岗位描述
+        custom_requirements: 自定义要求
+        headcount: 需求人数
+
+    Returns:
+        list[dict]，每个 dict 含 resume_id, candidate_name, suggestion, reason, matched_points, gaps
+    """
+    try:
+        max_passing = headcount * 3
+        prompt_manager = PromptManager()
+
+        # 格式化候选人列表文本
+        candidates_lines = []
+        for i, rd in enumerate(resumes_details, start=1):
+            details = {k: v for k, v in rd.items() if k != "resume_id"}
+            details_text = json.dumps(details, ensure_ascii=False, indent=2)
+            candidates_lines.append(f"## 候选人{i}（{rd.get('candidate_name', f'候选人{i}')}）\n{details_text}")
+
+        candidates_text = "\n\n".join(candidates_lines)
+
+        prompt = prompt_manager.generate_prompt(
+            user_id="",
+            template_name="ai_review_batch",
+            position=position,
+            headcount=str(headcount),
+            jd=jd,
+            custom_requirements=custom_requirements,
+            max_passing=str(max_passing),
+            candidates=candidates_text,
+        )
+
+        messages = [
+            {"role": "system", "content": "你是一位专业的招聘顾问，负责简历横向比较审核"},
+            {"role": "user", "content": prompt}
+        ]
+
+        response = await client.chat.completions.create(
+            model=llm_config.get('model', 'doubao-seed-1-6-251015'),
+            messages=messages,
+            extra_body={"thinking": {"type": "disabled"}},
+            max_tokens=4096,
+            stream=False,
+        )
+
+        content = response.choices[0].message.content
+        llm_results = _extract_json_array(content)
+
+        # 将 LLM 返回的结果映射回 resume_id
+        result_map = {}
+        for rd in resumes_details:
+            result_map[rd.get("candidate_name", "")] = rd["resume_id"]
+
+        mapped_results = []
+        for item in llm_results:
+            candidate_name = item.get("candidate_name", "")
+            resume_id = result_map.get(candidate_name)
+            if resume_id is None:
+                # 如果根据姓名找不到，尝试用 index 字段（用户可能修改了姓名）
+                idx = item.get("index", 0)
+                if 1 <= idx <= len(resumes_details):
+                    resume_id = resumes_details[idx - 1]["resume_id"]
+                    candidate_name = resumes_details[idx - 1].get("candidate_name", candidate_name)
+                else:
+                    continue
+            mapped_results.append({
+                "resume_id": resume_id,
+                "candidate_name": candidate_name,
+                "suggestion": item.get("suggestion", "PENDING"),
+                "reason": item.get("reason", ""),
+                "matched_points": item.get("matched_points", []),
+                "gaps": item.get("gaps", []),
+            })
+
+        logger.info(f"批量横向比较审核完成，共 {len(mapped_results)} 份简历")
+        return mapped_results
+
+    except Exception as e:
+        logger.error(f"批量横向比较审核失败: {e}")
+        import traceback
+        traceback.print_exc()
+        # 降级：逐个返回 PENDING
+        return [
+            {
+                "resume_id": rd["resume_id"],
+                "candidate_name": rd.get("candidate_name", ""),
+                "suggestion": "PENDING",
+                "reason": f"AI 横向比较分析失败: {str(e)}",
+                "matched_points": [],
+                "gaps": [],
+            }
+            for rd in resumes_details
+        ]
+
+
+def _extract_json_array(response_content: str) -> list:
+    """从 LLM 响应中提取 JSON 数组"""
+    import re
+    try:
+        return json.loads(response_content)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    match = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```', response_content)
+    candidate = match.group(1) if match else response_content
+
+    candidate = candidate.replace("'", '"')
+    candidate = re.sub(r",\s*}", "}", candidate)
+    candidate = re.sub(r",\s*]", "]", candidate)
+
+    try:
+        return json.loads(candidate)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # 尝试从响应中寻找 JSON 数组片段
+    decoder = json.JSONDecoder()
+    idx = 0
+    while idx < len(candidate):
+        try:
+            obj, end = decoder.raw_decode(candidate[idx:])
+            if isinstance(obj, list):
+                return obj
+            idx += end
+        except json.JSONDecodeError:
+            idx += 1
+
+    logger.error(f"JSON数组解析失败: {response_content[:200]}")
+    return []
+
+
 async def generate_interview_questions(resume_details: dict, instruction: str = "") -> Dict[str, Any]:
     """
     根据简历项目经历生成面试提问问题，按项目顺序返回

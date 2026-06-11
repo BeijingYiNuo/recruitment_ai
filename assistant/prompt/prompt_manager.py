@@ -47,6 +47,12 @@ class PromptManager:
         if os.path.exists(interview_questions_path):
             with open(interview_questions_path, 'r', encoding='utf-8') as f:
                 self.templates['interview_questions'] = f.read()
+
+        # 加载ai_review_batch模板
+        ai_review_batch_path = os.path.join(prompt_dir, 'ai_review_batch.txt')
+        if os.path.exists(ai_review_batch_path):
+            with open(ai_review_batch_path, 'r', encoding='utf-8') as f:
+                self.templates['ai_review_batch'] = f.read()
     
     def get_prompt_template(self, template_name: str) -> str:
         """
