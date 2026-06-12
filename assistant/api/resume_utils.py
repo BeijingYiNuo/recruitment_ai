@@ -443,7 +443,8 @@ async def analyze_resume_only(file_bytes: bytes, filename: str) -> dict:
             return parsed_data if parsed_data else {}
         else:
             logger.info(f"文件 {filename} 为 {file_extension}，使用传统文本提取模式")
-            resume_text = extract_text(filename, file_bytes)
+            loop = asyncio.get_event_loop()
+            resume_text = await loop.run_in_executor(None, lambda: extract_text(filename, file_bytes))
             parsed_data = await analyze_resume_with_llm(resume_text)
             return parsed_data if parsed_data else {}
     finally:
