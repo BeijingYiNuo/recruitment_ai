@@ -194,11 +194,11 @@ async def batch_import_local(
     current_user_id: int = Depends(get_current_user_id)
 ):
     """
-    批量导入简历：三阶段隔离架构
+    批量导入简历：三阶段隔离架构（端点毫秒级返回，后台逐步处理）
 
-    Phase 1（端点内同步）：保存到本地 → 上传 TOS → 创建 DB 记录（status=UPLOADED）
+    Phase 1（后台线程池）：读取 → 校验 → 上传 TOS → 创建 DB 记录（status=UPLOADED）
     Phase 2（后台异步）：纯 LLM 分析，不碰数据库
-    Phase 3（后台线程）：批量统一写入 DB
+    Phase 3（后台线程池）：批量统一写入 DB
     """
     if not files or len(files) == 0:
         raise HTTPException(status_code=400, detail="请至少上传一个文件")
@@ -222,91 +222,85 @@ async def batch_import_local(
     tasks = [_save_one(i, f) for i, f in enumerate(files)]
     local_files = await asyncio.gather(*tasks)
 
-    # ========== Phase 1: 上传 TOS + 创建 DB 记录（在线程池中执行，避免阻塞事件循环）==========
-    def _phase1_sync(item: dict) -> dict:
-        """同步执行：读取 → 校验 → 上传TOS → 创建DB记录"""
-        content = Path(item["local_path"]).read_bytes()
-
-        is_valid, err_msg = file_manager.validate_file_size(content)
-        if not is_valid:
-            logger.warning(f"文件 {item['filename']} 大小超限，跳过: {err_msg}")
-            Path(item["local_path"]).unlink(missing_ok=True)
-            return None
-
-        session = SessionLocal()
+    # ========== 后台三阶段处理 ==========
+    async def _background_all():
+        """后台逐步完成：Phase 1（TOS+DB）→ Phase 2（异步分析）→ Phase 3（批量写入）"""
         try:
-            tos_result = file_manager.upload_file(
-                db=session, user_id=current_user_id,
-                file_content=content, filename=item["filename"],
-                file_type="resume"
+            # ========== Phase 1: 上传 TOS + 创建 DB 记录（线程池）==========
+            def _phase1_sync(item: dict) -> dict:
+                content = Path(item["local_path"]).read_bytes()
+                is_valid, err_msg = file_manager.validate_file_size(content)
+                if not is_valid:
+                    logger.warning(f"文件 {item['filename']} 大小超限，跳过: {err_msg}")
+                    return None
+
+                session = SessionLocal()
+                try:
+                    tos_result = file_manager.upload_file(
+                        db=session, user_id=current_user_id,
+                        file_content=content, filename=item["filename"],
+                        file_type="resume"
+                    )
+                    tos_key = tos_result["tos_key"]
+                    logger.info(f"上传TOS成功: {item['filename']} → {tos_key}")
+
+                    file_ext = os.path.splitext(item["filename"])[1].lower().lstrip('.')
+                    existing = session.query(Resume).filter(
+                        Resume.user_id == current_user_id,
+                        Resume.original_file_name == item["filename"]
+                    ).first()
+
+                    if existing:
+                        existing.file_path = tos_key
+                        existing.file_type = file_ext or "unknown"
+                        existing.candidate_name = "待解析"
+                        existing.status = ResumeStatus.UPLOADED
+                        existing.extracted_at = datetime.now()
+                        existing.updated_at = datetime.now()
+                        existing.content = None
+                        session.commit()
+                        session.refresh(existing)
+                        resume_id = existing.id
+                    else:
+                        db_resume = Resume(
+                            user_id=current_user_id, file_path=tos_key,
+                            file_type=file_ext or "unknown",
+                            candidate_name="待解析",
+                            original_file_name=item["filename"],
+                            status=ResumeStatus.UPLOADED, content=None,
+                            extracted_at=datetime.now()
+                        )
+                        session.add(db_resume)
+                        session.commit()
+                        session.refresh(db_resume)
+                        resume_id = db_resume.id
+
+                    if file_manager.cache:
+                        file_manager.cache.put(tos_key, content)
+
+                    return {
+                        "resume_id": resume_id,
+                        "content": content,
+                        "filename": item["filename"],
+                        "tos_key": tos_key,
+                        "local_path": item["local_path"],
+                    }
+                except Exception as e:
+                    logger.error(f"Phase 1 处理失败 [{item['filename']}]: {e}")
+                    session.rollback()
+                    return None
+                finally:
+                    session.close()
+
+            phase1_results = await asyncio.gather(
+                *[asyncio.to_thread(_phase1_sync, item) for item in local_files]
             )
-            tos_key = tos_result["tos_key"]
-            logger.info(f"本地文件上传TOS成功: {item['filename']} → {tos_key}")
+            phase1_results = [r for r in phase1_results if r is not None]
+            if not phase1_results:
+                logger.warning("批量导入：所有文件均未通过校验")
+                return
 
-            file_ext = os.path.splitext(item["filename"])[1].lower().lstrip('.')
-            existing = session.query(Resume).filter(
-                Resume.user_id == current_user_id,
-                Resume.original_file_name == item["filename"]
-            ).first()
-
-            if existing:
-                existing.file_path = tos_key
-                existing.file_type = file_ext or "unknown"
-                existing.candidate_name = "待解析"
-                existing.status = ResumeStatus.UPLOADED
-                existing.extracted_at = datetime.now()
-                existing.updated_at = datetime.now()
-                existing.content = None
-                session.commit()
-                session.refresh(existing)
-                resume_id = existing.id
-                logger.info(f"更新已有简历记录: id={resume_id}, file={item['filename']}")
-            else:
-                db_resume = Resume(
-                    user_id=current_user_id, file_path=tos_key,
-                    file_type=file_ext or "unknown",
-                    candidate_name="待解析",
-                    original_file_name=item["filename"],
-                    status=ResumeStatus.UPLOADED, content=None,
-                    extracted_at=datetime.now()
-                )
-                session.add(db_resume)
-                session.commit()
-                session.refresh(db_resume)
-                resume_id = db_resume.id
-
-            return {
-                "resume_id": resume_id,
-                "content": content,
-                "filename": item["filename"],
-                "tos_key": tos_key,
-                "local_path": item["local_path"],
-            }
-        except Exception as e:
-            logger.error(f"Phase 1 处理失败 [{item['filename']}]: {e}")
-            session.rollback()
-            return None
-        finally:
-            session.close()
-
-    # 并发执行 Phase 1（在线程池中，不阻塞事件循环）
-    phase1_tasks = [asyncio.to_thread(_phase1_sync, item) for item in local_files]
-    phase1_results = await asyncio.gather(*phase1_tasks)
-    phase1_results = [r for r in phase1_results if r is not None]
-
-    # 预热本地缓存
-    for r in phase1_results:
-        if file_manager.cache:
-            file_manager.cache.put(r["tos_key"], r["content"])
-
-    if not phase1_results:
-        return {"imported": 0, "message": "所有文件均未通过校验"}
-
-    # ========== Phase 2 + Phase 3: 后台分析 + 写入 ==========
-    async def _analyze_and_save():
-        """后台执行 Phase 2（纯异步并发分析）→ Phase 3（批量写入DB）"""
-        try:
-            # Phase 2: 纯异步并发 LLM 分析（受信号量控制并发数）
+            # ========== Phase 2: 纯异步并发 LLM 分析（信号量控制 3 并发）==========
             async def _analyze_one(item: dict) -> dict:
                 async with analysis_semaphore:
                     parsed_data = await analyze_resume_only(item["content"], item["filename"])
@@ -323,7 +317,7 @@ async def batch_import_local(
                 return_exceptions=True
             )
 
-            # Phase 3: 逐个写入 DB（各自独立 session+commit，互不影响）
+            # ========== Phase 3: 批量写入 DB（线程池，各自独立 session/commit）==========
             def _batch_save():
                 for result in analysis_results:
                     if isinstance(result, Exception):
@@ -346,21 +340,10 @@ async def batch_import_local(
                     except Exception as e:
                         logger.error(f"保存简历 {result['resume_id']} 失败: {e}")
 
-                # 清理本地临时文件
-                for item in phase1_results:
-                    try:
-                        Path(item["local_path"]).unlink(missing_ok=True)
-                    except Exception:
-                        pass
-                try:
-                    batch_dir.rmdir()
-                except OSError:
-                    pass
-
             await asyncio.to_thread(_batch_save)
         finally:
-            # 确保即使 Phase 2/3 意外异常也清理临时文件
-            for item in phase1_results:
+            # 清理本地临时文件
+            for item in local_files:
                 try:
                     Path(item["local_path"]).unlink(missing_ok=True)
                 except Exception:
@@ -370,11 +353,11 @@ async def batch_import_local(
             except OSError:
                 pass
 
-    asyncio.create_task(_analyze_and_save())
+    asyncio.create_task(_background_all())
 
     return {
-        "imported": len(phase1_results),
-        "message": f"已接收 {len(phase1_results)} 份文件，后台分析中"
+        "imported": len(local_files),
+        "message": f"已接收 {len(local_files)} 份文件，后台处理中"
     }
 
 
