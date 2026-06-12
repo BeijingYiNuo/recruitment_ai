@@ -92,16 +92,24 @@ async def list_files(
     skip: int = 0,
     limit: int = 100,
     keyword: str = "",
+    file_type: str = "",
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id)
 ):
     """
     获取用户所有文件列表，支持搜索和分页
+
+    - **file_type**: 按文件类型过滤，多个类型用逗号分隔，如 "voice,dialogue"
     """
     query = db.query(TosFile).filter(TosFile.user_id == current_user_id)
 
     if keyword:
         query = query.filter(TosFile.file_name.ilike(f"%{keyword}%"))
+
+    if file_type:
+        types = [t.strip() for t in file_type.split(",") if t.strip()]
+        if types:
+            query = query.filter(TosFile.file_type.in_(types))
 
     query = query.order_by(TosFile.updated_at.desc())
     total = query.count()
