@@ -423,6 +423,36 @@ async def analyze_resume_with_llm_from_images(image_paths: list) -> dict:
         return {"educations": [], "work_experiences": [], "skills": [], "projects": []}
 
 
+async def analyze_resume_only(file_bytes: bytes, filename: str) -> dict:
+    """
+    纯 LLM 分析，不涉及数据库操作。
+    返回分析结果 dict（包含 is_resume、person_info、educations 等字段），失败返回 {}。
+    """
+    file_extension = os.path.splitext(filename)[1].lower()
+    image_paths = None
+    output_dir = None
+
+    try:
+        if file_extension == ".pdf" and HAS_PYMUPDF:
+            logger.info(f"文件 {filename} 为 PDF，使用图片识别模式")
+            loop = asyncio.get_event_loop()
+            image_paths, output_dir = await loop.run_in_executor(
+                None, lambda: pdf_to_images(file_bytes)
+            )
+            parsed_data = await analyze_resume_with_llm_from_images(image_paths)
+            return parsed_data if parsed_data else {}
+        else:
+            logger.info(f"文件 {filename} 为 {file_extension}，使用传统文本提取模式")
+            resume_text = extract_text(filename, file_bytes)
+            parsed_data = await analyze_resume_with_llm(resume_text)
+            return parsed_data if parsed_data else {}
+    finally:
+        if image_paths:
+            try:
+                cleanup_temp_images(image_paths, output_dir)
+            except Exception:
+                pass
+
 
 def cleanup_temp_images(image_paths: list, output_dir: str = None):
     """
@@ -705,6 +735,104 @@ def store_resume_details(db, resume_id, parsed_data, current_user_id: int):
         return "未知"
 
 
+def save_resume_to_db(
+    db: Session,
+    resume_id: int,
+    parsed_data: dict,
+    current_user_id: int,
+    tos_key: str = None,
+    filename: str = "",
+) -> bool:
+    """
+    将 LLM 分析结果写入数据库（纯同步函数，在 asyncio.to_thread 中执行）。
+    """
+    resume = db.query(Resume).filter(Resume.id == resume_id).first()
+    if not resume:
+        logger.error(f"简历{resume_id}不存在")
+        return False
+
+    # 非简历 → 清理数据
+    if parsed_data and not parsed_data.get("is_resume", True):
+        logger.warning(f"LLM 判定非简历，清理数据: resume_id={resume_id}, file={filename}")
+        db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
+        db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
+        db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
+        db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
+        db.query(Resume).filter(Resume.id == resume_id).delete()
+        if tos_key:
+            try:
+                get_file_manager().delete_file(tos_key, db)
+            except Exception as e:
+                logger.warning(f"删除 TOS 文件失败: {e}")
+        db.commit()
+        logger.info(f"非简历文件已清理: resume_id={resume_id}")
+        return False
+
+    # 有效简历：存储解析结果
+    if parsed_data:
+        candidate_name = store_resume_details(db, resume_id, parsed_data, current_user_id)
+        resume = db.query(Resume).filter(Resume.id == resume_id).first()
+
+        # 查重：若已存在同名简历，合并到现有记录
+        if candidate_name and candidate_name != "待解析":
+            existing = db.query(Resume).filter(
+                Resume.user_id == current_user_id,
+                Resume.candidate_name == candidate_name,
+                Resume.id != resume_id
+            ).first()
+
+            if existing:
+                logger.info(f"检测到同名简历: {candidate_name} (现有ID={existing.id}, 新ID={resume_id})，执行覆盖")
+                old_tos_key = existing.file_path
+
+                existing.file_path = resume.file_path
+                existing.file_type = resume.file_type
+                existing.content = resume.content
+                existing.status = ResumeStatus.ANALYZED
+                existing.extracted_at = datetime.now()
+                existing.original_file_name = resume.original_file_name
+
+                db.query(ResumeEducation).filter(ResumeEducation.resume_id == existing.id).delete()
+                db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == existing.id).delete()
+                db.query(ResumeSkill).filter(ResumeSkill.resume_id == existing.id).delete()
+                db.query(ResumeProject).filter(ResumeProject.resume_id == existing.id).delete()
+
+                for edu in db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all():
+                    edu.resume_id = existing.id
+                for work in db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all():
+                    work.resume_id = existing.id
+                for skill in db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all():
+                    skill.resume_id = existing.id
+                for proj in db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all():
+                    proj.resume_id = existing.id
+
+                db.delete(resume)
+                db.commit()
+
+                if old_tos_key:
+                    try:
+                        get_file_manager().delete_file(old_tos_key, db)
+                    except Exception as e:
+                        logger.warning(f"删除旧 TOS 文件失败: {e}")
+
+                logger.info(f"简历 {candidate_name} 已合并到 ID={existing.id}，新 ID={resume_id} 已删除")
+                return True
+
+        # 无重复，正常更新当前简历
+        resume = db.query(Resume).filter(Resume.id == resume_id).first()
+        resume.status = ResumeStatus.ANALYZED
+        resume.extracted_at = datetime.now()
+        resume.candidate_name = candidate_name[:50] if candidate_name else "待解析"
+        db.commit()
+        logger.info(f"简历 {resume_id} 分析完成")
+        return True
+    else:
+        resume.status = ResumeStatus.FAILED_ANALYSIS
+        db.commit()
+        logger.error(f"简历 {resume_id} 分析结果为空")
+        return False
+
+
 def process_resume(db, user_id, file_path, file_type):
     """
     处理简历文件，包括解析和存储
@@ -795,151 +923,14 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
     """
     后台处理简历分析（PDF 转图片后识别）
 
-    Args:
-        db: 数据库会话
-        resume_id: 简历 ID
-        file_bytes: 文件二进制内容
-        filename: 文件名（用于判断文件类型）
-        current_user_id: 当前用户 ID
-        tos_key: TOS 文件路径，非简历清理时使用
-
-    Returns:
-        bool: True=是有效简历, False=非简历文件已清理
+    保留此函数对外兼容（import_resume 端点使用），
+    内部委托给 analyze_resume_only + save_resume_to_db。
     """
-    image_paths = None
-    output_dir = None
-    
     try:
-        file_extension = os.path.splitext(filename)[1].lower()
-        
-        # PDF 文件：转图片后用视觉 LLM 识别
-        if file_extension == ".pdf" and HAS_PYMUPDF:
-            logger.info(f"简历 {resume_id} 为 PDF 文件，使用图片识别模式")
-            
-            # 1. PDF 转图片（CPU 密集，在线程池执行避免阻塞事件循环）
-            loop = asyncio.get_event_loop()
-            image_paths, output_dir = await loop.run_in_executor(
-                None, lambda: pdf_to_images(file_bytes)
-            )
-
-            # 2. 直接解析图片为结构化 JSON（合并提取文本+结构化，一次 LLM 调用）
-            parsed_data = await analyze_resume_with_llm_from_images(image_paths)
-
-            # 3. 图片识别后立即删除临时文件
-            cleanup_temp_images(image_paths, output_dir)
-            logger.info(f"简历 {resume_id} 临时图片已清理")
-            resume_text = ""  # 图片直接解析模式不单独存原始文本
-        else:
-            # Word 或其他文件：使用传统文本提取
-            logger.info(f"简历 {resume_id} 为 {file_extension} 文件，使用传统文本提取模式")
-            resume_text = extract_text(filename, file_bytes)
-            # 4. 调用 analyze_resume_with_llm 进行结构化解析
-            parsed_data = await analyze_resume_with_llm(resume_text)
-
-        # 5. 查询简历记录
-        resume = db.query(Resume).filter(Resume.id == resume_id).first()
-        if not resume:
-            logger.error(f"后台任务错误：简历{resume_id}不存在")
-            return False
-
-        # 6. 判断是否为简历
-        if parsed_data and not parsed_data.get("is_resume", True):
-            logger.warning(f"LLM 判定非简历，清理数据: resume_id={resume_id}")
-            db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).delete()
-            db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).delete()
-            db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).delete()
-            db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).delete()
-            db.query(Resume).filter(Resume.id == resume_id).delete()
-            if tos_key:
-                try:
-                    get_file_manager().delete_file(tos_key, db)
-                except Exception as e:
-                    logger.warning(f"删除 TOS 文件失败: {e}")
-            db.commit()
-            logger.info(f"非简历文件已清理: resume_id={resume_id}")
-            return False
-
-        # 7. 存储解析结果
-        if parsed_data:
-            candidate_name = store_resume_details(db, resume_id, parsed_data, current_user_id)
-            resume = db.query(Resume).filter(Resume.id == resume_id).first()
-
-            # 7. 检查重复：若已存在同名简历，将解析数据合并到现有简历
-            if candidate_name and candidate_name != "待解析":
-                existing = db.query(Resume).filter(
-                    Resume.user_id == current_user_id,
-                    Resume.candidate_name == candidate_name,
-                    Resume.id != resume_id
-                ).first()
-
-                if existing:
-                    logger.info(f"检测到同名简历: {candidate_name} (现有ID={existing.id}, 新ID={resume_id})，执行覆盖")
-                    old_tos_key = existing.file_path
-
-                    # 7a. 将新简历的 TOS 文件路径迁移到现有简历
-                    existing.file_path = resume.file_path
-                    existing.file_type = resume.file_type
-                    existing.content = resume.content
-                    existing.status = ResumeStatus.ANALYZED
-                    existing.extracted_at = datetime.now()
-                    existing.original_file_name = resume.original_file_name
-
-                    # 7b. 将解析后的明细记录（教育/工作/技能/项目）迁移到现有简历
-                    db.query(ResumeEducation).filter(ResumeEducation.resume_id == existing.id).delete()
-                    db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == existing.id).delete()
-                    db.query(ResumeSkill).filter(ResumeSkill.resume_id == existing.id).delete()
-                    db.query(ResumeProject).filter(ResumeProject.resume_id == existing.id).delete()
-
-                    for edu in db.query(ResumeEducation).filter(ResumeEducation.resume_id == resume_id).all():
-                        edu.resume_id = existing.id
-                    for work in db.query(ResumeWorkExperience).filter(ResumeWorkExperience.resume_id == resume_id).all():
-                        work.resume_id = existing.id
-                    for skill in db.query(ResumeSkill).filter(ResumeSkill.resume_id == resume_id).all():
-                        skill.resume_id = existing.id
-                    for proj in db.query(ResumeProject).filter(ResumeProject.resume_id == resume_id).all():
-                        proj.resume_id = existing.id
-
-                    # 7c. 删除新简历（重复）记录
-                    db.delete(resume)
-                    db.commit()
-
-                    # 7d. 后台删除旧 TOS 文件（不影响响应时间）
-                    if old_tos_key:
-                        try:
-                            file_manager = get_file_manager()
-                            file_manager.delete_file(old_tos_key, db)
-                        except Exception as e:
-                            logger.warning(f"删除旧 TOS 文件失败: {e}")
-
-                    logger.info(f"简历 {candidate_name} 已合并到 ID={existing.id}，新 ID={resume_id} 已删除")
-                    return True
-
-            # 无重复，正常更新当前简历
-            resume = db.query(Resume).filter(Resume.id == resume_id).first()
-            resume.status = ResumeStatus.ANALYZED
-            resume.extracted_at = datetime.now()
-            resume.candidate_name = candidate_name[:50] if candidate_name else "待解析"
-            resume.content = resume_text  # 存储识别到的文本
-            db.commit()
-            logger.info(f"简历 {resume_id} 分析完成")
-            return True
-        else:
-            resume.status = ResumeStatus.FAILED_ANALYSIS
-            db.commit()
-            logger.error(f"简历 {resume_id} 分析失败")
-            return False
-
+        parsed_data = await analyze_resume_only(file_bytes, filename)
+        return save_resume_to_db(db, resume_id, parsed_data, current_user_id, tos_key, filename)
     except Exception as e:
-        logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True)  # 打印完整堆栈
-        
-        # 出错时也要确保清理临时图片
-        if image_paths:
-            try:
-                cleanup_temp_images(image_paths, output_dir)
-                logger.info(f"简历 {resume_id} 异常清理临时图片")
-            except:
-                pass
-        
+        logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True)
         resume = db.query(Resume).filter(Resume.id == resume_id).first()
         if resume:
             resume.status = ResumeStatus.FAILED_ANALYSIS
@@ -947,4 +938,3 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
         db.rollback()
         return False
 
-    return True
