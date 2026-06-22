@@ -37,7 +37,7 @@ def get_candidate_groups(
     # 查询当前用户已结束面试的候选人
     relevant_statuses = [
         SessionStatus.COMPLETED, SessionStatus.PASSED, SessionStatus.FAILED,
-        SessionStatus.ONGOING, SessionStatus.SCHEDULED
+        SessionStatus.ONGOING, SessionStatus.SCHEDULED, SessionStatus.PENDING
     ]
 
     query = db.query(
@@ -116,7 +116,7 @@ def get_reports_by_candidate(
     """按候选人获取所有面试 session 及其报告状态"""
     relevant_statuses = [
         SessionStatus.COMPLETED, SessionStatus.PASSED, SessionStatus.FAILED,
-        SessionStatus.ONGOING, SessionStatus.SCHEDULED
+        SessionStatus.ONGOING, SessionStatus.SCHEDULED, SessionStatus.PENDING
     ]
 
     sessions = db.query(InterviewSession).filter(

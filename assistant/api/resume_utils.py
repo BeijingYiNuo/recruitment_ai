@@ -926,10 +926,22 @@ async def process_resume_background_with_images(db, resume_id, file_bytes: bytes
 
     保留此函数对外兼容（import_resume 端点使用），
     内部委托给 analyze_resume_only + save_resume_to_db。
+    save_resume_to_db 在线程池中执行，避免同步 DB 操作阻塞事件循环。
     """
+    from assistant.config.database import SessionLocal
+
     try:
         parsed_data = await analyze_resume_only(file_bytes, filename)
-        return save_resume_to_db(db, resume_id, parsed_data, current_user_id, tos_key, filename)
+
+        # 将同步 DB 操作迁移到独立线程 + 独立会话，不阻塞主事件循环
+        def _save():
+            thread_db = SessionLocal()
+            try:
+                return save_resume_to_db(thread_db, resume_id, parsed_data, current_user_id, tos_key, filename)
+            finally:
+                thread_db.close()
+
+        return await asyncio.to_thread(_save)
     except Exception as e:
         logger.error(f"简历{resume_id}后台分析失败: {str(e)}", exc_info=True)
         resume = db.query(Resume).filter(Resume.id == resume_id).first()
