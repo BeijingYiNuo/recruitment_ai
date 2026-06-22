@@ -391,13 +391,17 @@ async def analyze_resume_with_llm_from_images(image_paths: list) -> dict:
 注意：最终输出必须是一个纯 JSON 字符串，不允许有任何前后缀内容或 markdown 标记。"""
 
     # 构造消息——把所有图片放在同一次请求中
+    # 图片读取和 base64 编码移到线程池执行，避免阻塞事件循环
+    loop = asyncio.get_event_loop()
+    image_contents = await asyncio.gather(*[
+        loop.run_in_executor(None, lambda p=path: base64.b64encode(open(p, "rb").read()).decode("utf-8"))
+        for path in image_paths
+    ])
     content = [{"type": "text", "text": prompt}]
-    for image_path in image_paths:
-        with open(image_path, "rb") as f:
-            base64_image = base64.b64encode(f.read()).decode("utf-8")
+    for b64 in image_contents:
         content.append({
             "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+            "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
         })
 
     messages = [

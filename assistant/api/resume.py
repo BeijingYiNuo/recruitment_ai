@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import urllib
+from concurrent.futures import ThreadPoolExecutor
 from email.utils import formatdate, parsedate_to_datetime
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -53,11 +54,18 @@ limiter = Limiter(key_func=get_remote_address)
 file_manager = TosFileManager()
 
 # ========== 并发与限流参数（可环境变量覆盖）==========
-MAX_CONCURRENT_ANALYSIS = int(os.getenv("RESUME_MAX_CONCURRENT_ANALYSIS", "3"))
+MAX_CONCURRENT_ANALYSIS = int(os.getenv("RESUME_MAX_CONCURRENT_ANALYSIS", "10"))
 RATE_LIMIT_IMPORT = os.getenv("RESUME_RATE_LIMIT_IMPORT", "30/minute")
 MAX_BATCH_FILES = int(os.getenv("RESUME_MAX_BATCH_FILES", "10"))
+MAX_BATCH_PHASE1_CONCURRENT = int(os.getenv("RESUME_MAX_BATCH_PHASE1_CONCURRENT", "3"))
 
 analysis_semaphore = asyncio.Semaphore(MAX_CONCURRENT_ANALYSIS)
+
+# 专用线程池：隔离批量导入的线程消耗，避免耗尽 FastAPI 同步端点的默认线程池
+batch_thread_pool = ThreadPoolExecutor(
+    max_workers=min(16, MAX_BATCH_FILES + 2),
+    thread_name_prefix="batch-import"
+)
 
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
@@ -292,8 +300,15 @@ async def batch_import_local(
                 finally:
                     session.close()
 
+            loop = asyncio.get_event_loop()
+            phase1_semaphore = asyncio.Semaphore(MAX_BATCH_PHASE1_CONCURRENT)
+
+            async def _phase1_worker(item):
+                async with phase1_semaphore:
+                    return await loop.run_in_executor(batch_thread_pool, _phase1_sync, item)
+
             phase1_results = await asyncio.gather(
-                *[asyncio.to_thread(_phase1_sync, item) for item in local_files]
+                *[_phase1_worker(item) for item in local_files]
             )
             phase1_results = [r for r in phase1_results if r is not None]
             if not phase1_results:
@@ -340,7 +355,7 @@ async def batch_import_local(
                     except Exception as e:
                         logger.error(f"保存简历 {result['resume_id']} 失败: {e}")
 
-            await asyncio.to_thread(_batch_save)
+            await loop.run_in_executor(batch_thread_pool, _batch_save)
         finally:
             # 清理本地临时文件
             for item in local_files:
