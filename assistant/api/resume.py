@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import urllib
-from concurrent.futures import ThreadPoolExecutor
 from email.utils import formatdate, parsedate_to_datetime
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -25,7 +24,8 @@ from assistant.api.resume_utils import (
     store_resume_details,
     extract_text,
     delete_resume_file,
-    delete_resume_data
+    delete_resume_data,
+    background_thread_pool,
 )
 from assistant.LLM.llm_resume_analysis import analyze_resume_with_llm
 from assistant.LLM.resume_reviewer import ai_review_resume, batch_ai_review_resumes, generate_interview_questions, stream_interview_questions
@@ -60,12 +60,6 @@ MAX_BATCH_FILES = int(os.getenv("RESUME_MAX_BATCH_FILES", "10"))
 MAX_BATCH_PHASE1_CONCURRENT = int(os.getenv("RESUME_MAX_BATCH_PHASE1_CONCURRENT", "3"))
 
 analysis_semaphore = asyncio.Semaphore(MAX_CONCURRENT_ANALYSIS)
-
-# 专用线程池：隔离批量导入的线程消耗，避免耗尽 FastAPI 同步端点的默认线程池
-batch_thread_pool = ThreadPoolExecutor(
-    max_workers=min(16, MAX_BATCH_FILES + 2),
-    thread_name_prefix="batch-import"
-)
 
 router = APIRouter(prefix="/api/resumes", tags=["简历管理"])
 
@@ -305,7 +299,7 @@ async def batch_import_local(
 
             async def _phase1_worker(item):
                 async with phase1_semaphore:
-                    return await loop.run_in_executor(batch_thread_pool, _phase1_sync, item)
+                    return await loop.run_in_executor(background_thread_pool, _phase1_sync, item)
 
             phase1_results = await asyncio.gather(
                 *[_phase1_worker(item) for item in local_files]
@@ -355,7 +349,7 @@ async def batch_import_local(
                     except Exception as e:
                         logger.error(f"保存简历 {result['resume_id']} 失败: {e}")
 
-            await loop.run_in_executor(batch_thread_pool, _batch_save)
+            await loop.run_in_executor(background_thread_pool, _batch_save)
         finally:
             # 清理本地临时文件
             for item in local_files:

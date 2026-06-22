@@ -25,6 +25,13 @@ except ImportError:
     HAS_PYMUPDF = False
     logger.warning("PyMuPDF 未安装，将使用传统文本提取方式")
 
+# 专用后台线程池：隔离所有后台任务（TOS 上传、PDF 转图片、图片编码等），
+# 不占 FastAPI 同步端点的默认线程池，避免批量导入时 UI 请求超时
+background_thread_pool = concurrent.futures.ThreadPoolExecutor(
+    max_workers=min(16, (os.cpu_count() or 4) + 4),
+    thread_name_prefix="background-worker"
+)
+
 # 尝试导入 LLM 客户端（用于图片识别）
 try:
     from openai import AsyncOpenAI
@@ -165,12 +172,8 @@ def pdf_to_images(pdf_bytes: bytes, output_dir: str = None, dpi: int = 200) -> t
         pix.save(str(image_path))
         return str(image_path)
 
-    # 多页 PDF 并发渲染
-    if num_pages <= 1:
-        image_paths = [render_page(0)]
-    else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(num_pages, 8)) as executor:
-            image_paths = list(executor.map(render_page, range(num_pages)))
+    # 多页 PDF 渲染（已在 background_thread_pool 中运行，直接串行即可）
+    image_paths = [render_page(i) for i in range(num_pages)]
 
     doc.close()
     logger.info(f"PDF 转图片完成，共 {len(image_paths)} 页，输出目录: {output_dir}")
@@ -394,7 +397,7 @@ async def analyze_resume_with_llm_from_images(image_paths: list) -> dict:
     # 图片读取和 base64 编码移到线程池执行，避免阻塞事件循环
     loop = asyncio.get_event_loop()
     image_contents = await asyncio.gather(*[
-        loop.run_in_executor(None, lambda p=path: base64.b64encode(open(p, "rb").read()).decode("utf-8"))
+        loop.run_in_executor(background_thread_pool, lambda p=path: base64.b64encode(open(p, "rb").read()).decode("utf-8"))
         for path in image_paths
     ])
     content = [{"type": "text", "text": prompt}]
@@ -441,14 +444,14 @@ async def analyze_resume_only(file_bytes: bytes, filename: str) -> dict:
             logger.info(f"文件 {filename} 为 PDF，使用图片识别模式")
             loop = asyncio.get_event_loop()
             image_paths, output_dir = await loop.run_in_executor(
-                None, lambda: pdf_to_images(file_bytes)
+                background_thread_pool, lambda: pdf_to_images(file_bytes)
             )
             parsed_data = await analyze_resume_with_llm_from_images(image_paths)
             return parsed_data if parsed_data else {}
         else:
             logger.info(f"文件 {filename} 为 {file_extension}，使用传统文本提取模式")
             loop = asyncio.get_event_loop()
-            resume_text = await loop.run_in_executor(None, lambda: extract_text(filename, file_bytes))
+            resume_text = await loop.run_in_executor(background_thread_pool, lambda: extract_text(filename, file_bytes))
             parsed_data = await analyze_resume_with_llm(resume_text)
             return parsed_data if parsed_data else {}
     finally:
