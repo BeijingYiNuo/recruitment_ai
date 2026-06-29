@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
+from collections import defaultdict
 from datetime import datetime
 from assistant.config.database import get_db
 from assistant.entity import InterviewSession, InterviewSessionRound, PositionRound
@@ -76,7 +77,24 @@ def get_interview_sessions_by_user(
     query = query.order_by(InterviewSession.created_at.desc())
     total = query.count()
     sessions = query.offset(skip).limit(limit).all()
-    return {"items": [InterviewSessionResponse.model_validate(s) for s in sessions], "total": total}
+
+    # 批量加载所有 session 的轮次数据（消除 N+1 查询）
+    session_ids = [s.id for s in sessions]
+    all_rounds = db.query(InterviewSessionRound).filter(
+        InterviewSessionRound.session_id.in_(session_ids)
+    ).order_by(InterviewSessionRound.round_number).all()
+    rounds_by_session = defaultdict(list)
+    for r in all_rounds:
+        rounds_by_session[r.session_id].append(r)
+
+    items = []
+    for s in sessions:
+        item = InterviewSessionResponse.model_validate(s)
+        session_rounds = rounds_by_session.get(s.id, [])
+        item.rounds = [SessionRoundResponse.model_validate(r) for r in session_rounds]
+        items.append(item)
+
+    return {"items": items, "total": total}
 
 @router.get("/sessions/{session_id}", response_model=InterviewSessionResponse)
 def get_interview_session(
