@@ -54,9 +54,8 @@ async def startup_cleanup():
         while True:
             await asyncio.sleep(120)
             StreamManager.get_instance().cleanup_stale(300)
-        while True:
-            await asyncio.sleep(120)
-            StreamManager.get_instance().cleanup_stale(300)
 
     asyncio.create_task(_cleanup())
+
+    # 备注：SSE 逐条推送功能已移除，改为前端轮询
 

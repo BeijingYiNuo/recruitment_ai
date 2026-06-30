@@ -14,6 +14,7 @@ from assistant.entity.interview_helper import (
 )
 from assistant.entity.knowledge import UserKnowledge, KnowledgeRole, ChunkingStrategy
 from assistant.entity.position import Position, PositionRound
+from assistant.entity.task_queue import TaskQueue
 from assistant.enums import (
     UserRole, ResumeStatus,
     SessionType, SessionStatus, Recommendation,
@@ -40,4 +41,6 @@ __all__ = [
     "UserKnowledge", "KnowledgeRole", "ChunkingStrategy",
     # Position
     "Position", "PositionRound", "PositionStatus", "RoundType",
+    # Task Queue
+    "TaskQueue",
 ]

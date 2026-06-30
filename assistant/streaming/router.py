@@ -1,6 +1,8 @@
+import json
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from assistant.streaming.session import StreamManager
+from assistant.streaming.task_events import TaskEventManager
 
 router = APIRouter(prefix="/api/stream", tags=["流式传输"])
 manager = StreamManager.get_instance()
@@ -59,3 +61,27 @@ async def cancel_stream(session_id: str):
     """取消并移除流式会话。"""
     manager.remove_session(session_id)
     return {"status": "cancelled"}
+
+
+@router.get("/task/{task_id}")
+async def task_events(task_id: int):
+    """
+    SSE 端点：订阅指定任务的执行状态。
+    前端可用 EventSource 连接，接收任务状态推送。
+    """
+    task_manager = TaskEventManager.get_instance()
+
+    async def event_stream():
+        async for event in task_manager.event_generator(task_id):
+            data = json.dumps(event, ensure_ascii=False)
+            yield f"event: task_status\ndata: {data}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

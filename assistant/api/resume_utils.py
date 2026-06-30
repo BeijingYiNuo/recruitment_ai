@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+from typing import Optional
 from assistant.utils.logger import logger
 import pdfplumber
 from docx import Document
@@ -839,6 +840,84 @@ def save_resume_to_db(
         db.commit()
         logger.error(f"简历 {resume_id} 分析结果为空")
         return False
+
+
+def create_or_update_resume(
+    db: Session,
+    parsed_data: dict,
+    user_id: int,
+    tos_key: str,
+    filename: str,
+) -> Optional[int]:
+    """
+    LLM 分析后写入 DB：查重 → 创建或更新 Resume 记录。
+    返回 resume_id，非简历或无解析数据返回 None。
+    """
+    # 非简历 → 清理 TOS 文件
+    if parsed_data and not parsed_data.get("is_resume", True):
+        logger.warning(f"LLM 判定非简历，清理 TOS 文件: {filename}")
+        if tos_key:
+            try:
+                get_file_manager().delete_file(tos_key, db)
+            except Exception as e:
+                logger.warning(f"删除 TOS 文件失败: {e}")
+        return None
+
+    person_info = parsed_data.get("person_info", {})
+    candidate_name = ""
+    if person_info:
+        candidate_name = (person_info.get("name") or "").strip()
+
+    file_ext = os.path.splitext(filename)[1].lower().lstrip('.')
+
+    # 查重：同 user_id 下同名候选人
+    existing = None
+    if candidate_name and candidate_name != "待解析":
+        existing = db.query(Resume).filter(
+            Resume.user_id == user_id,
+            Resume.candidate_name == candidate_name,
+        ).first()
+
+    old_tos_key = None
+    if existing:
+        old_tos_key = existing.file_path
+        existing.file_path = tos_key
+        existing.file_type = file_ext or "unknown"
+        existing.candidate_name = candidate_name
+        existing.original_file_name = filename
+        existing.status = ResumeStatus.ANALYZED
+        existing.extracted_at = datetime.now()
+        existing.content = None
+        resume_id = existing.id
+        logger.info(f"同名简历 {candidate_name} (ID={resume_id})，覆盖文件+解析内容")
+    else:
+        db_resume = Resume(
+            user_id=user_id,
+            file_path=tos_key,
+            file_type=file_ext or "unknown",
+            candidate_name=candidate_name or "待解析",
+            original_file_name=filename,
+            status=ResumeStatus.ANALYZED,
+            content=None,
+            extracted_at=datetime.now(),
+        )
+        db.add(db_resume)
+        db.flush()
+        resume_id = db_resume.id
+
+    # 写入子表（内部会清除旧数据 + commit）
+    store_resume_details(db, resume_id, parsed_data, user_id)
+
+    # 删除旧 TOS 文件（store_resume_details 已 commit）
+    if old_tos_key:
+        try:
+            get_file_manager().delete_file(old_tos_key, db)
+            logger.info(f"已删除旧 TOS 文件: {old_tos_key}")
+        except Exception as e:
+            logger.warning(f"删除旧 TOS 文件失败: {e}")
+
+    logger.info(f"简历 {candidate_name} (ID={resume_id}) 分析完成")
+    return resume_id
 
 
 def process_resume(db, user_id, file_path, file_type):
