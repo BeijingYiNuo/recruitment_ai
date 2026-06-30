@@ -45,6 +45,7 @@ from assistant.entity.VO import (
 from assistant.user_management.auth_middleware import get_current_user_id
 from assistant.user_management.auth_utils import verify_token
 import json
+import fitz
 from assistant.utils.logger import logger
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -1175,6 +1176,111 @@ async def preview_resume(
         media_type="application/pdf",
         headers=headers,
     )
+
+
+@router.get("/preview/{resume_id}/image")
+async def preview_resume_image(
+    resume_id: int,
+    token: str = None,
+    page: int = 1,
+    db: Session = Depends(get_db)
+):
+    """PDF 第一页转 PNG 图片预览（绕过 Chrome PDF Viewer）
+
+    前端直接 `<img :src="url" />` 使用，不再需要 iframe。
+    非 PDF 文件返回原始文件（由前端自行处理）。
+    """
+    # ── 1. 认证 ──
+    if not token:
+        raise HTTPException(status_code=401, detail="缺少认证凭据")
+    payload = verify_token(token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="无效的认证凭据")
+    user_id = int(payload.get("sub"))
+
+    # ── 2. 查询简历 ──
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == user_id
+    ).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在")
+
+    # ── 3. 读取文件 ──
+    try:
+        file_bytes = file_manager.download_file(resume.file_path)
+    except Exception:
+        raise HTTPException(status_code=500, detail="文件读取失败")
+
+    file_type = (resume.file_type or "").lower()
+
+    # ── 4. 非 PDF 直接返回原始文件（如图片） ──
+    if file_type != "pdf":
+        mime_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                     "gif": "image/gif", "webp": "image/webp", "bmp": "image/bmp"}
+        media_type = mime_map.get(file_type, "application/octet-stream")
+        return Response(content=file_bytes, media_type=media_type,
+                        headers={"Cache-Control": "private, max-age=86400"})
+
+    # ── 5. PDF → 图片 ──
+    try:
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        total_pages = len(doc)
+        page_idx = max(0, min(page - 1, total_pages - 1))
+        page_obj = doc[page_idx]
+        pix = page_obj.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x = 144 DPI
+        img_bytes = pix.tobytes("png")
+        doc.close()
+    except Exception as e:
+        logger.error(f"PDF 转图片失败 resume_id={resume_id}: {e}")
+        raise HTTPException(status_code=500, detail="PDF 渲染失败")
+
+    return Response(
+        content=img_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "private, max-age=86400",
+            "X-Page-Count": str(total_pages),
+            "X-Current-Page": str(page),
+        }
+    )
+
+
+@router.get("/preview/{resume_id}/page-count")
+async def preview_resume_page_count(
+    resume_id: int,
+    token: str = None,
+    db: Session = Depends(get_db)
+):
+    """获取 PDF 总页数"""
+    if not token:
+        raise HTTPException(status_code=401, detail="缺少认证凭据")
+    payload = verify_token(token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="无效的认证凭据")
+    user_id = int(payload.get("sub"))
+
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == user_id
+    ).first()
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在")
+
+    file_type = (resume.file_type or "").lower()
+    if file_type != "pdf":
+        return {"total_pages": 1, "file_type": file_type}
+
+    try:
+        file_bytes = file_manager.download_file(resume.file_path)
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        total = len(doc)
+        doc.close()
+    except Exception as e:
+        logger.error(f"获取 PDF 页数失败 resume_id={resume_id}: {e}")
+        raise HTTPException(status_code=500, detail="PDF 解析失败")
+
+    return {"total_pages": total, "file_type": file_type}
 
 
 @router.post("/precache", response_model=Dict[str, Any])
