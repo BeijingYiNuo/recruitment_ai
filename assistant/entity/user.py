@@ -7,7 +7,7 @@ from assistant.enums import UserRole
 class User(Base):
     """用户表"""
     __tablename__ = "user"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="用户ID")
     username = Column(String(50), nullable=False, comment="用户名")
     recruiter_id = Column(Integer, nullable=False, comment="招聘官ID")
@@ -16,6 +16,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
     role = Column(Enum(UserRole), nullable=True, default=UserRole.RECRUITER, comment="角色")
     status = Column(String(20), nullable=False, default="CREATED", comment="状态")
+    wechat_openid = Column(String(64), unique=True, nullable=True, comment="微信 OpenID，用于微信登录绑定")
     created_at = Column(DateTime, nullable=False, default=func.now(), comment="创建时间")
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), comment="更新时间")
     last_login_at = Column(DateTime, comment="最后登录时间")

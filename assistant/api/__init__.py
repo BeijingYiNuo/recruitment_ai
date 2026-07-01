@@ -8,6 +8,7 @@ from assistant.api.position import router as position_router
 from assistant.api.interview_report import router as interview_report_router
 
 from assistant.api.interview_reserve import router as interview_reserve_router
+from assistant.api.wechat import router as wechat_router
 from assistant.user_management.auth_middleware import get_current_user_id
 
 # 创建主路由器
@@ -29,6 +30,9 @@ for route in user_router.routes:
 # 包含所有子路由器
 # 公开接口（注册和登录）不需要认证
 api_router.include_router(public_router)
+
+# 微信接口（回调由微信服务器调用，验证码登录无需认证；bind 路由自身有 JWT 校验）
+api_router.include_router(wechat_router)
 
 # 其他所有接口都需要认证
 api_router.include_router(
